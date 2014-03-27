@@ -44,30 +44,35 @@ begin
 end
 endfunction
 
+/* 0 = first method, 1 = second method */
 function integer syndrome_method;
 	input [31:0] m;
+	input [31:0] t;
 	input [31:0] s;
 	integer done;
 	integer s_size;
 	integer i;
 	integer n;
+	integer first_way;
 begin
 	done = 0;
 	n = (1 << m) - 1;
 	s_size = syndrome_size(m, s);
 
-	syndrome_method = s_size == m ? 0 : 1;
 	done = 0;
 	i = s;
+	first_way = 1;
 	while (!done) begin
-		if (i <= s_size) begin
+		if (i <= 2*t-1) begin
 			if (i != s)
-				syndrome_method = 1;
+				first_way = 0;
 		end
 		i = (i * 2) % n;
 		if (i == s)
 			done = 1;
 	end
+	first_way = first_way && s_size == m;
+	syndrome_method = !first_way;
 end
 endfunction
 

@@ -38,7 +38,7 @@ wire [M-1:0] dout5 = out[5*M+:M];
 /* LFSR registers */
 generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin
-		if (syndrome_method(M, idx2syn(M, idx)) == 0) begin
+		if (syndrome_method(M, T, idx2syn(M, idx)) == 0) begin
 			/* First method */
 			for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin
 				always @(posedge clk) begin
@@ -66,7 +66,7 @@ endgenerate
 /* Data output */
 genvar dat;
 for (dat = 1; dat < 2 * T; dat = dat + 1) begin
-	if (syndrome_method(M, dat2syn(M, dat)) == 0)
+	if (syndrome_method(M, T, dat2syn(M, dat)) == 0)
 		/* First method */
 		assign out[dat*M+:M] = syndromes[dat2idx(M, dat)*M+:M];
 	else begin
