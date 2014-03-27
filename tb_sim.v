@@ -22,6 +22,7 @@ reg [N-1:0] error = 0;
 reg [$clog2(ITERATIONS+1)-1:0] iter = ITERATIONS;
 
 function [K-1:0] randk;
+	input [31:0] useless;
 	integer i;
 begin
 	for (i = 0; i < (31 + K) / 32; i = i + 1)
@@ -33,6 +34,7 @@ end
 endfunction
 
 function integer n_errors;
+	input [31:0] useless;
 	integer i;
 begin
 	n_errors = (32'h7fff_ffff & $random(seed)) % (T + 1);
@@ -88,9 +90,9 @@ reg [31:0] s;
 always @(negedge vdin) begin
 	s = seed;
 	#1;
-	din <= randk();
+	din <= randk(0);
 	#1;
-	nerr <= n_errors();
+	nerr <= n_errors(0);
 	#1;
 	error <= rande(nerr);
 	#1;
