@@ -29,18 +29,20 @@ function integer syndrome_size;
 	integer b;
 	integer c;
 	integer done;
+	integer ret;
 begin
-	syndrome_size = 0;
+	ret = 0;
 	b = lpow(m, s);
 	c = b;
 	done = 0;
 
 	while (!done) begin
-		syndrome_size = syndrome_size + 1;
+		ret = ret + 1;
 		c = mul(m, c, c);
 		if (c == b)
 			done = 1;
 	end
+	syndrome_size = ret;
 end
 endfunction
 
@@ -125,14 +127,15 @@ function integer syndrome_count;
 	input [31:0] m;
 	input [31:0] t;
 	integer s;
-
+	integer ret;
 begin
 	s = 1;
-	syndrome_count = 0;
+	ret = 0;
 	while (s <= 2 * t - 1) begin
-		syndrome_count = syndrome_count + 1;
+		ret = ret + 1;
 		s = next_syndrome(m, s);
 	end
+	syndrome_count = ret;
 end
 endfunction
 
@@ -146,13 +149,15 @@ function integer syn2idx;
 	input [31:0] m;
 	input [31:0] syn;
 	integer s;
+	integer ret;
 begin
 	s = 1;
-	syn2idx = 0;
+	ret = 0;
 	while (s != syn) begin
-		syn2idx = syn2idx + 1;
+		ret = ret + 1;
 		s = next_syndrome(m, s);
 	end
+	syn2idx = ret;
 end
 endfunction
 
@@ -160,13 +165,15 @@ function integer idx2syn;
 	input [31:0] m;
 	input [31:0] idx;
 	integer i;
+	integer ret;
 begin
-	idx2syn = 1;
+	ret = 1;
 	i = 0;
 	while (i != idx) begin
 		i = i + 1;
-		idx2syn = next_syndrome(m, idx2syn);
+		ret = next_syndrome(m, ret);
 	end
+	idx2syn = ret;
 end
 endfunction
 
@@ -177,26 +184,27 @@ function integer dat2syn;
 	integer i;
 	integer n;
 	integer done;
+	integer ret;
 begin
 	s = 1;
-	dat2syn = 0;
+	ret = 0;
 
 	n = (1 << m) - 1;
-	while (!dat2syn) begin
+	while (!ret) begin
 		done = 0;
 		i = s;
-		while (!done && !dat2syn) begin
+		while (!done && !ret) begin
 			if (i == dat)
-				dat2syn = s;
+				ret = s;
 			i = (i * 2) % n;
 			if (i == s)
 				done = 1;
 		end
 		if (i == dat)
-			dat2syn = s;
+			ret = s;
 		s = next_syndrome(m, s);
 	end
-
+	dat2syn = ret;
 end
 endfunction
 
@@ -208,9 +216,10 @@ function integer dat2idx;
 	integer n;
 	integer done1;
 	integer done2;
+	integer ret;
 begin
 	s = 1;
-	dat2idx = 0;
+	ret = 0;
 	done1 = 0;
 	n = (1 << m) - 1;
 	while (!done1) begin
@@ -225,7 +234,8 @@ begin
 		end
 		s = next_syndrome(m, s);
 		if (!done1)
-			dat2idx = dat2idx + 1;
+			ret = ret + 1;
 	end
+	dat2idx = ret;
 end
 endfunction

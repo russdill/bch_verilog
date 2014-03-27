@@ -94,12 +94,14 @@ function integer standard_to_dual;
 	input [31:0] m;
 	input [31:0] standard;
 	integer i;
+	integer ret;
 begin
-	standard_to_dual = 0;
+	ret = 0;
 	for (i = 0; i < m; i = i + 1) begin
 		if (standard & (1 << i))
-			standard_to_dual = standard_to_dual ^ conversion_term(m, i);
+			ret = ret ^ conversion_term(m, i);
 	end
+	standard_to_dual = ret;
 end
 endfunction
 
@@ -107,10 +109,12 @@ function integer bch_rev;
 	input [31:0] m;
 	input [31:0] in;
 	integer i;
+	integer ret;
 begin
-	bch_rev = 0;
+	ret = 0;
 	for (i = 0; i < m; i = i + 1)
-		bch_rev = (bch_rev << 1) | in[i];
+		ret = (ret << 1) | in[i];
+	bch_rev = ret;
 end
 endfunction
 
@@ -119,11 +123,13 @@ function integer mul1;
 	input [31:0] m;
 	input [MAX_M:0] x;
 	integer l;
+	integer ret;
 begin
 	l = bch_rev(m, bch_polynomial(m));
-	mul1 = x >> 1;
+	ret = x >> 1;
 	if (x & 1)
-		mul1 = mul1 ^ l;
+		ret = ret ^ l;
+	mul1 = ret;
 end
 endfunction
 
@@ -133,16 +139,17 @@ function integer mul;
 	input [MAX_M:0] a;
 	input [MAX_M:0] b;
 	integer i;
-
+	integer ret;
 begin
-	mul = 0;
+	ret = 0;
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
-			mul = mul1(m, mul);
+			ret = mul1(m, ret);
 			if (b & (1 << i))
-				mul = mul ^ a;
+				ret = ret ^ a;
 		end
 	end
+	mul = ret;
 end
 endfunction
 
@@ -165,12 +172,13 @@ function integer lpow;
 	input [31:0] m;
 	input [31:0] x;
 	integer i;
-
+	integer ret;
 begin
-	lpow = 1 << (m - 1);
+	ret = 1 << (m - 1);
 	x = x % ((1 << m) - 1); 
 	repeat (x)
-		lpow = mul1(m, lpow);
+		ret = mul1(m, ret);
+	lpow = ret;
 end
 endfunction
 
