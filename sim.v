@@ -68,7 +68,7 @@ assign comBOut = comB[BUF_SIZE-1];
 assign encIn = encBOut && !reset;
 assign vdin0_1 = (!vdinPrev && vdin) || reset;
 assign decIn = (encOut ^ err) && !reset;
-assign wrongIn = (decOut ^ comBOut) && !reset && vdout;
+assign wrongIn = (decOut !== comBOut) && !reset && vdout && (vdout !== 1'bx) && (vdout !== 1'bz);
 assign clkEnc = INTERLEAVE > 1 ? (clkEncEn && !clk) : clk;
 assign clkEncEn = INTERLEAVE > 1 ? !ci : 1'b1;
 assign dout = decB;
