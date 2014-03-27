@@ -156,7 +156,7 @@ end
 
 generate
 	/* cN dshr */
-	for (i = 2; i <= T; i = i + 1) begin
+	for (i = 2; i <= T; i = i + 1) begin : c
 		always @(posedge clk) begin
 			if (cbBeg)
 				cNout[i*M+:M] <= #TCQ 0;
@@ -166,7 +166,7 @@ generate
 	end
 
 	/* ccN drdce */
-	for (i = 2; i < T - 1; i = i + 1) begin
+	for (i = 2; i < T - 1; i = i + 1) begin : cc
 		always @(posedge clk) begin
 			if (ccCe)
 				ccNout[i*M+:M] <= #TCQ cNout[i*M+:M];
@@ -174,12 +174,13 @@ generate
 	end
 
 	/* mbN */
-	for (i = 3; i <= T; i = i + 1)
+	for (i = 3; i <= T; i = i + 1) begin : mb
 		dsdbm #(M) u_dsdbm(
 			.dual_in(bNout[i*M+:M]),
 			.standard_in(dm),
 			.out(cin[i])
 		);
+	end
 endgenerate
 
 if (T > 3) begin
@@ -194,15 +195,15 @@ generate
 			if (b4set)
 				bNout[4*M+:M] <= #TCQ {{M-1{1'b0}}, b4sIn};
 			else if (caLast)
-				bNout[4*M+:M] <= #TCQ ccNout[2*M+:M]; /* FIXME: Beyond ccNout */
+				bNout[4*M+:M] <= #TCQ ccNout[2*M+:M];
 		end
 	end
 
 	/* bN drdce */
-	for (i = 5; i <= T; i = i + 1) begin
+	for (i = 5; i <= T; i = i + 1) begin : b
 		always @(posedge clk)
 			if (caLast)				/* bNin, xbN dmul21 */
-				bNout[i*M+:M] <= #TCQ xbsel ? ccNout[(i-2)*M+:M] : bNout[(i-2)*M+:M]; /* FIXME: Beyond ccNout */
+				bNout[i*M+:M] <= #TCQ xbsel ? ccNout[(i-2)*M+:M] : bNout[(i-2)*M+:M];
 	end
 endgenerate
 
@@ -274,18 +275,19 @@ wire [M-1:0] c3out = cNout[3*M+:M];
 
 /* snNe dandm */
 assign snNen[0+:M] = c0first ? snNout[0+:M] : 0;
-for (i = 1; i <= T; i = i + 1)
+for (i = 1; i <= T; i = i + 1) begin : sn
 	assign snNen[i*M+:M] = cNout[i*M] ? snNout[i*M+:M] : 0;
+end
 
 /* xN dmul21 */
-for (i = 0; i < 2*T-1; i = i + 1) begin
+for (i = 0; i < 2*T-1; i = i + 1) begin : x
 	if (i != T + 1 || T > 3)
 		assign snNin[M*i+:M] = synpe ? synN[M*((2*T+1-i)%(2*T-1)+1)+:M] : snNout[M*((i+(2*T-3))%(2*T-1))+:M];
 end
 
 /* sN drdce */
 generate
-	for (i = 0; i < 2*T-1; i = i + 1) begin
+	for (i = 0; i < 2*T-1; i = i + 1) begin : s
 		if (i == T + 1 && T < 4) begin
 			always @(posedge clk)
 				if (synpe)
@@ -299,13 +301,16 @@ generate
 endgenerate
 
 /* snNen dandm/msN doxrt */
-for (i = 0; i < M; i = i + 1)
-	for (j = 0; j <= T; j = j + 1)
+for (i = 0; i < M; i = i + 1) begin : snen
+	for (j = 0; j <= T; j = j + 1) begin : ms
 		assign rearranged[i*(T+1)+j] = snNen[j*M+i];
+	end
+end
 
 assign cs[0] = ^rearranged[0*(T+1)+:T+1];
-for (i = 1; i < M; i = i + 1)
+for (i = 1; i < M; i = i + 1) begin : cs_arrange
 	assign cs[i] = ^rearranged[i*(T+1)+:T+1];
+end
 
 chien #(M, T) u_chien(
 	.clk(clk),

@@ -61,8 +61,9 @@ module chien #(
 	endgenerate
 
 	/* cheg dcheq */
-	for (i = 0; i < M*T; i = i + 1)
+	for (i = 0; i < M*T; i = i + 1) begin : CHEG
 		assign chien_mask[i] = !(i % M);
+	end
 
 	for (i = 0; i < M; i = i + 1)
 		assign eq[i] = ^(chout[M*(T+1)-1:M] & (chien_mask << i));
