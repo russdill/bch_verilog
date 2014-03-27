@@ -40,7 +40,7 @@ generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin
 		if (syndrome_method(M, T, idx2syn(M, idx)) == 0) begin
 			/* First method */
-			for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin
+			for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
 				always @(posedge clk) begin
 					if (pe)
 						syndromes[idx*M+bit_pos] <= #TCQ bit_pos ? 1'b0 : din;
@@ -65,15 +65,16 @@ endgenerate
 
 /* Data output */
 genvar dat;
-for (dat = 1; dat < 2 * T; dat = dat + 1) begin
+for (dat = 1; dat < 2 * T; dat = dat + 1) begin : assign_dat
 	if (syndrome_method(M, T, dat2syn(M, dat)) == 0)
 		/* First method */
 		assign out[dat*M+:M] = syndromes[dat2idx(M, dat)*M+:M];
 	else begin
 		/* Second method */
-		for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1)
+		for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : second
 			assign out[dat*M+bit_pos] =
 				^(syndromes[dat2idx(M, dat)*M+:M] & second_way_terms(M, dat, bit_pos));
+		end
 	end
 end
 

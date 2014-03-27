@@ -56,8 +56,9 @@ module chien #(
 	generate
 		/* Chien search */
 		/* chN dchN */
-		for (i = 1; i <= T; i = i + 1)
+		for (i = 1; i <= T; i = i + 1) begin : ch
 			dch #(M, i) u_ch(clk, cei, chpe, cNout[i*M+:M], chout[i*M+:M]);
+		end
 	endgenerate
 
 	/* cheg dcheq */
