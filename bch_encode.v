@@ -29,12 +29,12 @@ function [(1<<MAX_M)-1:0] encoder_poly;
 	integer done;
 	integer curr;
 	integer prev;
-	reg [(1<<MAX_M)-1:0] poly [1024]; /* FIXME: Not big enough for M=16 */
+	reg [(1<<MAX_M)*1024-1:0] poly; /* FIXME: 1024 Not big enough for M=16 */
 
 begin
-	poly[0] = 1 << (m - 1);
+	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1 << (m - 1);
 	for (i = 1; i < 1024; i = i + 1)
-		poly[i] = 0;
+		poly[i*(1<<MAX_M)+:1<<MAX_M] = 0;
 
 	n = (1 << m) - 1;
 	nk1 = m;
@@ -48,11 +48,11 @@ begin
 		while (!done) begin
 			prev = 0;
 			for (i = 0; i < nk1; i = i + 1) begin
-				curr = poly[i];
-				poly[i] = mul(m, curr, c) ^ prev;
+				curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
+				poly[i*(1<<MAX_M)+:1<<MAX_M] = mul(m, curr, c) ^ prev;
 				prev = curr;
 			end
-			poly[i] = prev;
+			poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 			nk = nk + 1;
 			c = mul(m, c, c);
 			if (c == b)
@@ -69,7 +69,7 @@ begin
 	k = n - nk;
 	encoder_poly = 0;
 	for (i = 0; i < nk; i = i + 1) begin
-		if (poly[i])
+		if (|poly[i*(1<<MAX_M)+:1<<MAX_M])
 			encoder_poly = encoder_poly | (1 << i);
 	end
 end
