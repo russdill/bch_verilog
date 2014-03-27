@@ -6,7 +6,7 @@
  * t = correctable bits
  */
 
-localparam MAX_M = 31;
+localparam MAX_M = 16;
 
 /* Trinomial */
 function [MAX_M:0] P3;
@@ -43,22 +43,7 @@ begin
 		P5(4, 3, 1),
 		P5(5, 3, 1),
 		P3(1),		/* m=15 */
-		P5(12, 3, 1),
-		P3(1),
-		P3(1),
-		P5(6, 5, 1),
-		P3(1),		/* m=20 */
-		P3(2),
-		P3(1),
-		P3(5),
-		P5(4, 3, 1),
-		P3(3),		/* m=25 */
-		P5(4, 3, 1),
-		P5(5, 2, 1),
-		P3(1),
-		P3(2),
-		P3(1),		/* m=30 */
-		P3(3)
+		P5(12, 3, 1)
 	};
 	bch_polynomial = p[(MAX_M+1)*(MAX_M-m)+:MAX_M+1];
 end
