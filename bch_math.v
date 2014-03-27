@@ -160,7 +160,7 @@ module dinv #(
 	input snce,
 	input synpe,
 	input [M-1:0] in,
-	output reg [M-1:0] out
+	output [M-1:0] out
 );
 	`include "bch.vh"
 
