@@ -132,7 +132,7 @@ endfunction
 /* Multiply by alpha x*l^1 */
 function integer mul1;
 	input [31:0] m;
-	input [31:0] x;
+	input [MAX_M:0] x;
 	integer l;
 begin
 	l = bch_rev(m, bch_polynomial(m));
@@ -145,8 +145,8 @@ endfunction
 /* a * b */
 function integer mul;
 	input [31:0] m;
-	input [31:0] a;
-	input [31:0] b;
+	input [MAX_M:0] a;
+	input [MAX_M:0] b;
 	integer i;
 
 begin
@@ -164,7 +164,7 @@ endfunction
 /* x^n */
 function integer pow;
 	input [31:0] m;
-	input [31:0] x;
+	input [MAX_M:0] x;
 	input [31:0] p;
 	integer i;
 

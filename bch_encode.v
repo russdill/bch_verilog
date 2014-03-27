@@ -14,7 +14,7 @@ module bch_encode #(
 
 `include "bch.vh"
 
-function integer encoder_poly;
+function [(1<<MAX_M)-1:0] encoder_poly;
 	input [31:0] m;
 	input [31:0] t;
 	integer n;
@@ -29,7 +29,7 @@ function integer encoder_poly;
 	integer done;
 	integer curr;
 	integer prev;
-	reg [31:0] poly [1024];
+	reg [(1<<MAX_M)-1:0] poly [1024]; /* FIXME: Not big enough for M=16 */
 
 begin
 	poly[0] = 1 << (m - 1);

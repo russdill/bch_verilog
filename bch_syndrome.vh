@@ -76,7 +76,7 @@ begin
 end
 endfunction
 
-function integer syndrome_poly;
+function [(1<<MAX_M)-1:0] syndrome_poly;
 	input [31:0] m;
 	input [31:0] s;
 	integer i;
@@ -86,10 +86,10 @@ function integer syndrome_poly;
 	integer curr;
 	integer prev;
 	integer s_size;
-	reg [31:0] poly [16];
+	reg [(1<<MAX_M)-1:0] poly [MAX_M];
 begin
 	poly[0] = 1 << (m - 1);
-	for (i = 1; i < 16; i = i + 1)
+	for (i = 1; i < MAX_M; i = i + 1)
 		poly[i] = 0;
 
 	b = lpow(m, s);
@@ -99,7 +99,7 @@ begin
 
 	while (!done) begin
 		prev = 0;
-		for (i = 0; i < 15; i = i + 1) begin
+		for (i = 0; i < MAX_M; i = i + 1) begin
 			curr = poly[i];
 			poly[i] = mul(m, curr, c) ^ prev;
 			prev = curr;
