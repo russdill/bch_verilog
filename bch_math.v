@@ -49,8 +49,9 @@ module dpdbm #(
 
 	assign all = {aux, dual_in};
 
-	for (i = 0; i < M - 1; i = i + 1)
+	for (i = 0; i < M - 1; i = i + 1) begin : aux_assign
 		assign aux[i] = dual_in[i] ^ ^({aux, dual_in} & (aux_mask << i));
+	end
 
 	generate
 		for (i = 0; i < M; i = i + 1) begin : MN
@@ -116,8 +117,9 @@ module dmli #(
 	endfunction
 
 	genvar i;
-	for (i = 0; i < M; i = i + 1)
+	for (i = 0; i < M; i = i + 1) begin : out_assign
 		assign out[i] = ^(in & mli_terms(M, i));
+	end
 endmodule
 
 module dsq #(
@@ -140,8 +142,9 @@ module dsq #(
 	endfunction
 
 	genvar i;
-	for (i = 0; i < M; i = i + 1)
+	for (i = 0; i < M; i = i + 1) begin : out_assign
 		assign out[i] = ^(in & sq_terms(M, i));
+	end
 endmodule
 
 /* Finite field inversion */

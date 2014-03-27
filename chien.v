@@ -66,7 +66,8 @@ module chien #(
 		assign chien_mask[i] = !(i % M);
 	end
 
-	for (i = 0; i < M; i = i + 1)
+	for (i = 0; i < M; i = i + 1) begin : assign_eq
 		assign eq[i] = ^(chout[M*(T+1)-1:M] & (chien_mask << i));
+	end
 	assign err = !(eq ^ 1'b1);
 endmodule
