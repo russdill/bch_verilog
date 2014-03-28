@@ -51,25 +51,29 @@ begin
 end
 endfunction
 
+function integer ham;
+	input [31:0] m;
+	integer p;
+	integer ret;
+begin
+	p = bch_polynomial(m);
+	ret = 1;
+	while (p) begin
+		if (p & 1)
+			ret = ret + 1;
+		p = p >> 1;
+	end
+	ham = ret;
+end
+endfunction
+
 /*
  * Non-zero if irreducible polynomial is of the form x^m + x^P1 + x^P2 + x^P3 + 1
  * zero for x^m + x^P + 1
  */
 function integer bch_is_pentanomial;
 	input [31:0] m;
-	integer i;
-	integer degree;
-	integer p;
-begin
-	p = bch_polynomial(m);
-	degree = 1;
-	while (p) begin
-		if (p & 1)
-			degree = degree + 1;
-		p = p >> 1;
-	end
-	bch_is_pentanomial = degree == 5 ? 1 : 0;
-end
+	bch_is_pentanomial = ham(m) == 5 ? 1 : 0;
 endfunction
 
 function integer polyi;
