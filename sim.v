@@ -20,7 +20,7 @@ module sim #(
 `include "bch.vh"
 
 localparam TCQ = 1;
-localparam M = $clog2(N+2) - 1;
+localparam M = n2m(N);
 localparam INTERLEAVE = calc_interleave(N, T);
 localparam ITERATION = M + 2;
 localparam CHPE = T * ITERATION - 2;

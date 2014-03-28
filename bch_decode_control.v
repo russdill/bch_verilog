@@ -11,7 +11,7 @@ module count_ready #(
 	output ready
 );
 	`include "bch.vh"
-	localparam M = $clog2(N + 2) - 1;
+	localparam M = n2m(N);
 	localparam ITERATION = M + 2;
 	localparam INTERLEAVE = calc_interleave(N, T);
 	localparam C = COUNT % (N * INTERLEAVE);
@@ -47,7 +47,7 @@ module bch_decode_control #(
 `include "bch.vh"
 
 localparam TCQ = 1;
-localparam M = $clog2(N + 2) - 1;
+localparam M = n2m(N);
 localparam ITERATION = M + 2;
 localparam INTERLEAVE = calc_interleave(N, T);
 localparam CHPE = T * ITERATION - 2;
@@ -113,7 +113,7 @@ always @(posedge clk) begin
 
 	/* l1 dcl */
 	if (synpe)
-		l <= #TCQ {{$clog2(T+2)-1{1'b0}}, bsel};
+		l <= #TCQ {{log2(T+1)-1{1'b0}}, bsel};
 	else if (lCe && bsel)
 		/* 2 * cb - l + 1 */
 		l <= #TCQ ((cb << 1) | 1'b1) - l;

@@ -6,6 +6,8 @@
  * t = correctable bits
  */
 
+`include "log2.vh"
+
 localparam MAX_M = 16;
 
 /* Trinomial */
@@ -72,7 +74,7 @@ endfunction
 
 function integer polyi;
 	input [31:0] m;
-	polyi = $clog2((bch_polynomial(m) >> 1) + 1);
+	polyi = log2(bch_polynomial(m) >> 1);
 endfunction
 
 function integer conversion_term;
@@ -206,6 +208,13 @@ begin
 end
 endfunction
 
+function integer n2m;
+	input [31:0] n;
+begin
+	n2m = log2(n+1) - 1;
+end
+endfunction
+
 function integer calc_interleave;
 	input [31:0] n;
 	input [31:0] t;
@@ -215,7 +224,7 @@ function integer calc_interleave;
 	integer m;
 	integer iteration;
 begin
-	m = $clog2(n+2) - 1;
+	m = n2m(n);
 	iteration = m + 2;
 	calc_interleave = 1;
 	done = 0;

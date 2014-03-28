@@ -76,7 +76,7 @@ end
 endfunction
 
 localparam TCQ = 1;
-localparam M = $clog2(N + 2) - 1;
+localparam M = n2m(N);
 
 reg [N-K-1:0] lfsr = 0;
 reg [M-1:0] count = 1;
