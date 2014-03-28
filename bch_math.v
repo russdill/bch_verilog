@@ -102,17 +102,18 @@ module dmli #(
 		integer poly;
 		integer pos;
 		integer b;
+		integer ret;
 	begin
-		mli_terms = 0;
+		ret = 0;
 		poly = bch_rev(m, bch_polynomial(m));
 		pos = polyi(m);
 		for (i = 0; i < m; i = i + 1) begin
 			b = 1 << (m - 1 - i);
 			for (j = 0; j < pos; j = j + 1)
 				b = (b << 1) | ((b & poly) ? 1'b1 : 1'b0);
-			mli_terms = mli_terms | (((b >> (m - 1 - bit_pos)) & 1) << i);
+			ret = ret | (((b >> (m - 1 - bit_pos)) & 1) << i);
 		end
-
+		mli_terms = ret;
 	end
 	endfunction
 
@@ -134,10 +135,12 @@ module dsq #(
 		input [31:0] m;
 		input [31:0] bit_pos;
 		integer i;
+		integer ret;
 	begin
-		sq_terms = 0;
+		ret = 0;
 		for (i = 0; i < m; i = i + 1)
-			sq_terms = sq_terms | (((lpow(m, i * 2) >> (m - 1 - bit_pos)) & 1) << i);
+			ret = ret | (((lpow(m, i * 2) >> (m - 1 - bit_pos)) & 1) << i);
+		sq_terms = ret;
 	end
 	endfunction
 
