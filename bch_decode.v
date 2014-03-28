@@ -80,7 +80,7 @@ always @(posedge clk)
 assign b3ce = caLast && !cbBeg;
 assign b2ce = synpe || b3ce;
 
-assign dra = synpe ? syn1 : dr;
+assign dra = synpe ? synN[1*M+:M] : dr;
 
 /* qdrOr drdr1ce */
 always @(posedge clk)
@@ -128,7 +128,7 @@ end
 
 assign xbsel = bsel || cbBeg;
 assign ccCe = (msmpe && cbBeg) || caLast;
-assign c1in = {syn1[M-2:0], syn1[M-1]};
+assign c1in = {synN[1*M+M-2], synN[1*M+M-1]};
 /* c1 dshpe */
 always @(posedge clk) begin
 	if (synpe)
@@ -246,33 +246,38 @@ reg [M*(2*T-1)-1:0] snNout = 0;
 wire [M*(T+1)-1:0] snNen;
 wire [M*(2*T-1)-1:0] snNin;
 
-wire [M-1:0] syn1 = synN[M*1+:M];
+/* Debug to easily access syndromes, etc */
+for (i = 1; i < 2*T; i = i + 1) begin : syn
+	wire [M-1:0] syn = synN[i*M+:M];
+end
 
+for (i = 0; i < T+1; i = i + 1) begin : rearranged_
+	wire [M-1:0] rearranged_ = rearranged[i*M+:M];
+end
 
-wire [M-1:0] sn0en = snNen[M*0+:M];
-wire [M-1:0] sn1en = snNen[M*1+:M];
-wire [M-1:0] sn2en = snNen[M*2+:M];
-wire [M-1:0] sn3en = snNen[M*3+:M];
+for (i = 0; i < 2*T-1; i = i + 1) begin : sn_out
+	wire [M-1:0] sn_out = snNout[i*M+:M];
+end
 
-wire [M-1:0] syn2 = synN[M*2+:M];
-wire [M-1:0] syn3 = synN[M*3+:M];
-wire [M-1:0] syn4 = synN[M*4+:M];
-wire [M-1:0] syn5 = synN[M*5+:M];
+for (i = 0; i < T+1; i = i + 1) begin : sn_en
+	wire [M-1:0] sn_en = snNen[i*M+:M];
+end
 
-wire [M-1:0] sn0in = snNin[M*0+:M];
-wire [M-1:0] sn1in = snNin[M*1+:M];
-wire [M-1:0] sn2in = snNin[M*2+:M];
-wire [M-1:0] sn3in = snNin[M*3+:M];
+for (i = 0; i < 2*T-1; i = i + 1) begin : sn_in
+	wire [M-1:0] sn_in = snNin[i*M+:M];
+end
 
-wire [M-1:0] sn0out = snNout[M*0+:M];
-wire [M-1:0] sn1out = snNout[M*1+:M];
-wire [M-1:0] sn2out = snNout[M*2+:M];
-wire [M-1:0] sn3out = snNout[M*3+:M];
-wire [M-1:0] sn4out = snNout[M*4+:M];
+for (i = 1; i < T+1; i = i + 1) begin : c_out
+	wire [M-1:0] c_out = cNout[i*M+:M];
+end
 
-wire [M-1:0] c1out = cNout[1*M+:M];
-wire [M-1:0] c2out = cNout[2*M+:M];
-wire [M-1:0] c3out = cNout[3*M+:M];
+for (i = 2; i < T-1; i = i + 1) begin : cc_out
+	wire [M-1:0] cc_out = ccNout[i*M+:M];
+end
+
+for (i = 3; i < T+1; i = i + 1) begin : b_out
+	wire [M-1:0] b_out = bNout[i*M+:M];
+end
 
 if (OPTION != "SERIAL")
 	only_serial_decoder_available u_osda();

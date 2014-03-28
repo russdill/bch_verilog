@@ -23,17 +23,6 @@ genvar syn_done;
 
 localparam SYN_COUNT = syndrome_count(M, T);
 reg [SYN_COUNT*M-1:0] syndromes = 0;
-/*
-wire [M-1:0] syn1 = syndromes[0*M+:M];
-wire [M-1:0] syn3 = syndromes[1*M+:M];
-wire [M-1:0] syn5 = syndromes[2*M+:M];
-
-wire [M-1:0] dout1 = out[1*M+:M];
-wire [M-1:0] dout2 = out[2*M+:M];
-wire [M-1:0] dout3 = out[3*M+:M];
-wire [M-1:0] dout4 = out[4*M+:M];
-wire [M-1:0] dout5 = out[5*M+:M];
-*/
 
 /* LFSR registers */
 generate
