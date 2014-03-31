@@ -1,3 +1,5 @@
+`include "bch.vh"
+
 function integer first_way_terms;
 	input [31:0] m;
 	input [31:0] s;

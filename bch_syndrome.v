@@ -1,5 +1,46 @@
 `timescale 1ns / 1ps
 
+module dsynN #(
+	parameter M = 4,
+	parameter T = 3,
+	parameter IDX = 0
+) (
+	input clk,
+	input ce,
+	input pe,
+	input din,
+	output reg [M-1:0] synN = 0
+);
+	`include "bch_syndrome.vh"
+
+	localparam TCQ = 1;
+
+	genvar bit_pos;
+
+	if (syndrome_method(M, T, idx2syn(M, IDX)) == 0) begin
+	/* First method */
+		for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
+			always @(posedge clk) begin
+				if (pe)
+					synN[bit_pos] <= #TCQ bit_pos ? 1'b0 : din;
+				else if (ce)
+					synN[bit_pos] <= #TCQ
+						^(synN & first_way_terms(M, idx2syn(M, IDX), bit_pos)) ^
+						(bit_pos ? 0 : din);
+			end
+		end
+	end else begin
+		/* Second method */
+		always @(posedge clk) begin
+			if (pe)
+				synN <= #TCQ {{M-1{1'b0}}, din};
+			else if (ce)
+				synN <= #TCQ {synN[0+:syndrome_size(M, idx2syn(M, IDX))-1], din} ^
+					(syndrome_poly(M, idx2syn(M, IDX)) & {M{synN[syndrome_size(M, idx2syn(M, IDX))-1]}});
+		end
+	end
+endmodule
+
 module bch_syndrome #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
@@ -13,7 +54,6 @@ module bch_syndrome #(
 	output reg [(2*T-1)*M-1:0] snNout = 0
 );
 
-`include "bch.vh"
 `include "bch_syndrome.vh"
 
 localparam TCQ = 1;
@@ -25,33 +65,18 @@ genvar idx;
 genvar syn_done;
 
 localparam SYN_COUNT = syndrome_count(M, T);
-reg [SYN_COUNT*M-1:0] syndromes = 0;
+wire [SYN_COUNT*M-1:0] syndromes;
 
 /* LFSR registers */
 generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : syndrome_gen
-		if (syndrome_method(M, T, idx2syn(M, idx)) == 0) begin
-			/* First method */
-			for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
-				always @(posedge clk) begin
-					if (pe)
-						syndromes[idx*M+bit_pos] <= #TCQ bit_pos ? 1'b0 : din;
-					else if (ce)
-						syndromes[idx*M+bit_pos] <= #TCQ
-							^(syndromes[idx*M+:M] & first_way_terms(M, idx2syn(M, idx), bit_pos)) ^
-							(bit_pos ? 0 : din);
-				end
-			end
-		end else begin
-			/* Second method */
-			always @(posedge clk) begin
-				if (pe)
-					syndromes[idx*M+:M] <= #TCQ {{M-1{1'b0}}, din};
-				else if (ce)
-					syndromes[idx*M+:M] <= #TCQ {syndromes[idx*M+:syndrome_size(M, idx2syn(M, idx))-1], din} ^
-						(syndrome_poly(M, idx2syn(M, idx)) & {M{syndromes[idx*M+syndrome_size(M, idx2syn(M, idx))-1]}});
-			end
-		end
+		dsynN #(M, T, idx) u_syn(
+			.clk(clk),
+			.ce(ce),
+			.pe(pe),
+			.din(din),
+			.synN(syndromes[idx*M+:M])
+		);
 	end
 endgenerate
 
