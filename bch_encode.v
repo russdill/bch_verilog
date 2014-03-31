@@ -79,7 +79,7 @@ localparam TCQ = 1;
 localparam M = n2m(N);
 
 reg [N-K-1:0] lfsr = 0;
-reg [M-1:0] count = 1;
+wire [M-1:0] count;
 reg vdin1 = 0;
 
 wire rin = din && !reset;
@@ -90,18 +90,18 @@ wire rin0 = rll && (lfsr[N-K-1] ^ din);
 
 assign vdin = vdin1 && !reset;
 
+finite_counter #(M) u_counter(
+	.clk(clk),
+	.reset(reset),
+	.count(count)
+);
+
 always @(posedge clk) begin
 	/* c1 ecount */
 	if (count == bch_rev(M, lpow(M, K - 1)))
 		vdin1 <= #TCQ 1'b0;
 	else if (count == bch_rev(M, lpow(M, N - 1)) || reset)
 		vdin1 <= #TCQ 1'b1;
-
-	if (reset)
-		count <= #TCQ 1'b1;
-	else
-		count <= #TCQ {count[M-2:0], 1'b0} ^ 
-			({M{count[M-1]}} & bch_polynomial(M));
 
 	/* r1 ering */
 	if (reset)

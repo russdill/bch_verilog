@@ -303,3 +303,19 @@ module generate_cs #(
 	end
 
 endmodule
+
+module finite_counter #(
+	parameter M = 4
+) (
+	input clk,
+	input reset,
+	output reg [M-1:0] count = 1
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+
+	always @(posedge clk)
+		count <= #TCQ reset ? 1'b1 : {count[M-2:0], 1'b0} ^
+			({M{count[M-1]}} & bch_polynomial(M));
+endmodule
