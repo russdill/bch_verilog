@@ -221,6 +221,24 @@ begin
 end
 endfunction
 
+function integer calc_iteration;
+	input [31:0] n;
+	input [31:0] t;
+	input [31:0] is_serial;
+	integer ret;
+	integer m;
+begin
+	m = n2m(n);
+	if (t == 2)
+		ret = 1;
+	else if (is_serial)
+		ret = m + 2;
+	else
+		ret = 3;
+	calc_iteration = ret;
+end
+endfunction
+
 function integer calc_interleave;
 	input [31:0] n;
 	input [31:0] t;
@@ -230,19 +248,21 @@ function integer calc_interleave;
 	integer done;
 	integer m;
 	integer iteration;
+	integer ret;
 begin
 	m = n2m(n);
-	iteration = t == 2 ? 1 : (is_serial ? m + 2 : 3);
-	calc_interleave = 1;
+	iteration = calc_iteration(n, t, is_serial);
+	ret = 1;
 	done = 0;
 	while (!done) begin
 		chpe = t * iteration - 2;
-		vdout = chpe + calc_interleave + 2 - chpe % calc_interleave;
-		if (vdout - 2 < n * calc_interleave)
+		vdout = chpe + ret + 2 - chpe % ret;
+		if (vdout - 2 < n * ret)
 			done = 1;
 		else
-			calc_interleave = calc_interleave + 1;
+			ret = ret + 1;
 	end
+	calc_interleave = ret;
 end
 endfunction
 
