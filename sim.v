@@ -22,11 +22,11 @@ module sim #(
 localparam TCQ = 1;
 localparam M = n2m(N);
 localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
-localparam ITERATION = (OPTION == "SERIAL") ? (M + 2) : 3;
+localparam ITERATION = calc_iteration(N, T, OPTION == "SERIAL");
 if (OPTION != "SERIAL" && OPTION != "PARALLEL")
 	illegal_option_value u_iov();
 localparam CHPE = T * ITERATION - 2;
-localparam VDOUT = CHPE + INTERLEAVE + 2 - CHPE % INTERLEAVE;
+localparam VDOUT = (T < 3) ? 3 : (CHPE + INTERLEAVE + 2 - CHPE % INTERLEAVE);
 localparam BUF_SIZE = (INTERLEAVE > 1) ? (N + 2 + VDOUT / INTERLEAVE) : (N + VDOUT + 1);
 
 reg [K-1:0] encB = 0;
