@@ -165,11 +165,12 @@ function integer pow;
 	input [MAX_M:0] x;
 	input [31:0] p;
 	integer i;
-
+	integer ret;
 begin
-	pow = x;
+	ret = x;
 	repeat (p - 1)
-		pow = mul(m, pow, x);
+		ret = mul(m, ret, x);
+	pow = ret;
 end
 endfunction
 
@@ -194,21 +195,22 @@ function integer next_syndrome;
 	integer n;
 	integer tmp;
 	integer done;
-
+	integer ret;
 begin
 	n = (1 << m) - 1;
-	next_syndrome = s + 2;
-	tmp = next_syndrome;
+	ret = s + 2;
+	tmp = ret;
 	done = 0;
 
 	while (!done) begin
 		tmp = (tmp * 2) % n;
-		if (tmp < next_syndrome) begin
-			next_syndrome = next_syndrome + 2;
-			tmp = next_syndrome;
-		end else if (tmp == next_syndrome)
+		if (tmp < ret) begin
+			ret = ret + 2;
+			tmp = ret;
+		end else if (tmp == ret)
 			done = 1;
 	end
+	next_syndrome = ret;
 end
 endfunction
 

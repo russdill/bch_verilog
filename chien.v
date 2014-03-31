@@ -19,10 +19,12 @@ module dch #(
 		input [31:0] bit_pos;
 		input [31:0] no;
 		integer i;
+		integer ret;
 	begin
-		chien_terms = 0;
+		ret = 0;
 		for (i = 0; i < m; i = i + 1)
-			chien_terms = chien_terms | (((lpow(M, i + no) >> (m - 1 - bit_pos)) & 1) << i);
+			ret = ret | (((lpow(M, i + no) >> (m - 1 - bit_pos)) & 1) << i);
+		chien_terms = ret;
 	end
 	endfunction
 
