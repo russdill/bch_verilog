@@ -1,0 +1,42 @@
+Verilog BCH encoder/decoder.
+
+This is a Verilog based BCH encoder and decoder for single bit, dual bit, and
+3 or more bit error correction. The equations and layout for the encoder
+and decoders is taken from "The design of a vhdl based synthesis tool for bch
+codecs." by Ernest Jamro.
+
+The decoder/encoder is completely parameterizable. The three main parameters
+are:
+
+N - The size of the codeword
+K - The size of the data to be encoded
+T - The number of bits that can be corrected
+
+The number of extra bits generated can be given by subtracting K from N.
+
+Used throughout the code is M, the degree of the polynomial used, "N =
+(1 << M) - 1".
+
+The code currently does not support pentanomials (eg, m=8). The Jamro paper
+supports m=8 but only through a special case, a more general solution
+is desired so that m=12 can also be supported.
+
+The code currently compiles under Icarus Verilog and Xilinx Isim. Because
+the way the parameterization is handled, simulation is slow, especially
+for larger values of M.
+
+TODO:
+
+Support encoding/decoding an abrirary value for K (padded data) and N (padded
+codewords).
+
+Support processing multiple databits per clock cycle, ideally 8 (one byte).
+
+Support pentanomials.
+
+Make code easier to integrate into designs, start/done signal?
+
+Improve simulation times.
+
+
+-- Russ Dill <russ.dill@asu.edu>
