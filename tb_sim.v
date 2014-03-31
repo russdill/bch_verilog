@@ -7,7 +7,6 @@ parameter K = 11;
 parameter T = 5;
 parameter OPTION = "SERIAL";
 parameter SEED = 0;
-parameter ITERATIONS = 100;
 
 reg [31:0] seed = SEED;
 
@@ -95,7 +94,7 @@ always @(negedge vdin) begin
 	#1;
 	error <= rande(nerr);
 	#1;
-	$display("%b %d flips - %b (seed = %d), last received - %b", din, nerr, error, s, dout);
+	$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
 end
 
 initial begin
