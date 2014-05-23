@@ -382,7 +382,7 @@ module generate_cs #(
 
 endmodule
 
-module finite_counter #(
+module lfsr_counter #(
 	parameter M = 4
 ) (
 	input clk,

@@ -38,10 +38,10 @@ module dec_decode #(
 	reg ff1 = 0;
 	reg ff3 = 0;
 
-	assign pe = count == 1'b1; 
-	assign cef = count == bch_rev(M, lpow(M, 1));
+	assign pe = count == lfsr_count(M, 0);
+	assign cef = count == lfsr_count(M, 1);
 	assign vdoutS = nFirst && cef;
-	assign vdoutR = reset || count == bch_rev(M, lpow(M, K + 1));
+	assign vdoutR = reset || count == lfsr_count(M, K + 1);
 
 	if (T > 1) begin
 		assign neq = power != ch3;
@@ -95,7 +95,8 @@ module dec_decode #(
 		);
 	end
 
-	finite_counter #(M) u_counter(
+	/* Counts up to M^2-1 */
+	lfsr_counter #(M) u_counter(
 		.clk(clk),
 		.reset(reset),
 		.count(count)

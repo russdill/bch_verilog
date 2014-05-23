@@ -90,7 +90,7 @@ wire rin0 = rll && (lfsr[N-K-1] ^ din);
 
 assign vdin = vdin1 && !reset;
 
-finite_counter #(M) u_counter(
+lfsr_counter #(M) u_counter(
 	.clk(clk),
 	.reset(reset),
 	.count(count)
@@ -98,9 +98,9 @@ finite_counter #(M) u_counter(
 
 always @(posedge clk) begin
 	/* c1 ecount */
-	if (count == bch_rev(M, lpow(M, K - 1)))
+	if (count == lfsr_count(M, K - 1))
 		vdin1 <= #TCQ 1'b0;
-	else if (count == bch_rev(M, lpow(M, N - 1)) || reset)
+	else if (count == lfsr_count(M, N - 1) || reset)
 		vdin1 <= #TCQ 1'b1;
 
 	/* r1 ering */
