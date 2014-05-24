@@ -6,9 +6,9 @@ module dsynN #(
 	parameter IDX = 0
 ) (
 	input clk,
-	input ce,
-	input pe,
-	input din,
+	input ce,			/* Accept additional bit */
+	input start,			/* Accept first bit of syndrome */
+	input data_in,
 	output reg [M-1:0] synN = 0
 );
 	`include "bch_syndrome.vh"
@@ -21,21 +21,21 @@ module dsynN #(
 	/* First method */
 		for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
 			always @(posedge clk) begin
-				if (pe)
-					synN[bit_pos] <= #TCQ bit_pos ? 1'b0 : din;
+				if (start)
+					synN[bit_pos] <= #TCQ bit_pos ? 1'b0 : data_in;
 				else if (ce)
 					synN[bit_pos] <= #TCQ
 						^(synN & first_way_terms(M, idx2syn(M, IDX), bit_pos)) ^
-						(bit_pos ? 0 : din);
+						(bit_pos ? 0 : data_in);
 			end
 		end
 	end else begin
 		/* Second method */
 		always @(posedge clk) begin
-			if (pe)
-				synN <= #TCQ {{M-1{1'b0}}, din};
+			if (start)
+				synN <= #TCQ {{M-1{1'b0}}, data_in};
 			else if (ce)
-				synN <= #TCQ {synN[0+:syndrome_size(M, idx2syn(M, IDX))-1], din} ^
+				synN <= #TCQ {synN[0+:syndrome_size(M, idx2syn(M, IDX))-1], data_in} ^
 					(syndrome_poly(M, idx2syn(M, IDX)) & {M{synN[syndrome_size(M, idx2syn(M, IDX))-1]}});
 		end
 	end
@@ -46,9 +46,9 @@ module bch_syndrome #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input ce,
-	input pe,
-	input snce,
+	input syn_ce,		/* Accept syndrome bit */
+	input start,		/* Accept first syndrome bit */
+	input shuffle_ce,	/* Shuffle cycle */
 	input din,
 	output [2*T*M-1:M] out,
 	output reg [(2*T-1)*M-1:0] snNout = 0
@@ -72,9 +72,9 @@ generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : syndrome_gen
 		dsynN #(M, T, idx) u_syn(
 			.clk(clk),
-			.ce(ce),
-			.pe(pe),
-			.din(din),
+			.ce(syn_ce),
+			.start(start),
+			.data_in(din),
 			.synN(syndromes[idx*M+:M])
 		);
 	end
@@ -102,12 +102,12 @@ generate
 	for (i = 0; i < 2*T-1; i = i + 1) begin : s
 		if (i == T + 1 && T < 4) begin
 			always @(posedge clk)
-				if (pe)
+				if (start)
 					snNout[i*M+:M] <= #TCQ out[(3*T-i-1)*M+:M];
 		end else begin
 			always @(posedge clk)
-				if (snce)				/* xN dmul21 */
-					snNout[i*M+:M] <= #TCQ pe ? out[M*((2*T+1-i)%(2*T-1)+1)+:M] : snNout[M*((i+(2*T-3))%(2*T-1))+:M];
+				if (shuffle_ce)				/* xN dmul21 */
+					snNout[i*M+:M] <= #TCQ start ? out[M*((2*T+1-i)%(2*T-1)+1)+:M] : snNout[M*((i+(2*T-3))%(2*T-1))+:M];
 		end
 	end
 endgenerate

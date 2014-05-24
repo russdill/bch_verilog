@@ -10,7 +10,7 @@ module tmec_decode_parallel #(
 	input snce,
 	input bsel,
 	input msmpe,
-	input chpe,
+	input ch_start,
 	input [M-1:0] syn1,
 	input [M*(2*T-1)-1:0] snNout,
 
@@ -76,7 +76,7 @@ module tmec_decode_parallel #(
 			cNout[0*M+:M] <= #TCQ mcNout[0*M+:M];
 
 		/* ch0 drdce */
-		if (chpe)
+		if (ch_start)
 			chNout[0*M+:M] <= #TCQ cNout[0*M+:M];
 
 		/* c1 drdce */

@@ -1,5 +1,7 @@
 `timescale 1ns / 1ps
 
+/* Chien search, determines roots of a polynomial defined over a finite field */
+
 module dch #(
 	parameter M = 4,
 	parameter P = 1
@@ -8,7 +10,7 @@ module dch #(
 	input err,		/* Error was found so correct it */
 	input errcheck,		/* Try to see if an error was found */
 	input ce,
-	input pe,
+	input start,
 	input [M-1:0] in,
 	output [M-1:0] out
 );
@@ -35,7 +37,7 @@ module dch #(
 	assign out = _out ^ errcheck;
 
 	always @(posedge clk) begin
-		if (pe)
+		if (start)
 			_out <= #TCQ in;
 		else if (ce) begin
 			for (i = 0; i < M; i = i + 1)
@@ -50,7 +52,7 @@ module chien #(
 ) (
 	input clk,
 	input cei,
-	input chpe,
+	input ch_start,
 	input [M*(T+1)-1:0] cNout,
 	output err
 );
@@ -63,7 +65,15 @@ module chien #(
 		/* Chien search */
 		/* chN dchN */
 		for (i = 0; i <= T; i = i + 1) begin : ch
-			dch #(M, i) u_ch(clk, 1'b0, 1'b0, cei, chpe, cNout[i*M+:M], chNout[i*M+:M]);
+			dch #(M, i) u_ch(
+				.clk(clk),
+				.err(1'b0),
+				.errcheck(1'b0),
+				.ce(cei),
+				.start(ch_start),
+				.in(cNout[i*M+:M]),
+				.out(chNout[i*M+:M]))
+			;
 		end
 	endgenerate
 

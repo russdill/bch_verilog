@@ -6,10 +6,10 @@ module bch_encode #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input reset,
-	input din,
-	output vdin,
-	output reg dout = 0
+	input reset,		/* Reset LFSR */
+	input din,		/* Input data */
+	output vdin,		/* Accepting input data */
+	output reg dout = 0	/* Encoded output */
 );
 
 `include "bch.vh"

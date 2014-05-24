@@ -139,6 +139,7 @@ module tmec_decode_serial #(
 		serial_cannot_handle_pentanomials_yet u_schpy();
 
 	end else begin
+		/* Basis rearranging */
 		dmli #(M) mli_dmli(
 			.in(drpd),
 			.out(dli)

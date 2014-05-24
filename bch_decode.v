@@ -19,9 +19,9 @@ if (T < 3) begin
 	dec_decode #(N, K, T) u_decode(
 		.clk(clk),
 		.reset(reset),
-		.din(din),
-		.vdout(vdout),
-		.dout(dout)
+		.data_in(din),
+		.output_valid(vdout),
+		.data_out(dout)
 	);
 end else begin
 	tmec_decode #(N, K, T, OPTION) u_decode(

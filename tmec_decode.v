@@ -34,7 +34,7 @@ wire [M*(T+1)-1:0] cNout;
 wire bsel;
 wire synpe;
 wire msmpe;
-wire chpe;
+wire ch_start;
 wire drnzero;
 wire snce;
 wire cei;
@@ -57,7 +57,7 @@ if (OPTION == "PARALLEL") begin
 		.snce(snce),
 		.bsel(bsel),
 		.msmpe(msmpe),
-		.chpe(chpe),
+		.ch_start(ch_start),
 		.syn1(synN[1*M+:M]),
 		.snNout(snNout),
 		.drnzero(drnzero),
@@ -91,7 +91,7 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 	.bsel(bsel),
 	.bufCe(bufCe),
 	.bufkCe(bufkCe),
-	.chpe(chpe),
+	.ch_start(ch_start),
 	.msmpe(msmpe),
 	.snce(snce),
 	.synpe(synpe),
@@ -108,9 +108,9 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 /* sN dsynN */
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
-	.ce(cei),
-	.pe(synpe),
-	.snce(snce),
+	.syn_ce(cei),
+	.start(synpe),
+	.shuffle_ce(snce),
 	.din(din),
 	.out(synN),
 	.snNout(snNout)
@@ -119,7 +119,7 @@ bch_syndrome #(M, T) u_bch_syndrome(
 chien #(M, T) u_chien(
 	.clk(clk),
 	.cei(cei),
-	.chpe(chpe),
+	.ch_start(ch_start),
 	.cNout(cNout),
 	.err(err)
 );

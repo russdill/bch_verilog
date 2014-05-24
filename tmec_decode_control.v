@@ -32,7 +32,7 @@ module tmec_decode_control #(
 	output bsel,
 	output bufCe,
 	output bufkCe,
-	output chpe,
+	output ch_start,
 	output msmpe,
 	output snce,
 	output synpe,
@@ -84,7 +84,7 @@ reg noFirstVdout = 0;
 reg bufCe1 = 0;
 
 count_ready #(N, K, T, OPTION, N * INTERLEAVE - 1, ITERATION)		u_clast(ca, cb, clast);
-count_ready #(N, K, T, OPTION, CHPE, ITERATION)				u_chpe(ca, cb, chpe);
+count_ready #(N, K, T, OPTION, CHPE, ITERATION)				u_ch_start(ca, cb, ch_start);
 count_ready #(N, K, T, OPTION, VDOUT - 2 + K * INTERLEAVE, ITERATION)	u_vdout1R(ca, cb, vdout1R);
 count_ready #(N, K, T, OPTION, VDOUT - 2, ITERATION)			u_vdout1S(ca, cb, vdout1S);
 count_ready #(N, K, T, OPTION, K * INTERLEAVE - 1, ITERATION)		u_bufR(ca, cb, bufR);
