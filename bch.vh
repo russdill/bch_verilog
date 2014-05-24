@@ -147,13 +147,13 @@ function integer mul;
 begin
 	ret = 0;
 	if (a && b) begin
-		for (i = 0; i < m; i = i + 1) begin
-			ret = bch_rev(m, mul1(m, bch_rev(m, ret)));
-			if (b & (1 << i))
-				ret = ret ^ a;
+		for (i = m - 1; i >= 0; i = i - 1) begin
+			ret = mul1(m, ret);
+			if (bch_rev(m, b) & (1 << i))
+				ret = ret ^ bch_rev(m, a);
 		end
 	end
-	mul = ret;
+	mul = bch_rev(m, ret);
 end
 endfunction
 
