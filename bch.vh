@@ -181,12 +181,11 @@ function integer lpow;
 	integer i;
 	integer ret;
 begin
-
-	ret = 1 << (m - 1);
+	ret = 1;
 	x = x % m2n(m);
 	repeat (x)
-		ret = mul1(m, ret);
-	lpow = ret;
+		ret = bch_rev(m, mul1(m, bch_rev(m, ret)));
+	lpow = bch_rev(m, ret);
 end
 endfunction
 
