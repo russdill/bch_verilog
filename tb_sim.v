@@ -10,6 +10,10 @@ parameter SEED = 0;
 
 reg [31:0] seed = SEED;
 
+initial begin
+	$dumpfile("test.vcd");
+	$dumpvars(0);
+end
 
 localparam TCQ = 1;
 
@@ -59,11 +63,6 @@ wire vdout;
 wire wrongNow;
 wire wrong;
 wire [K-1:0] dout;
-
-initial begin
-	$dumpfile("test.vcd");
-        $dumpvars(0);
-end
 
 sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
