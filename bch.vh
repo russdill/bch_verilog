@@ -153,7 +153,7 @@ begin
 				ret = ret ^ bch_rev(m, a);
 		end
 	end
-	mul = bch_rev(m, ret);
+	mul = ret;
 end
 endfunction
 
@@ -167,7 +167,7 @@ function integer pow;
 begin
 	ret = x;
 	repeat (p - 1)
-		ret = mul(m, ret, x);
+		ret = bch_rev(m, mul(m, ret, x));
 	pow = ret;
 end
 endfunction
