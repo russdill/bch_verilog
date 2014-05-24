@@ -157,21 +157,6 @@ begin
 end
 endfunction
 
-/* x^n */
-function integer pow;
-	input [31:0] m;
-	input [MAX_M:0] x;
-	input [31:0] p;
-	integer i;
-	integer ret;
-begin
-	ret = bch_rev(m, x);
-	repeat (p - 1)
-		ret = mul(m, ret, bch_rev(m, x));
-	pow = bch_rev(m, ret);
-end
-endfunction
-
 /* L^x */
 function integer lpow;
 	input [31:0] m;
