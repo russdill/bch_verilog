@@ -181,8 +181,9 @@ function integer lpow;
 	integer i;
 	integer ret;
 begin
+
 	ret = 1 << (m - 1);
-	x = x % ((1 << m) - 1); 
+	x = x % m2n(m);
 	repeat (x)
 		ret = mul1(m, ret);
 	lpow = ret;
@@ -218,6 +219,13 @@ function integer n2m;
 	input [31:0] n;
 begin
 	n2m = log2(n+1) - 1;
+end
+endfunction
+
+function integer m2n;
+	input [31:0] m;
+begin
+	m2n = (1 << m) - 1;
 end
 endfunction
 
