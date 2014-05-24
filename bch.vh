@@ -149,8 +149,8 @@ begin
 	if (a && b) begin
 		for (i = m - 1; i >= 0; i = i - 1) begin
 			ret = mul1(m, ret);
-			if (bch_rev(m, b) & (1 << i))
-				ret = ret ^ bch_rev(m, a);
+			if (b & (1 << i))
+				ret = ret ^ a;
 		end
 	end
 	mul = ret;
@@ -165,10 +165,10 @@ function integer pow;
 	integer i;
 	integer ret;
 begin
-	ret = x;
+	ret = bch_rev(m, x);
 	repeat (p - 1)
-		ret = bch_rev(m, mul(m, ret, x));
-	pow = ret;
+		ret = mul(m, ret, bch_rev(m, x));
+	pow = bch_rev(m, ret);
 end
 endfunction
 

@@ -34,13 +34,13 @@ function integer syndrome_size;
 	integer ret;
 begin
 	ret = 0;
-	b = bch_rev(m, lpow(m, s));
+	b = lpow(m, s);
 	c = b;
 	done = 0;
 
 	while (!done) begin
 		ret = ret + 1;
-		c = bch_rev(m, mul(m, c, c));
+		c = mul(m, c, c);
 		if (c == b)
 			done = 1;
 	end
@@ -105,14 +105,14 @@ begin
 		prev = 0;
 		for (i = 0; i < MAX_M; i = i + 1) begin
 			curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
-			poly[i*(1<<MAX_M)+:1<<MAX_M] = bch_rev(m, mul(m, curr, c)) ^ prev;
+			poly[i*(1<<MAX_M)+:1<<MAX_M] = bch_rev(m, mul(m, bch_rev(m, curr), bch_rev(m, c))) ^ prev;
 			prev = curr;
 		end
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 
 		s_size = s_size + 1;
 
-		c = bch_rev(m, mul(m, c, c));
+		c = bch_rev(m, mul(m, bch_rev(m, c), bch_rev(m, c)));
 		if (c == b)
 			done = 1;
 	end
