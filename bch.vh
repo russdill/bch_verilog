@@ -128,14 +128,12 @@ endfunction
 function integer mul1;
 	input [31:0] m;
 	input [MAX_M:0] x;
-	integer l;
 	integer ret;
 begin
-	l = bch_rev(m, bch_polynomial(m));
-	ret = x >> 1;
+	ret = bch_rev(m, x >> 1);
 	if (x & 1)
-		ret = ret ^ l;
-	mul1 = ret;
+		ret = ret ^ bch_polynomial(m);
+	mul1 = bch_rev(m, ret);
 end
 endfunction
 
