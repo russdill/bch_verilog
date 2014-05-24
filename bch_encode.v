@@ -61,7 +61,7 @@ begin
 
 		next_s = next_syndrome(m, s);
 		for (i = 0; i < next_s - s; i = i + 1)
-			b = bch_rev(m, mul1(m, b));
+			b = bch_rev(m, mul1(m, bch_rev(m, b)));
 		s = next_s;
 		nk1 = nk + m;
 	end

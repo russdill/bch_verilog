@@ -130,8 +130,8 @@ function integer mul1;
 	input [MAX_M:0] x;
 	integer ret;
 begin
-	ret = bch_rev(m, x >> 1);
-	if (x & 1)
+	ret = (x << 1) & m2n(m);
+	if (x & bch_rev(m, 1))
 		ret = ret ^ bch_polynomial(m);
 	mul1 = ret;
 end
@@ -148,7 +148,7 @@ begin
 	ret = 0;
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
-			ret = bch_rev(m, mul1(m, ret));
+			ret = bch_rev(m, mul1(m, bch_rev(m, ret)));
 			if (b & (1 << i))
 				ret = ret ^ a;
 		end
@@ -182,7 +182,7 @@ begin
 	ret = 1;
 	x = x % m2n(m);
 	repeat (x)
-		ret = mul1(m, bch_rev(m, ret));
+		ret = mul1(m, ret);
 	lpow = ret;
 end
 endfunction
