@@ -25,7 +25,7 @@ module dch #(
 	begin
 		ret = 0;
 		for (i = 0; i < m; i = i + 1)
-			ret = ret | (((lpow(M, i + no) >> (m - 1 - bit_pos)) & 1) << i);
+			ret = ret | (((lpow(M, i + no) >> bit_pos) & 1) << i);
 		chien_terms = ret;
 	end
 	endfunction

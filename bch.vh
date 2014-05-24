@@ -185,7 +185,7 @@ begin
 	x = x % m2n(m);
 	repeat (x)
 		ret = bch_rev(m, mul1(m, bch_rev(m, ret)));
-	lpow = bch_rev(m, ret);
+	lpow = ret;
 end
 endfunction
 
@@ -277,7 +277,7 @@ function integer lfsr_count;
 	input [31:0] m;
 	input [31:0] n;
 begin
-	lfsr_count = bch_rev(m, lpow(m, n));
+	lfsr_count = lpow(m, n);
 end
 endfunction
 

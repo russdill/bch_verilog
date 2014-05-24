@@ -213,7 +213,7 @@ module dsq #(
 	begin
 		ret = 0;
 		for (i = 0; i < m; i = i + 1)
-			ret = ret | (((lpow(m, i * 2) >> (m - 1 - bit_pos)) & 1) << i);
+			ret = ret | (((lpow(m, i * 2) >> bit_pos) & 1) << i);
 		sq_terms = ret;
 	end
 	endfunction
@@ -300,7 +300,7 @@ module pow3 #(
 		integer ret;
 	begin
 		s = (m * (m + 1)) / 2;
-		mask = 1 << (m - 1 - bit_pos);
+		mask = 1 << bit_pos;
 		k = 1;
 
 		ret = 0;
