@@ -76,6 +76,7 @@ function integer bch_is_pentanomial;
 	bch_is_pentanomial = ham(m) == 5 ? 1 : 0;
 endfunction
 
+/* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
 function integer polyi;
 	input [31:0] m;
 	polyi = log2(bch_polynomial(m) >> 1);
