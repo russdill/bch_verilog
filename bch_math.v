@@ -171,22 +171,14 @@ module dmli #(
 	function integer mli_terms;
 		input [31:0] m;
 		input [31:0] bit_pos;
-		integer i;
-		integer j;
-		integer poly;
 		integer pos;
-		integer b;
 		integer ret;
 	begin
-		ret = 0;
-		poly = bch_polynomial(m);
 		pos = polyi(m);
-		for (i = 0; i < m; i = i + 1) begin
-			b = 1 << i;
-			for (j = 0; j < pos; j = j + 1)
-				b = (b >> 1) | ((b & poly) ? (1 << m) : 1'b0);
-			ret = ret | ((b & (1 << bit_pos)) ? (1 << i) : 1'b0);
-		end
+		if (pos + bit_pos < m)
+			ret = 1 << (pos + bit_pos);
+		else
+			ret = bch_polynomial(m) << (pos + bit_pos - m);
 		mli_terms = ret;
 	end
 	endfunction
