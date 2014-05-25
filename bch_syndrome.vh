@@ -92,11 +92,11 @@ function [(1<<MAX_M)-1:0] syndrome_poly;
 	integer s_size;
 	reg [(1<<MAX_M)*MAX_M-1:0] poly;
 begin
-	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1 << (m - 1);
+	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1;
 	for (i = 1; i < MAX_M; i = i + 1)
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = 0;
 
-	b = bch_rev(m, lpow(m, s));
+	b = lpow(m, s);
 	c = b;
 	done = 0;
 	s_size = 0;
@@ -105,14 +105,14 @@ begin
 		prev = 0;
 		for (i = 0; i < MAX_M; i = i + 1) begin
 			curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
-			poly[i*(1<<MAX_M)+:1<<MAX_M] = bch_rev(m, mul(m, bch_rev(m, curr), bch_rev(m, c))) ^ prev;
+			poly[i*(1<<MAX_M)+:1<<MAX_M] = mul(m, curr, c) ^ prev;
 			prev = curr;
 		end
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 
 		s_size = s_size + 1;
 
-		c = bch_rev(m, mul(m, bch_rev(m, c), bch_rev(m, c)));
+		c = mul(m, c, c);
 		if (c == b)
 			done = 1;
 	end
