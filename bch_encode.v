@@ -32,7 +32,7 @@ function [(1<<MAX_M)-1:0] encoder_poly;
 	reg [(1<<MAX_M)*1024-1:0] poly; /* FIXME: 1024 Not big enough for M=16 */
 
 begin
-	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1 << (m - 1);
+	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1;
 	for (i = 1; i < 1024; i = i + 1)
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = 0;
 
@@ -40,7 +40,7 @@ begin
 	nk1 = m;
 	nk = 0;
 	s = 1;
-	b = 1 << (m - 2);
+	b = 2;
 	while (2 * t - 1 >= s) begin
 
 		c = b;
@@ -49,19 +49,19 @@ begin
 			prev = 0;
 			for (i = 0; i < nk1; i = i + 1) begin
 				curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
-				poly[i*(1<<MAX_M)+:1<<MAX_M] = bch_rev(m, mul(m, bch_rev(m, curr), bch_rev(m, c))) ^ prev;
+				poly[i*(1<<MAX_M)+:1<<MAX_M] = mul(m, curr, c) ^ prev;
 				prev = curr;
 			end
 			poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 			nk = nk + 1;
-			c = bch_rev(m, mul(m, bch_rev(m, c), bch_rev(m, c)));
+			c = mul(m, c, c);
 			if (c == b)
 				done = 1;
 		end
 
 		next_s = next_syndrome(m, s);
 		for (i = 0; i < next_s - s; i = i + 1)
-			b = bch_rev(m, mul1(m, bch_rev(m, b)));
+			b = mul1(m, b);
 		s = next_s;
 		nk1 = nk + m;
 	end
