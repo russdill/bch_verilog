@@ -131,10 +131,10 @@ function integer mul1;
 	input [MAX_M:0] x;
 	integer ret;
 begin
-	ret = (x << 1) & m2n(m);
-	if (x & bch_rev(m, 1))
+	ret = x << 1;
+	if (ret & (1 << m))
 		ret = ret ^ bch_polynomial(m);
-	mul1 = ret;
+	mul1 = ret & m2n(m);
 end
 endfunction
 
