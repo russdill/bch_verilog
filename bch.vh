@@ -125,23 +125,24 @@ begin
 end
 endfunction
 
-/* a * b */
+/* a * b for finite field */
 function integer mul;
 	input [31:0] m;
 	input [MAX_M:0] a;
 	input [MAX_M:0] b;
 	integer i;
-	integer ret;
+	integer p;
 begin
-	ret = 0;
+	p = 0;
 	if (a && b) begin
-		for (i = m - 1; i >= 0; i = i - 1) begin
-			ret = mul1(m, ret);
-			if (b & (1 << i))
-				ret = ret ^ a;
+		for (i = 0; i < m; i = i + 1) begin
+			if (b & 1)
+				p = p ^ a;
+			a = mul1(m, a);
+			b = b >> 1;
 		end
 	end
-	mul = ret;
+	mul = p;
 end
 endfunction
 
