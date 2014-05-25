@@ -112,19 +112,6 @@ begin
 end
 endfunction
 
-function integer bch_rev;
-	input [31:0] m;
-	input [31:0] in;
-	integer i;
-	integer ret;
-begin
-	ret = 0;
-	for (i = 0; i < m; i = i + 1)
-		ret = (ret << 1) | in[i];
-	bch_rev = ret;
-end
-endfunction
-
 /* Multiply by alpha x*l^1 */
 function integer mul1;
 	input [31:0] m;
