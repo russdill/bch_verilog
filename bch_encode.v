@@ -17,7 +17,6 @@ module bch_encode #(
 function [(1<<MAX_M)-1:0] encoder_poly;
 	input [31:0] m;
 	input [31:0] t;
-	integer n;
 	integer nk1;
 	integer nk;
 	integer s;
@@ -36,7 +35,6 @@ begin
 	for (i = 1; i < 1024; i = i + 1)
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = 0;
 
-	n = (1 << m) - 1;
 	nk1 = m;
 	nk = 0;
 	s = 1;
@@ -66,7 +64,7 @@ begin
 		nk1 = nk + m;
 	end
 
-	k = n - nk;
+	k = m2n(m) - nk;
 	encoder_poly = 0;
 	for (i = 0; i < nk; i = i + 1) begin
 		if (|poly[i*(1<<MAX_M)+:1<<MAX_M])

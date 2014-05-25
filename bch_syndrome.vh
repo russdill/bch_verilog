@@ -56,22 +56,20 @@ function integer syndrome_method;
 	integer done;
 	integer s_size;
 	integer i;
-	integer n;
 	integer first_way;
 begin
 	done = 0;
-	n = (1 << m) - 1;
 	s_size = syndrome_size(m, s);
 
 	done = 0;
 	i = s;
 	first_way = 1;
 	while (!done) begin
-		if (i <= 2*t-1) begin
+		if (i <= 2 * t - 1) begin
 			if (i != s)
 				first_way = 0;
 		end
-		i = (i * 2) % n;
+		i = (i * 2) % m2n(m);
 		if (i == s)
 			done = 1;
 	end
@@ -184,21 +182,19 @@ function integer dat2syn;
 	input [31:0] dat;
 	integer s;
 	integer i;
-	integer n;
 	integer done;
 	integer ret;
 begin
 	s = 1;
 	ret = 0;
 
-	n = (1 << m) - 1;
 	while (!ret) begin
 		done = 0;
 		i = s;
 		while (!done && !ret) begin
 			if (i == dat)
 				ret = s;
-			i = (i * 2) % n;
+			i = (i * 2) % m2n(m);
 			if (i == s)
 				done = 1;
 		end
@@ -215,7 +211,6 @@ function integer dat2idx;
 	input [31:0] dat;
 	integer s;
 	integer i;
-	integer n;
 	integer done1;
 	integer done2;
 	integer ret;
@@ -223,14 +218,13 @@ begin
 	s = 1;
 	ret = 0;
 	done1 = 0;
-	n = (1 << m) - 1;
 	while (!done1) begin
 		done2 = 0;
 		i = s;
 		while (!done1 && !done2) begin
 			if (i == dat)
 				done1 = 1;
-			i = (i * 2) % n;
+			i = (i * 2) % m2n(m);
 			if (i == s)
 				done2 = 1;
 		end

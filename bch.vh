@@ -163,18 +163,16 @@ endfunction
 function integer next_syndrome;
 	input [31:0] m;
 	input [31:0] s;
-	integer n;
 	integer tmp;
 	integer done;
 	integer ret;
 begin
-	n = (1 << m) - 1;
 	ret = s + 2;
 	tmp = ret;
 	done = 0;
 
 	while (!done) begin
-		tmp = (tmp * 2) % n;
+		tmp = (tmp * 2) % m2n(m);
 		if (tmp < ret) begin
 			ret = ret + 2;
 			tmp = ret;
