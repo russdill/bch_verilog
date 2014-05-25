@@ -179,13 +179,13 @@ module dmli #(
 		integer ret;
 	begin
 		ret = 0;
-		poly = bch_rev(m, bch_polynomial(m));
+		poly = bch_polynomial(m);
 		pos = polyi(m);
 		for (i = 0; i < m; i = i + 1) begin
-			b = 1 << (m - 1 - i);
+			b = 1 << i;
 			for (j = 0; j < pos; j = j + 1)
-				b = (b << 1) | ((b & poly) ? 1'b1 : 1'b0);
-			ret = ret | (((b >> (m - 1 - bit_pos)) & 1) << i);
+				b = (b >> 1) | ((b & poly) ? (1 << m) : 1'b0);
+			ret = ret | ((b & (1 << bit_pos)) ? (1 << i) : 1'b0);
 		end
 		mli_terms = ret;
 	end
