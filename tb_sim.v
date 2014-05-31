@@ -3,8 +3,8 @@
 module tb_sim();
 
 parameter N = 15;
-parameter K = 11;
-parameter T = 1;
+parameter K = 5;
+parameter T = 3;
 parameter OPTION = "SERIAL";
 parameter SEED = 0;
 
@@ -58,7 +58,9 @@ begin
 end
 endfunction
 
-wire vdin;
+reg encode_start = 0;
+wire encode_clk;
+wire encoded_penult;
 wire vdout;
 wire wrongNow;
 wire wrong;
@@ -66,10 +68,12 @@ wire [K-1:0] dout;
 
 sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
+	.clkEnc(encode_clk),
 	.reset(reset),
 	.din(din),
 	.error(error),
-	.vdin(vdin),
+	.encode_start(encode_start),
+	.encoded_penult(encoded_penult),
 	.vdout(vdout),
 	.wrongNow(wrongNow),
 	.wrong(wrong),
@@ -84,16 +88,20 @@ always @(posedge wrong)
 
 reg [31:0] s;
 
-always @(negedge vdin) begin
-	s = seed;
-	#1;
-	din <= randk(0);
-	#1;
-	nerr <= n_errors(0);
-	#1;
-	error <= rande(nerr);
-	#1;
-	$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+always @(posedge encode_clk) begin
+	if (encoded_penult || reset) begin
+		s = seed;
+		#1;
+		din <= randk(0);
+		#1;
+		nerr <= n_errors(0);
+		#1;
+		error <= rande(nerr);
+		encode_start <= 1;
+		#1;
+		$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+	end else
+		encode_start <= #TCQ 0;
 end
 
 initial begin

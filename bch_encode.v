@@ -6,10 +6,13 @@ module bch_encode #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input reset,		/* Reset LFSR */
+	input start,		/* First cycle */
 	input data_in,		/* Input data */
-	output vdin,		/* Accepting input data */
-	output reg data_out = 0	/* Encoded output */
+	output reg data_out = 0,/* Encoded output */
+	output reg first = 0,	/* First output cycle */
+	output reg last = 0,	/* Last output cycle */
+	output reg penult = 0,	/* Next cycle is last output cycle */
+	output reg busy = 0
 );
 
 `include "bch.vh"
@@ -73,33 +76,44 @@ localparam ENC = encoder_poly(M, T);
 
 reg [N-K-1:0] lfsr = 0;
 wire [M-1:0] count;
-reg vdin1 = 0;
+reg load_lfsr = 0;
 
 /* Input XOR with highest LFSR bit */
-wire lfsr_in = vdin1 && (lfsr[N-K-1] ^ data_in);
-
-assign vdin = vdin1 && !reset;
+wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
 
 lfsr_counter #(M) u_counter(
 	.clk(clk),
-	.reset(reset),
+	.reset(start),
 	.count(count)
 );
 
 always @(posedge clk) begin
+	first <= #TCQ start;
+	penult <= #TCQ !start && busy && count == lfsr_count(M, N - 3);
+	last <= !start && penult;
+
+	/*
+	 * Keep track of whether or not we are running so we don't send out
+	 * spurious last signals as the count wraps around.
+	 */
+	if (start)
+		busy <= #TCQ 1;
+	else if (last)
+		busy <= #TCQ 0;
+
 	/* c1 ecount */
-	if (count == lfsr_count(M, N - 1) || reset)
-		vdin1 <= #TCQ 1'b1;
-	else if (count == lfsr_count(M, K - 1))
-		vdin1 <= #TCQ 1'b0;
+	if (start)
+		load_lfsr <= #TCQ 1'b1;
+	else if (count == lfsr_count(M, K - 2))
+		load_lfsr <= #TCQ 1'b0;
 
 	/* r1 ering */
-	if (reset)
-		lfsr <= #TCQ 0;
+	if (start)
+		lfsr <= #TCQ {N-K{data_in}} & ENC;
 	else
 		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{lfsr_in}} & ENC);
 
-	data_out <= #TCQ vdin ? data_in : lfsr[N-K-1];
+	data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[N-K-1];
 end
 
 endmodule

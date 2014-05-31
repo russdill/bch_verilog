@@ -10,7 +10,9 @@ module sim #(
 	input reset,
 	input [K-1:0] din,
 	input [N-1:0] error,
-	output vdin,
+	output clkEnc,
+	input encode_start,
+	output encoded_penult,
 	output vdout,
 	output reg wrongNow = 0,
 	output reg wrong = 0,
@@ -34,27 +36,29 @@ reg [K-1:0] decB = 0;
 reg [N-1:0] errB = 0;
 reg [BUF_SIZE-1:0] comB = 0;
 reg [(INTERLEAVE > 1 ? $clog2(INTERLEAVE+1) : 1)-1:0] ci = 0;
-reg vdinPrev = 0;
 reg resetDec = 0;
 
-wire encBOut;
 wire err;
-wire comBOut;
-wire encIn;
-wire vdin0_1;
 wire decIn;
 wire wrongIn;
-wire clkEnc;
 wire clkEncEn;
 wire encOut;
 wire decOut;
+wire encoded_first;
+wire encoded_last;
+
+initial
+	$display("INTERLEAVE = %0d, ITERATION = %0d, CHPE = %0d, VDOUT = %0d, BUF_SIZE = %0d",
+		INTERLEAVE, ITERATION, CHPE, VDOUT, BUF_SIZE);
 
 bch_encode #(N, K, T, OPTION) u_bch_encode(
 	.clk(clkEnc),
-	.reset(reset),
-	.data_in(encIn),
-	.vdin(vdin),
-	.data_out(encOut)
+	.start(encode_start),
+	.data_in(encode_start ? din[0] : encB[1]),
+	.data_out(encOut),
+	.first(encoded_first),
+	.last(encoded_last),
+	.penult(encoded_penult)
 );
 
 bch_decode #(N, K, T, OPTION) u_bch_decode(
@@ -65,13 +69,9 @@ bch_decode #(N, K, T, OPTION) u_bch_decode(
 	.dout(decOut)
 );
 
-assign encBOut = encB[0];
 assign err = errB[0];
-assign comBOut = comB[BUF_SIZE-1];
-assign encIn = encBOut && !reset;
-assign vdin0_1 = (!vdinPrev && vdin) || reset;
 assign decIn = (encOut ^ err) && !reset;
-assign wrongIn = ((decOut !== comBOut) && !reset && vdout) || ((vdout === 1'bx) || (vdout === 1'bz));
+assign wrongIn = ((decOut !== comB[0]) && !reset && vdout) || ((vdout === 1'bx) || (vdout === 1'bz));
 assign clkEnc = INTERLEAVE > 1 ? (clkEncEn && !clk) : clk;
 assign clkEncEn = INTERLEAVE > 1 ? !ci : 1'b1;
 assign dout = decB;
@@ -89,10 +89,9 @@ always @(posedge clk) begin
 end
 
 always @(posedge clkEnc) begin
-	encB <= #TCQ !vdin ? din : {1'b0, encB[K-1:1]};
-	errB <= #TCQ vdin0_1 ? error : {1'b0, errB[N-1:1]};
-	comB <= #TCQ {comB[BUF_SIZE-2:0], encIn};
-	vdinPrev <= #TCQ vdin;
+	encB <= #TCQ encode_start ? din : {1'b0, encB[K-1:1]};
+	errB <= #TCQ encode_start ? error : {1'b0, errB[N-1:1]};
+	comB <= #TCQ {encode_start ? din[0] : encB[1], comB[BUF_SIZE-1:1]};
 end
 
 endmodule
