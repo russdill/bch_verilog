@@ -7,9 +7,9 @@ module bch_encode #(
 ) (
 	input clk,
 	input reset,		/* Reset LFSR */
-	input din,		/* Input data */
+	input data_in,		/* Input data */
 	output vdin,		/* Accepting input data */
-	output reg dout = 0	/* Encoded output */
+	output reg data_out = 0	/* Encoded output */
 );
 
 `include "bch.vh"
@@ -83,11 +83,8 @@ reg [N-K-1:0] lfsr = 0;
 wire [M-1:0] count;
 reg vdin1 = 0;
 
-wire rin = din && !reset;
-wire rll = vdin && !reset;
-
 /* Input XOR with highest LFSR bit */
-wire rin0 = rll && (lfsr[N-K-1] ^ din);
+wire lfsr_in = vdin1 && (lfsr[N-K-1] ^ data_in);
 
 assign vdin = vdin1 && !reset;
 
@@ -99,17 +96,18 @@ lfsr_counter #(M) u_counter(
 
 always @(posedge clk) begin
 	/* c1 ecount */
-	if (count == lfsr_count(M, K - 1))
-		vdin1 <= #TCQ 1'b0;
-	else if (count == lfsr_count(M, N - 1) || reset)
+	if (count == lfsr_count(M, N - 1) || reset)
 		vdin1 <= #TCQ 1'b1;
+	else if (count == lfsr_count(M, K - 1))
+		vdin1 <= #TCQ 1'b0;
 
 	/* r1 ering */
 	if (reset)
 		lfsr <= #TCQ 0;
 	else
-		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{rin0}} & encoder_poly(M, T));
-	dout <= #TCQ vdin ? rin : lfsr[N-K-1];
+		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{lfsr_in}} & encoder_poly(M, T));
+
+	data_out <= #TCQ vdin ? data_in : lfsr[N-K-1];
 end
 
 endmodule

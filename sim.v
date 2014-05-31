@@ -52,9 +52,9 @@ wire decOut;
 bch_encode #(N, K, T, OPTION) u_bch_encode(
 	.clk(clkEnc),
 	.reset(reset),
-	.din(encIn),
+	.data_in(encIn),
 	.vdin(vdin),
-	.dout(encOut)
+	.data_out(encOut)
 );
 
 bch_decode #(N, K, T, OPTION) u_bch_decode(
