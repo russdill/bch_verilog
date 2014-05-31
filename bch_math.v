@@ -71,7 +71,7 @@ module dpm #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam Z = (ham(M) - 1) * (M - 1) + 1;
+	localparam Z = ((bch_is_pentanomial(M) ? 5 : 3) - 1) * (M - 1) + 1;
 	localparam lZ = log2(Z);
 
 	function [M*M*lZ-1:0] dpm_table;
