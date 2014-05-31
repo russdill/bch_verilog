@@ -114,9 +114,9 @@ function integer mul1;
 	integer ret;
 begin
 	ret = x << 1;
-	if (ret & (1 << m))
+	if (ret & (1 << m)) /* Carry? */
 		ret = ret ^ bch_polynomial(m);
-	mul1 = ret & m2n(m);
+	mul1 = ret & m2n(m); /* Modulo */
 end
 endfunction
 
@@ -141,7 +141,7 @@ begin
 end
 endfunction
 
-/* L^x */
+/* L^x, convert and integer to standard polynomial basis */
 function integer lpow;
 	input [31:0] m;
 	input [31:0] x;
@@ -149,7 +149,7 @@ function integer lpow;
 	integer ret;
 begin
 	ret = 1;
-	x = x % m2n(m);
+	x = x % m2n(m);	/* Answer would wrap around */
 	repeat (x)
 		ret = mul1(m, ret);
 	lpow = ret;
