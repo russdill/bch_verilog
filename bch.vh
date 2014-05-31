@@ -121,7 +121,7 @@ end
 endfunction
 
 /* a * b for finite field */
-function integer mul;
+function integer finite_mult;
 	input [31:0] m;
 	input [MAX_M:0] a;
 	input [MAX_M:0] b;
@@ -137,7 +137,7 @@ begin
 			b = b >> 1;
 		end
 	end
-	mul = p;
+	finite_mult = p;
 end
 endfunction
 

@@ -40,7 +40,7 @@ begin
 
 	while (!done) begin
 		ret = ret + 1;
-		c = mul(m, c, c);
+		c = finite_mult(m, c, c);
 		if (c == b)
 			done = 1;
 	end
@@ -103,14 +103,14 @@ begin
 		prev = 0;
 		for (i = 0; i < MAX_M; i = i + 1) begin
 			curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
-			poly[i*(1<<MAX_M)+:1<<MAX_M] = mul(m, curr, c) ^ prev;
+			poly[i*(1<<MAX_M)+:1<<MAX_M] = finite_mult(m, curr, c) ^ prev;
 			prev = curr;
 		end
 		poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 
 		s_size = s_size + 1;
 
-		c = mul(m, c, c);
+		c = finite_mult(m, c, c);
 		if (c == b)
 			done = 1;
 	end
