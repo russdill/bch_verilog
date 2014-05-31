@@ -28,6 +28,7 @@ function [(1<<MAX_M)-1:0] encoder_poly;
 	integer done;
 	integer curr;
 	integer prev;
+	integer ret;
 	reg [(1<<MAX_M)*1024-1:0] poly; /* FIXME: 1024 Not big enough for M=16 */
 
 begin
@@ -65,11 +66,13 @@ begin
 	end
 
 	k = m2n(m) - nk;
-	encoder_poly = 0;
+	ret = 0;
 	for (i = 0; i < nk; i = i + 1) begin
 		if (|poly[i*(1<<MAX_M)+:1<<MAX_M])
-			encoder_poly = encoder_poly | (1 << i);
+			ret = ret | (1 << i);
 	end
+	encoder_poly = ret;
+
 end
 endfunction
 
