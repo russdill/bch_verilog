@@ -44,14 +44,14 @@ module dpdbm #(
 	`include "bch.vh"
 
 	wire [M-2:0] aux;
-	wire [M-1:0] aux_mask = (bch_polynomial(M) & {{M-1{1'b1}}, 1'b0});
+	wire [M-1:0] poly = bch_polynomial(M);
 	wire [M*2-2:0] all;
 	genvar i;
 
 	assign all = {aux, dual_in};
 
 	for (i = 0; i < M - 1; i = i + 1) begin : aux_assign
-		assign aux[i] = dual_in[i] ^ ^({aux, dual_in} & (aux_mask << i));
+		assign aux[i] = ^({aux, dual_in} & (poly << i));
 	end
 
 	generate
