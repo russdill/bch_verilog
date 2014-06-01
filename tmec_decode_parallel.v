@@ -44,12 +44,13 @@ module tmec_decode_parallel #(
 	assign qdpset = synpe && !drnzero;
 	assign qdpin = synpe ? syn1 : dr;
 
-	/* xc1 dmul21 */
-	assign cNin[1*M+:M] = synpe ? syn1[0+:M] : mcNout[1*M+:M];
 	assign drnzero = |qdpin;
 	assign b23set = synpe || (snce && !bsel);
 	assign b2s = synpe && drnzero;
 	assign b3s = synpe && !drnzero;
+
+	/* xc1 dmul21 */
+	assign cNin[1*M+:M] = synpe ? syn1[0+:M] : mcNout[1*M+:M];
 
 	/* csN dxorm */
 	assign cNin[2*M+:M*(T-1)] = mbNout[2*M+:M*(T-1)] ^ mcNout[2*M+:M*(T-1)];
@@ -73,28 +74,27 @@ module tmec_decode_parallel #(
 		else if (snce)
 			cNout[0*M+:M] <= #TCQ mcNout[0*M+:M];
 
-		/* ch0 drdce */
-		if (ch_start)
-			chNout[0*M+:M] <= #TCQ cNout[0*M+:M];
-
 		/* c1 drdce */
 		if (snce)
 			cNout[1*M+:M] <= #TCQ cNin[1*M+:M];
 		
+		/* cN drdcer */
+		if (synpe)
+			cNout[2*M+:M*(T-1)] <= #TCQ 0;
+		else if (snce)
+			cNout[2*M+:M*(T-1)] <= #TCQ cNin[2*M+:M*(T-1)];
+
+		/* ch0 drdce */
+		if (ch_start)
+			chNout[0*M+:M] <= #TCQ cNout[0*M+:M];
+
 		/* b2 drdcesone */
 		if (b23set) begin
 			bNout[2*M+:M] <= #TCQ {{M-1{1'b0}}, b2s};
 			bNout[3*M+:M] <= #TCQ {{M-1{1'b0}}, b3s};
 		end else if (snce)
 			bNout[2*M+:M*2] <= #TCQ cNout[0*M+:M*2];
-
-		/* cN drdcer */
-		if (synpe)
-			cNout[2*M+:M*(T-1)] <= #TCQ 0;
-		else if (snce)
-			cNout[2*M+:M*(T-1)] <= #TCQ cNin[2*M+:M*(T-1)];
 	end
-
 
 	parallel_standard_multiplier #(M, T - 1) u_mbn(
 		.standard_in1(dr),
