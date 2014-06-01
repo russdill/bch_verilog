@@ -95,20 +95,20 @@ module tmec_decode_parallel #(
 
 	for (i = 0; i <= T; i = i + 1) begin : dpm
 		dpm #(M) u_mn(
-			.in1(cNout[i*M+:M]),
-			.in2(snNout[i*M+:M]),
-			.out(mNout[i*M+:M])
+			.standard_in1(cNout[i*M+:M]),
+			.standard_in2(snNout[i*M+:M]),
+			.dual_out(mNout[i*M+:M])
 		);
 		dpm #(M) u_mcn(
-			.in1(cNout[i*M+:M]),
-			.in2(dp),
-			.out(mcNout[i*M+:M])
+			.standard_in1(cNout[i*M+:M]),
+			.standard_in2(dp),
+			.dual_out(mcNout[i*M+:M])
 		);
 		if (i > 1) begin
 			dpm #(M) u_mbn(
-				.in1(bNout[i*M+:M]),
-				.in2(dr),
-				.out(mbNout[i*M+:M])
+				.standard_in1(bNout[i*M+:M]),
+				.standard_in2(dr),
+				.dual_out(mbNout[i*M+:M])
 			);
 		end
 	end

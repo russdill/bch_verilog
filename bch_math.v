@@ -1,14 +1,15 @@
 `timescale 1ns / 1ps
 
 /* Bit-serial Berlekamp (dual basis) multiplier */
+/* dual/standard in, dual out */
 module dsdbm #(
 	parameter M = 4
 ) (
 	input [M-1:0] dual_in,
 	input [M-1:0] standard_in,
-	output out
+	output dual_out
 );
-	assign out = ^(standard_in & dual_in);
+	assign dual_out = ^(standard_in & dual_in);
 endmodule
 
 /* Bit-serial Berlekamp dual-basis multiplier LFSR */
@@ -38,7 +39,7 @@ module dpdbm #(
 ) (
 	input [M-1:0] dual_in,
 	input [M-1:0] standard_in,
-	output [M-1:0] out
+	output [M-1:0] dual_out
 );
 	`include "bch.vh"
 
@@ -55,7 +56,7 @@ module dpdbm #(
 
 	generate
 		for (i = 0; i < M; i = i + 1) begin : MN
-			dsdbm #(M) u_dsdbm(all[i+:M], standard_in, out[i]);
+			dsdbm #(M) u_dsdbm(all[i+:M], standard_in, dual_out[i]);
 		end
 	endgenerate
 endmodule
@@ -64,9 +65,9 @@ endmodule
 module dpm #(
 	parameter M = 4
 ) (
-	input [M-1:0] in1,
-	input [M-1:0] in2,
-	output [M-1:0] out
+	input [M-1:0] standard_in1,
+	input [M-1:0] standard_in2,
+	output [M-1:0] dual_out
 );
 	`include "bch.vh"
 
@@ -102,12 +103,12 @@ module dpm #(
 	endfunction
 
 	wire [Z-1:0] b;
-	wire [M*M-1:0] cN;
+	wire [M*M-1:0] cN;	/* Dual-basis */
 	localparam [M*M*lZ-1:0] map = dpm_table(M);
 
 	genvar i, j;
 
-	assign b[M-1:0] = in1;
+	assign b[M-1:0] = standard_in1;
 
 	for (i = 0; i < M; i = i + 1) begin : cn_block
 		assign cN[i*M] = b[i];
@@ -121,16 +122,16 @@ module dpm #(
 			assign cN[j*M+i] = b[map[(i*M+j)*lZ+:lZ]];
 		end
 		dsdbm #(M) u_mn(
-			.dual_in(in2),
-			.standard_in(cN[i*M+:M]),
-			.out(out[i])
+			.dual_in(cN[i*M+:M]),
+			.standard_in(standard_in2),
+			.dual_out(dual_out[i])
 		);
 	end
 
 	dsdbm #(M) u_mn(
-		.dual_in(in2),
-		.standard_in(cN[0+:M]),
-		.out(out[0])
+		.dual_in(cN[0+:M]),
+		.standard_in(standard_in2),
+		.dual_out(dual_out[0])
 	);
 endmodule
 
@@ -228,15 +229,15 @@ module dinv #(
 	input drnzero,
 	input snce,
 	input synpe,
-	input [M-1:0] in,
-	output [M-1:0] out
+	input [M-1:0] standard_in,
+	output [M-1:0] dual_out
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 
 	wire [M-1:0] msin;
-	reg [M-1:0] mdin = standard_to_dual(M, 1);
+	reg [M-1:0] dual_in = standard_to_dual(M, 1);
 	wire [M-1:0] sq;
 	reg [M-1:0] qsq = 0;
 
@@ -254,12 +255,12 @@ module dinv #(
 	assign ce2 = cce && !snce && (bsel || (drnzero && cbBeg));
 	assign reset = (snce && bsel) || synpe;
 
-	assign msin = (caLast || synpe) ? in : qsq;
+	assign msin = (caLast || synpe) ? standard_in : qsq;
 	dsq #(M) u_dsq(msin, sq);
 	dpdbm #(M) u_dpdbm(
-		.dual_in(mdin),
+		.dual_in(dual_in),
 		.standard_in(msin),
-		.out(out)
+		.dual_out(dual_out)
 	);
 
 	always @(posedge clk) begin
@@ -267,9 +268,9 @@ module dinv #(
 			qsq <= #TCQ sq;
 
 		if (reset)
-			mdin <= #TCQ standard_to_dual(M, 1);
+			dual_in <= #TCQ standard_to_dual(M, 1);
 		else if (ce2)
-			mdin <= #TCQ out;
+			dual_in <= #TCQ dual_out;
 	end
 endmodule
 

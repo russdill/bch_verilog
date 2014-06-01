@@ -131,8 +131,8 @@ module tmec_decode_serial #(
 		.drnzero(drnzero),
 		.snce(snce),
 		.synpe(synpe),
-		.in(dra),
-		.out(drpd)
+		.standard_in(dra),
+		.dual_out(drpd)
 	);
 
 	if (bch_is_pentanomial(M)) begin
@@ -176,7 +176,7 @@ module tmec_decode_serial #(
 			dsdbm #(M) u_dsdbm(
 				.dual_in(bNout[i*M+:M]),
 				.standard_in(dm),
-				.out(cin[i])
+				.dual_out(cin[i])
 			);
 		end
 
