@@ -87,10 +87,8 @@ module tmec_decode_parallel #(
 		if (b23set) begin
 			bNout[2*M+:M] <= #TCQ {{M-1{1'b0}}, b2s};
 			bNout[3*M+:M] <= #TCQ {{M-1{1'b0}}, b3s};
-		end else if (snce) begin
-			bNout[2*M+:M] <= #TCQ cNout[0*M+:M];
-			bNout[3*M+:M] <= #TCQ cNout[1*M+:M];
-		end
+		end else if (snce)
+			bNout[2*M+:M*2] <= #TCQ cNout[0*M+:M*2];
 	end
 
 
