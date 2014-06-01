@@ -93,19 +93,19 @@ module tmec_decode_parallel #(
 		end
 	end
 
+
+	parallel_standard_multiplier #(M, T - 1) u_mbn(
+		.standard_in1(dr),
+		.standard_in2(bNout),
+		.dual_out(mbNout)
+	);
+
 	for (i = 0; i <= T; i = i + 1) begin : parallel_mixed_multiplier
 		parallel_standard_multiplier #(M, 2) u_mn(
 			.standard_in1(cNout[i*M+:M]),
 			.standard_in2({snNout[i*M+:M], dp}),
 			.dual_out({mNout[i*M+:M], mcNout[i*M+:M]})
 		);
-		if (i > 1) begin
-			parallel_standard_multiplier #(M) u_mbn(
-				.standard_in1(bNout[i*M+:M]),
-				.standard_in2(dr),
-				.dual_out(mbNout[i*M+:M])
-			);
-		end
 	end
 
 	generate
