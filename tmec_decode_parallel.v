@@ -89,6 +89,12 @@ module tmec_decode_parallel #(
 			bNout[3*M+:M] <= #TCQ {{M-1{1'b0}}, b3s};
 		end else if (snce)
 			bNout[2*M+:M*2] <= #TCQ cNout[0*M+:M*2];
+
+		/* cN drdcer */
+		if (synpe)
+			cNout[2*M+:M*(T-1)] <= #TCQ 0;
+		else if (snce)
+			cNout[2*M+:M*(T-1)] <= #TCQ cNin[2*M+:M*(T-1)];
 	end
 
 
@@ -107,16 +113,6 @@ module tmec_decode_parallel #(
 	end
 
 	generate
-		/* cN drdcer */
-		for (i = 2; i <= T; i = i + 1) begin : drdcer
-			always @(posedge clk) begin
-				if (synpe)
-					cNout[i*M+:M] <= #TCQ 0;
-				else if (snce)
-					cNout[i*M+:M] <= #TCQ cNin[i*M+:M];
-			end
-		end
-
 		/* bN drdcer */
 		for (i = 4; i <= T; i = i + 1) begin : bN_drdcer
 			always @(posedge clk) begin
@@ -127,5 +123,4 @@ module tmec_decode_parallel #(
 			end
 		end
 	endgenerate
-
 endmodule
