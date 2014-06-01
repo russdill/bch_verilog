@@ -33,7 +33,6 @@ module tmec_decode_serial #(
 	wire [M-1:0] dmIn;
 	wire [M-1:0] cs;
 	wire [M-1:0] c1in;
-	wire [M-1:0] dm;
 	wire [T:2] cin;
 	wire [M*(T+1)-1:0] snNen;
 
@@ -70,7 +69,6 @@ module tmec_decode_serial #(
 	assign xbsel = bsel || cbBeg;
 	assign ccCe = (msmpe && cbBeg) || caLast;
 	assign c1in = {syn1[M-2:0], syn1[M-1]};
-	assign cin[2] = dm[0] && bNout[2*M] && !cbBeg;
 
 	/* snNe dandm */
 	assign snNen[0+:M] = c0first ? snNout[0+:M] : 0;
@@ -145,12 +143,6 @@ module tmec_decode_serial #(
 			.out(dli)
 		);
 		assign dmIn = caLast ? dli : qd;
-		dsdbmRing #(M) u_dring(
-			.clk(clk),
-			.pe(dringPe),
-			.dual_in(dmIn),
-			.dual_out(dm)
-		);
 	end
 	generate
 		/* cN dshr */
@@ -172,13 +164,13 @@ module tmec_decode_serial #(
 		end
 
 		/* mbN */
-		for (i = 3; i <= T; i = i + 1) begin : mb
-			dsdbm #(M) u_dsdbm(
-				.dual_in(bNout[i*M+:M]),
-				.standard_in(dm),
-				.dual_out(cin[i])
-			);
-		end
+		serial_mixed_multiplier #(M, T - 1) u_serial_mixed_multiplier(
+			.clk(clk),
+			.start(dringPe),
+			.dual_in(dmIn),
+			.standard_in(bNout[2*M+:(T-1)*M]),
+			.dual_out(cin[2+:(T-1)])
+		);
 
 		/* bN drdce */
 		for (i = 5; i <= T; i = i + 1) begin : b

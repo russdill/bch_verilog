@@ -1,7 +1,6 @@
 `timescale 1ns / 1ps
 
-/* Bit-serial Berlekamp (dual basis) multiplier */
-/* dual/standard in, dual out */
+/* Bit-serial Berlekamp (mixed dual/standard basis) multiplier */
 module dsdbm #(
 	parameter M = 4
 ) (
@@ -12,25 +11,41 @@ module dsdbm #(
 	assign dual_out = ^(standard_in & dual_in);
 endmodule
 
-/* Bit-serial Berlekamp dual-basis multiplier LFSR */
-module dsdbmRing #(
-	parameter M = 4
+/*
+ * Bit-serial Berlekamp (mixed dual/standard basis) multiplier)
+ * Can multiply one dual basis input by N_INPUTS standard basis
+ * inputs in M cycles, producing one bit of each output per
+ * cycle
+ */
+module serial_mixed_multiplier #(
+	parameter M = 4,
+	parameter N_INPUT = 1
 ) (
 	input clk,
-	input pe,
+	input start,
 	input [M-1:0] dual_in,
-	output reg [M-1:0] dual_out = 0
+	input [M*N_INPUT-1:0] standard_in,
+	output reg [N_INPUT-1:0] dual_out
 );
+
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 
+	reg [M-1:0] lfsr = 0;
+	wire [M-1:0] poly = bch_polynomial(M);
+	genvar i;
+
+	/* LFSR for generating aux bits */
 	always @(posedge clk) begin
-		if (pe)
-			dual_out <= #TCQ dual_in;
+		if (start)
+			lfsr <= #TCQ dual_in;
 		else
-			dual_out <= #TCQ {^(dual_out & bch_polynomial(M)), dual_out[M-1:1]};
+			lfsr <= #TCQ {^(lfsr & poly), lfsr[M-1:1]};
 	end
+
+	for (i = 0; i < N_INPUT; i = i + 1)
+		assign dual_out[i] = ^(standard_in[M*i+:M] & lfsr);
 endmodule
 
 /* Berlekamp bit-parallel dual-basis multiplier */
