@@ -34,7 +34,7 @@ module dsdbmRing #(
 endmodule
 
 /* Berlekamp bit-parallel dual-basis multiplier */
-module dpdbm #(
+module parallel_mixed_multiplier #(
 	parameter M = 4
 ) (
 	input [M-1:0] dual_in,
@@ -258,7 +258,7 @@ module dinv #(
 
 	assign msin = (caLast || synpe) ? standard_in : qsq;
 	dsq #(M) u_dsq(msin, sq);
-	dpdbm #(M) u_dpdbm(
+	parallel_mixed_multiplier #(M) u_parallel_mixed_multiplier(
 		.dual_in(dual_in),
 		.standard_in(msin),
 		.dual_out(dual_out)
