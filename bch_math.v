@@ -106,8 +106,17 @@ module parallel_standard_multiplier #(
 	endgenerate
 endmodule
 
-/* Bit-serial standard basis multiplier */
-module serial_standard_multiplier #(
+/*
+ * Final portion of MSB first bit-serial standard basis multiplier
+ * Input per cycle:
+ *	M{a[M-1]} & b
+ *	M{a[M-2]} & b
+ *	...
+ *	M[a[0]} & b
+ * The above input stage can be combined with other functions.
+ * Takes M cycles
+ */
+module serial_standard_multiplier_final #(
 	parameter M = 4
 ) (
 	input clk,

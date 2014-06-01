@@ -112,7 +112,7 @@ module tmec_decode_serial #(
 			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1]};
 	end
 	
-	serial_standard_multiplier #(M) msm_serial_standard_multiplier(
+	serial_standard_multiplier_final #(M) msm_serial_standard_multiplier_final(
 		.clk(clk), 
 		.run(!caLast),
 		.start(msmpe),
