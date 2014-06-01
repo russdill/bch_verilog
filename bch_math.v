@@ -1,16 +1,5 @@
 `timescale 1ns / 1ps
 
-/* Bit-serial Berlekamp (mixed dual/standard basis) multiplier */
-module dsdbm #(
-	parameter M = 4
-) (
-	input [M-1:0] dual_in,
-	input [M-1:0] standard_in,
-	output dual_out
-);
-	assign dual_out = ^(standard_in & dual_in);
-endmodule
-
 /*
  * Bit-serial Berlekamp (mixed dual/standard basis) multiplier)
  * Can multiply one dual basis input by N_INPUTS standard basis
@@ -78,12 +67,13 @@ module parallel_mixed_multiplier #(
 endmodule
 
 /* Bit-parallel standard basis multiplier */
-module dpm #(
-	parameter M = 4
+module parallel_standard_multiplier #(
+	parameter M = 4,
+	parameter N_INPUT = 1
 ) (
 	input [M-1:0] standard_in1,
-	input [M-1:0] standard_in2,
-	output [M-1:0] dual_out
+	input [M*N_INPUT-1:0] standard_in2,
+	output [M*N_INPUT-1:0] dual_out
 );
 	`include "bch.vh"
 
@@ -124,6 +114,7 @@ module dpm #(
 
 	genvar i, j;
 
+	/* Convert first input to dual basis */
 	assign b[M-1:0] = standard_in1;
 
 	for (i = 0; i < M; i = i + 1) begin : cn_block
@@ -137,18 +128,12 @@ module dpm #(
 				assign b[map[(i*M+j)*lZ+:lZ]] = b[map[((i-1)*M+j-1)*lZ+:lZ]] ^ b[map[((i-1)*M+M-1)*lZ+:lZ]];
 			assign cN[j*M+i] = b[map[(i*M+j)*lZ+:lZ]];
 		end
-		dsdbm #(M) u_mn(
-			.dual_in(cN[i*M+:M]),
-			.standard_in(standard_in2),
-			.dual_out(dual_out[i])
-		);
 	end
 
-	dsdbm #(M) u_mn(
-		.dual_in(cN[0+:M]),
-		.standard_in(standard_in2),
-		.dual_out(dual_out[0])
-	);
+	/* Perform multiplication */
+	for (j = 0; j < N_INPUT; j = j + 1)
+		for (i = 0; i < M; i = i + 1)
+			assign dual_out[j*M+i] = ^(cN[i*M+:M] & standard_in2[j*M+:M]);
 endmodule
 
 /* Bit-serial standard basis multiplier */
