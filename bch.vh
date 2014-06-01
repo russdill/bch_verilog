@@ -108,15 +108,11 @@ end
 endfunction
 
 /* Multiply by alpha x*l^1 */
-function integer mul1;
+function [MAX_M-1:0] mul1;
 	input [31:0] m;
-	input [MAX_M:0] x;
-	integer ret;
+	input [MAX_M-1:0] x;
 begin
-	ret = x << 1;
-	if (ret & (1 << m)) /* Carry? */
-		ret = ret ^ bch_polynomial(m);
-	mul1 = ret & m2n(m); /* Modulo */
+	mul1 = m2n(m) & ((x << 1) ^ (bch_polynomial(m) & {MAX_M{x[m-1]}}));
 end
 endfunction
 
