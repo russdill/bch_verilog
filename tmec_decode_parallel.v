@@ -52,9 +52,7 @@ module tmec_decode_parallel #(
 	assign b3s = synpe && !drnzero;
 
 	/* csN dxorm */
-	for (i = 2; i <= T; i = i + 1) begin : dxorm
-		assign cNin[i*M+:M] = mbNout[i*M+:M] ^ mcNout[i*M+:M];
-	end
+	assign cNin[2*M+:M*(T-1)] = mbNout[2*M+:M*(T-1)] ^ mcNout[2*M+:M*(T-1)];
 
 	generate_cs #(M, T) u_generate_cs(mNout, cs);
 
