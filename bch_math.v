@@ -14,7 +14,7 @@ module serial_mixed_multiplier #(
 	input start,
 	input [M-1:0] dual_in,
 	input [M*N_INPUT-1:0] standard_in,
-	output reg [N_INPUT-1:0] dual_out
+	output [N_INPUT-1:0] dual_out
 );
 
 	`include "bch.vh"
@@ -33,8 +33,9 @@ module serial_mixed_multiplier #(
 			lfsr <= #TCQ {^(lfsr & poly), lfsr[M-1:1]};
 	end
 
-	for (i = 0; i < N_INPUT; i = i + 1)
+	for (i = 0; i < N_INPUT; i = i + 1) begin : mult
 		assign dual_out[i] = ^(standard_in[M*i+:M] & lfsr);
+	end
 endmodule
 
 /* Berlekamp bit-parallel dual-basis multiplier */
