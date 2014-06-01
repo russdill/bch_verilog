@@ -112,11 +112,11 @@ module tmec_decode_serial #(
 			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1]};
 	end
 	
-	dssbm #(M) msm_dssbm(
+	serial_standard_multiplier #(M) msm_serial_standard_multiplier(
 		.clk(clk), 
 		.run(!caLast),
 		.start(msmpe),
-		.in(cs),
+		.standard_in(cs),
 		.out(dr)
 	);
 

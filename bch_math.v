@@ -137,24 +137,25 @@ module parallel_standard_multiplier #(
 endmodule
 
 /* Bit-serial standard basis multiplier */
-module dssbm #(
+module serial_standard_multiplier #(
 	parameter M = 4
 ) (
 	input clk,
-	input run,
+	input run, /* FIXME: Probably not required */
 	input start,
-	input [M-1:0] in,
+	input [M-1:0] standard_in,
 	output reg [M-1:0] out = 0
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam POLY = bch_polynomial(M);
 
 	always @(posedge clk) begin
 		if (start)
-			out <= #TCQ in;
+			out <= #TCQ standard_in;
 		else if (run)
-			out <= in ^ {out[M-2:0], 1'b0} ^ (bch_polynomial(M) & {M{out[M-1]}});
+			out <= standard_in ^ {out[M-2:0], 1'b0} ^ (POLY & {M{out[M-1]}});
 	end
 endmodule
 
