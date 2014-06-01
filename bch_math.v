@@ -67,74 +67,43 @@ module parallel_mixed_multiplier #(
 
 endmodule
 
-/* Bit-parallel standard basis multiplier */
+/* Bit-parallel standard basis multiplier (PPBML) */
 module parallel_standard_multiplier #(
 	parameter M = 4,
 	parameter N_INPUT = 1
 ) (
 	input [M-1:0] standard_in1,
 	input [M*N_INPUT-1:0] standard_in2,
-	output [M*N_INPUT-1:0] dual_out
+	output [M*N_INPUT-1:0] standard_out
 );
 	`include "bch.vh"
-
-	localparam TCQ = 1;
-	localparam Z = ((bch_is_pentanomial(M) ? 5 : 3) - 1) * (M - 1) + 1;
-	localparam lZ = log2(Z);
-
-	function [M*M*lZ-1:0] dpm_table;
-		input [31:0] m;
-		integer i;
-		integer j;
-		integer poly;
-		integer pos;
-		integer bi;
-	begin
-		poly = bch_polynomial(m);
-
-		for (i = 0; i < M; i = i + 1)
-			dpm_table[(0*M+i)*lZ+:lZ] = i;
-
-		bi = M;
-		for (i = 1; i < M; i = i + 1) begin : convert
-			dpm_table[(i*M+0)*lZ+:lZ] = dpm_table[((i-1)*M+M-1)*lZ+:lZ];
-			for (j = 1; j < M; j = j + 1) begin
-				if ((1 << j) & poly) begin
-					dpm_table[(i*M+j)*lZ+:lZ] = bi;
-					bi = bi + 1;
-				end else
-					dpm_table[(i*M+j)*lZ+:lZ] = dpm_table[((i-1)*M+j-1)*lZ+:lZ];
-			end
-		end
-	end
-	endfunction
-
-	wire [Z-1:0] b;
-	wire [M*M-1:0] cN;	/* Dual-basis */
-	localparam [M*M*lZ-1:0] map = dpm_table(M);
-
 	genvar i, j;
 
-	/* Convert first input to dual basis */
-	assign b[M-1:0] = standard_in1;
+	generate
+	for (i = 0; i < M; i = i + 1) begin : BLOCKS
+		/* alpha^i * standard_in1, each block does one mult */
+		wire [M-1:0] bits;
 
-	for (i = 0; i < M; i = i + 1) begin : cn_block
-		assign cN[i*M] = b[i];
-	end
+		/* Bit i of each block */
+		wire [M-1:0] z;
 
-	for (i = 1; i < M; i = i + 1) begin : convert
-		assign cN[i] = b[map[(i*M+0)*lZ+:lZ]];
-		for (j = 1; j < M; j = j + 1) begin : b_swizzle
-			if ((1 << j) & bch_polynomial(M))
-				assign b[map[(i*M+j)*lZ+:lZ]] = b[map[((i-1)*M+j-1)*lZ+:lZ]] ^ b[map[((i-1)*M+M-1)*lZ+:lZ]];
-			assign cN[j*M+i] = b[map[(i*M+j)*lZ+:lZ]];
+		/* Stage 1, multiply by alpha once for each block */
+		if (i == 0)
+			assign bits = standard_in1;
+		else
+			assign bits = mul1(M, BLOCKS[i-1].bits);
+
+		/* Arrange bits for input into stage 2 */
+		for (j = 0; j < M; j = j + 1) begin : arrange
+			assign z[j] = BLOCKS[j].bits[i];
+		end
+
+		/* Perform multiplication */
+		for (j = 0; j < N_INPUT; j = j + 1) begin : mult
+			assign standard_out[j*M+i] = ^(standard_in2[j*M+:M] & z);
 		end
 	end
-
-	/* Perform multiplication */
-	for (j = 0; j < N_INPUT; j = j + 1)
-		for (i = 0; i < M; i = i + 1)
-			assign dual_out[j*M+i] = ^(cN[i*M+:M] & standard_in2[j*M+:M]);
+	endgenerate
 endmodule
 
 /* Bit-serial standard basis multiplier */
