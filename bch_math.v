@@ -33,7 +33,7 @@ module dsdbmRing #(
 	end
 endmodule
 
-/* Bit-parallel dual-basis multiplier */
+/* Berlekamp bit-parallel dual-basis multiplier */
 module dpdbm #(
 	parameter M = 4
 ) (
@@ -50,15 +50,16 @@ module dpdbm #(
 
 	assign all = {aux, dual_in};
 
+	/* Generate additional terms via an LFSR */
 	for (i = 0; i < M - 1; i = i + 1) begin : aux_assign
-		assign aux[i] = ^({aux, dual_in} & (poly << i));
+		assign aux[i] = ^(all[i+:M] & poly);
 	end
 
-	generate
-		for (i = 0; i < M; i = i + 1) begin : MN
-			dsdbm #(M) u_dsdbm(all[i+:M], standard_in, dual_out[i]);
-		end
-	endgenerate
+	/* Perform matrix multiplication of terms */
+	for (i = 0; i < M; i = i + 1) begin : mult
+		assign dual_out[i] = ^(all[i+:M] & standard_in);
+	end
+
 endmodule
 
 /* Bit-parallel standard basis multiplier */
