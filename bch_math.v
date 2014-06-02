@@ -349,8 +349,7 @@ module generate_cs #(
 	end
 
 	/* msN dxort */
-	assign cs[0] = ^rearranged[0*(T+1)+:T+1];
-	for (i = 1; i < M; i = i + 1) begin : cs_arrange
+	for (i = 0; i < M; i = i + 1) begin : cs_arrange
 		assign cs[i] = ^rearranged[i*(T+1)+:T+1];
 	end
 
