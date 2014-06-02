@@ -158,63 +158,78 @@ module parallel_standard_square #(
 	end
 endmodule
 
-/* Finite field inversion */
-module dinv #(
-	parameter M = 4
+/*
+ * Divider, takes M clock cycles.
+ * Inverse of denominator is calculated by using fermat inverter:
+ * 	a^(-1) = (a^2)*(a^2^2)*(a^2^3)....*(a^2^(m-1))
+ * Wang, Charles C., et al. "VLSI architectures for computing multiplications
+ * and inverses in GF (2 m)." Computers, IEEE Transactions on 100.8 (1985):
+ * 709-717.
+ *
+ * Load denominator with start=1. If !busy (M cyles have passed), result is
+ * in dual_out. Numerator is not required until busy is low.
+ */
+module finite_divider #(
+	parameter M = 6
 ) (
 	input clk,
-	input cbBeg,
-	input bsel,
-	input caLast,
-	input cce,
-	input drnzero,
-	input snce,
-	input synpe,
-	input [M-1:0] standard_in,
-	output [M-1:0] dual_out
+	input reset,
+	input start,
+	input [M-1:0] standard_numer,
+	input [M-1:0] standard_denom,
+	output [M-1:0] dual_out,
+	output reg busy = 0
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 
-	wire [M-1:0] msin;
-	reg [M-1:0] dual_in = standard_to_dual(M, 1);
-	wire [M-1:0] sq;
-	reg [M-1:0] qsq = 0;
+	reg busy_last = 0;
+	reg [M-1:0] standard_a = 0;
+	wire [M-1:0] standard_b;
+	reg [M-1:0] dual_c = standard_to_dual(M, lpow(M, 0));
+	wire [M-1:0] dual_d;
+	wire [log2(M)-1:0] count;
 
-	wire ce1;
-	wire ce2;
-	wire reset;
-	wire ce2a = drnzero && cbBeg;
-	wire ce2b = bsel || ce2a;
-	wire sel = caLast || synpe;
+	assign dual_out = dual_d;
 
+	/* Since standard_to_dual doesn't support pentanomials */
 	if (bch_is_pentanomial(M))
 		inverter_cannot_handle_pentanomials_yet u_ichp();
 
-	assign ce1 = ce2 || caLast || synpe;
-	assign ce2 = cce && !snce && (bsel || (drnzero && cbBeg));
-	assign reset = (snce && bsel) || synpe;
-
-	assign msin = (caLast || synpe) ? standard_in : qsq;
+	/* Square the input each cycle */
 	parallel_standard_square #(M) u_dsq(
-		.standard_in(msin),
-		.standard_out(sq)
+		.standard_in(start ? standard_denom : standard_a),
+		.standard_out(standard_b)
 	);
+
+	/* Accumulate the term each cycle (Reuse for C = A*B^(-1) ) */
 	parallel_mixed_multiplier #(M) u_parallel_mixed_multiplier(
-		.dual_in(dual_in),
-		.standard_in(msin),
-		.dual_out(dual_out)
+		.dual_in(dual_c),
+		.standard_in((busy || busy_last) ? standard_a : standard_numer),
+		.dual_out(dual_d)
+	);
+
+	lfsr_counter #(log2(M)) u_counter(
+		.clk(clk),
+		.reset(start),
+		.count(count)
 	);
 
 	always @(posedge clk) begin
-		if (ce1)
-			qsq <= #TCQ sq;
+		busy_last <= #TCQ busy;
+		if (start && !reset)
+			busy <= #TCQ 1;
+		else if (count == lfsr_count(log2(M), M - 2) || reset)
+			busy <= #TCQ 0;
 
-		if (reset)
-			dual_in <= #TCQ standard_to_dual(M, 1);
-		else if (ce2)
-			dual_in <= #TCQ dual_out;
+		if (start || reset)
+			dual_c <= #TCQ standard_to_dual(M, lpow(M, 0));
+		else if (busy)
+			dual_c <= #TCQ dual_d;
+
+		if (start || busy)
+			standard_a <= #TCQ standard_b;
 	end
 endmodule
 

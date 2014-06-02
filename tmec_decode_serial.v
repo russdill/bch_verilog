@@ -120,16 +120,12 @@ module tmec_decode_serial #(
 		.out(dr)
 	);
 
-	dinv #(M) inv_dinv(
+	finite_divider #(M) u_dinv(
 		.clk(clk),
-		.cbBeg(cbBeg),
-		.bsel(bsel),
-		.caLast(caLast),
-		.cce(cce),
-		.drnzero(drnzero),
-		.snce(snce),
-		.synpe(synpe),
-		.standard_in(dra),
+		.reset(synpe && !(snce && bsel)),
+		.start(((snce && bsel) || synpe) && (bsel || (drnzero && cbBeg))),
+		.standard_numer(dra),
+		.standard_denom(dra),
 		.dual_out(drpd)
 	);
 
