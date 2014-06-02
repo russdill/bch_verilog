@@ -233,6 +233,7 @@ module finite_divider #(
 	end
 endmodule
 
+/* out = in^3 (standard basis). Saves space vs in^2 * in */
 module pow3 #(
 	parameter M = 4
 ) (
@@ -241,71 +242,49 @@ module pow3 #(
 );
 	`include "bch.vh"
 
-	function [MAX_M*(MAX_M+1)/2-1:0] pow3_terms;
-		input [31:0] m;
-		input [31:0] bit_pos;
-		integer i;
-		integer j;
-		integer k;
-		integer s;
-		integer mask;
-		integer ret;
-	begin
-		s = (m * (m + 1)) / 2;
-		mask = 1 << bit_pos;
-		k = 1;
+	genvar i, j, k;
+	wire [M-1:0] ft_in;
+	wire [M*M-1:0] st_in;
 
-		ret = 0;
-		for (i = 0; i < m; i = i + 1) begin
-			ret = ret | ((lpow(m, 3*i) & mask) ? k : 1'b0);
-			k = k << 1;
+	generate
+	for (i = 0; i < M; i = i + 1) begin : FIRST_TERM
+		wire [M-1:0] bits;
+		/* first_term = a_i * alpha^(3*i) */
+		assign ft_in[i] = in[i];
+		assign bits = lpow(M, 3 * i);
+	end
+
+	/* i = 0 to m - 2, j = i to m - 1 */
+	for (k = 0; k < M * M; k = k + 1) begin : SECOND_TERM
+		/* i = k / M, j = j % M */
+		wire [M-1:0] bits;
+		if (k/M < k%M) begin
+			/* second_term = a_i * a_j * (alpha^(2*i+j) + alpha^(2*i+j)) */
+			assign st_in[k] = in[k/M] & in[k%M];
+			assign bits = lpow(M, 2*(k/M)+k%M) ^ lpow(M, 2*(k%M)+k/M);
+		end else begin
+			assign st_in[k] = 0;
+			assign bits = 0;
+		end
+	end
+
+	for (i = 0; i < M; i = i + 1) begin : CALC
+		wire [M-1:0] first_term;
+		wire [M*M-1:0] second_term;
+
+		/* Rearrange bits for multiplication */
+		for (j = 0; j < M; j = j + 1) begin : arrange1
+			assign first_term[j] = FIRST_TERM[j].bits[i];
 		end
 
-		for (i = 0; i < m - 1; i = i + 1) begin
-			for (j = i + 1; j < m; j = j + 1) begin
-				ret = ret | (((lpow(m, 2*i+j) ^ lpow(m, 2*j+i)) & mask) ? k : 1'b0);
-				k = k << 1;
-			end
+		for (j = 0; j < M*M; j = j + 1) begin : arrange2
+			assign second_term[j] = SECOND_TERM[j].bits[i];
 		end
 
-		pow3_terms = ret;
+		/* a^3 = first_term + second_term*/
+		assign out[i] = ^(ft_in & first_term) ^ ^(st_in & second_term);
 	end
-	endfunction
-
-	function integer dxor_terms;
-		input [31:0] m;
-		input [31:0] bit_pos;
-		integer k;
-		integer i;
-		integer done;
-		integer ret;
-	begin
-		k = 0;
-		ret = 0;
-		done = 0;
-		for (i = 0; i < m && !done; i = i + 1) begin
-			if (bit_pos < k + m - i) begin
-				if (i > 0)
-					ret = ret | (1 << (i - 1));
-				ret = ret | (1 << (bit_pos - k + i));
-				done = 1;
-			end
-			k = k + m - i;
-		end
-		dxor_terms = ret;
-	end
-	endfunction
-
-	wire [M*(M+1)/2-1:0] dxor;
-	genvar i;
-
-	for (i = 0; i < M * (M + 1) / 2; i = i + 1) begin : gen_xor
-		assign dxor[i] = !(dxor_terms(M, i) & ~in);
-	end
-
-	for (i = 0; i < M; i = i + 1) begin : gen_out
-		assign out[i] = ^(dxor & pow3_terms(M, i));
-	end
+	endgenerate
 endmodule
 
 module generate_cs #(
