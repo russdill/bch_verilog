@@ -138,30 +138,23 @@ module serial_standard_multiplier_final #(
 	end
 endmodule
 
-module dsq #(
+/* Square the standard basis input */
+module parallel_standard_square #(
 	parameter M = 4
 ) (
-	input [M-1:0] in,
-	output [M-1:0] out
+	input [M-1:0] standard_in,
+	output [M-1:0] standard_out
 );
 	`include "bch.vh"
 
-	function integer sq_terms;
-		input [31:0] m;
-		input [31:0] bit_pos;
-		integer i;
-		integer ret;
-	begin
-		ret = 0;
-		for (i = 0; i < m; i = i + 1)
-			ret = ret | (((lpow(m, i * 2) >> bit_pos) & 1) << i);
-		sq_terms = ret;
-	end
-	endfunction
-
-	genvar i;
+	genvar i, j;
 	for (i = 0; i < M; i = i + 1) begin : out_assign
-		assign out[i] = ^(in & sq_terms(M, i));
+		wire [M-1:0] terms = lpow(M, i * 2);
+		wire [M-1:0] rot;
+		for (j = 0; j < M; j = j + 1) begin : rotate
+			assign rot[j] = out_assign[j].terms[i];
+		end
+		assign standard_out[i] = ^(standard_in & rot);
 	end
 endmodule
 
@@ -204,7 +197,10 @@ module dinv #(
 	assign reset = (snce && bsel) || synpe;
 
 	assign msin = (caLast || synpe) ? standard_in : qsq;
-	dsq #(M) u_dsq(msin, sq);
+	parallel_standard_square #(M) u_dsq(
+		.standard_in(msin),
+		.standard_out(sq)
+	);
 	parallel_mixed_multiplier #(M) u_parallel_mixed_multiplier(
 		.dual_in(dual_in),
 		.standard_in(msin),
