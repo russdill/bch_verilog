@@ -138,39 +138,6 @@ module serial_standard_multiplier_final #(
 	end
 endmodule
 
-module dmli #(
-	parameter M = 4
-) (
-	input [M-1:0] in,
-	output [M-1:0] out
-);
-	`include "bch.vh"
-
-	/*
-	 * Only for trinomials, multiply by L^P, where P in the middle
-	 * exponent, in x^5 + x^2 + 1, P == 2.
-	 */
-	function integer mli_terms;
-		input [31:0] m;
-		input [31:0] bit_pos;
-		integer pos;
-		integer ret;
-	begin
-		pos = polyi(m);
-		if (pos + bit_pos < m)
-			ret = 1 << (pos + bit_pos);
-		else
-			ret = bch_polynomial(m) << (pos + bit_pos - m);
-		mli_terms = ret;
-	end
-	endfunction
-
-	genvar i;
-	for (i = 0; i < M; i = i + 1) begin : out_assign
-		assign out[i] = ^(in & mli_terms(M, i));
-	end
-endmodule
-
 module dsq #(
 	parameter M = 4
 ) (

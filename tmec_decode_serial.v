@@ -137,10 +137,11 @@ module tmec_decode_serial #(
 		serial_cannot_handle_pentanomials_yet u_schpy();
 
 	end else begin
-		/* Basis rearranging */
-		dmli #(M) mli_dmli(
-			.in(drpd),
-			.out(dli)
+		/* Muliply by L^i */
+		parallel_mixed_multiplier #(M) u_dmli(
+			.dual_in(drpd),
+			.standard_in(lpow(M, polyi(M))),
+			.dual_out(dli)
 		);
 		assign dmIn = caLast ? dli : qd;
 	end
