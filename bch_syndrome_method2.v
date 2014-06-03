@@ -83,23 +83,9 @@ module syndrome_expand_method2 #(
 	input [M-1:0] in,
 	output [M-1:0] out
 );
-	`include "bch.vh"
-
-	function integer second_way_terms;
-		input [31:0] m;
-		input [31:0] s;
-		input [31:0] bit_pos;
-		integer i;
-	begin
-		for (i = 0; i < m; i = i + 1)
-			second_way_terms[i] = (lpow(m, i * s) >> bit_pos) & 1;
-	end
-	endfunction
-
-	genvar bit_pos;
-
 	/* Perform b_j(alpha^j) */
-	for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : second
-		assign out[bit_pos] = ^(in & second_way_terms(M, DAT, bit_pos));
-	end
+	parallel_standard_power #(M, DAT) u_power(
+		.standard_in(in),
+		.standard_out(out)
+	);
 endmodule
