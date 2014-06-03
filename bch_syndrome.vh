@@ -118,6 +118,29 @@ begin
 end
 endfunction
 
+function integer next_syndrome;
+	input [31:0] m;
+	input [31:0] s;
+	integer tmp;
+	integer done;
+	integer ret;
+begin
+	ret = s + 2;
+	tmp = ret;
+	done = 0;
+
+	while (!done) begin
+		tmp = (tmp * 2) % m2n(m);
+		if (tmp < ret) begin
+			ret = ret + 2;
+			tmp = ret;
+		end else if (tmp == ret)
+			done = 1;
+	end
+	next_syndrome = ret;
+end
+endfunction
+
 function integer syndrome_count;
 	input [31:0] m;
 	input [31:0] t;
