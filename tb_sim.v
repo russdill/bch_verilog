@@ -2,9 +2,9 @@
 
 module tb_sim();
 
-parameter N = 31;
+parameter N = 15;
 parameter K = 11;
-parameter T = 5;
+parameter T = 1;
 parameter OPTION = "SERIAL";
 parameter SEED = 0;
 
