@@ -61,7 +61,6 @@ module dec_decode #(
 		.clk(clk),
 		.syn_ce(1'b1),
 		.start(start),
-		.shuffle_ce(1'b0),
 		.din(data_in),
 		.out(synN)
 	);

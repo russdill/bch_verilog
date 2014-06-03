@@ -1,28 +1,5 @@
 `include "bch.vh"
 
-function integer first_way_terms;
-	input [31:0] m;
-	input [31:0] s;
-	input [31:0] bit_pos;
-
-	integer i;
-begin
-	for (i = 0; i < m; i = i + 1)
-		first_way_terms[i] = (lpow(m, i + s) >> bit_pos) & 1;
-end
-endfunction
-
-function integer second_way_terms;
-	input [31:0] m;
-	input [31:0] s;
-	input [31:0] bit_pos;
-	integer i;
-begin
-	for (i = 0; i < m; i = i + 1)
-		second_way_terms[i] = (lpow(m, i * s) >> bit_pos) & 1;
-end
-endfunction
-
 function integer syndrome_size;
 	input [31:0] m;
 	input [31:0] s;
@@ -56,60 +33,28 @@ function integer syndrome_method;
 	integer i;
 	integer first_way;
 begin
-	done = 0;
 	s_size = syndrome_size(m, s);
 
-	done = 0;
+	/* We can only use the first way if syndrome size is full */
+	first_way = s_size == m;
+	done = !first_way;
+
 	i = s;
-	first_way = 1;
 	while (!done) begin
 		if (i <= 2 * t - 1) begin
-			if (i != s)
+			if (i != s) begin
+				/* Cannot use first way */
 				first_way = 0;
+				done = 1;
+			end
 		end
 		i = (i * 2) % m2n(m);
 		if (i == s)
+			/* yay, we can use the first way */
 			done = 1;
 	end
-	first_way = first_way && s_size == m;
+
 	syndrome_method = !first_way;
-end
-endfunction
-
-function [MAX_M-1:0] syndrome_poly;
-	input [31:0] m;
-	input [31:0] s;
-	integer i;
-	integer j;
-	integer n;
-	integer a;
-	integer first;
-	integer done;
-	integer curr;
-	integer prev;
-	reg [MAX_M*MAX_M-1:0] poly;
-begin
-	n = m2n(m);
-
-	poly = 1;
-	first = lpow(m, s);
-	a = first;
-	done = 0;
-	while (!done) begin
-		prev = 0;
-		for (j = 0; j < m; j = j + 1) begin
-			curr = poly[j*MAX_M+:MAX_M];
-			poly[j*MAX_M+:MAX_M] = finite_mult(m, curr, a) ^ prev;
-			prev = curr;
-		end
-
-		a = finite_mult(m, a, a);
-		if (a == first)
-			done = 1;
-	end
-
-	for (i = 0; i < m; i = i + 1)
-		syndrome_poly[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
 end
 endfunction
 

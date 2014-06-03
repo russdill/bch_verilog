@@ -110,9 +110,15 @@ bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
 	.syn_ce(cei),
 	.start(synpe),
-	.shuffle_ce(snce),
 	.din(din),
-	.out(synN),
+	.out(synN)
+);
+
+bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
+	.clk(clk),
+	.start(synpe),
+	.shuffle_ce(snce),
+	.synN(synN),
 	.snNout(snNout)
 );
 
