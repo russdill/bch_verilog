@@ -72,7 +72,7 @@ module parallel_standard_multiplier #(
 	parameter M = 4,
 	parameter N_INPUT = 1
 ) (
-	input [M-1:0] standard_in1,
+	input [M-1:0] standard_in1,		/* Constant should go here */
 	input [M*N_INPUT-1:0] standard_in2,
 	output [M*N_INPUT-1:0] standard_out
 );
