@@ -14,11 +14,13 @@ module dsynN #(
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
-	localparam SYNDROME_POLY = syndrome_poly(M, idx2syn(M, IDX));
+	localparam SYN = idx2syn(M, IDX);
+	localparam SYNDROME_POLY = syndrome_poly(M, SYN);
+	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 
 	genvar bit_pos;
 
-	if (syndrome_method(M, T, idx2syn(M, IDX)) == 0) begin
+	if (syndrome_method(M, T, SYN) == 0) begin
 	/* First method */
 		for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
 			always @(posedge clk) begin
@@ -26,7 +28,7 @@ module dsynN #(
 					synN[bit_pos] <= #TCQ bit_pos ? 1'b0 : data_in;
 				else if (ce)
 					synN[bit_pos] <= #TCQ
-						^(synN & first_way_terms(M, idx2syn(M, IDX), bit_pos)) ^
+						^(synN & first_way_terms(M, SYN, bit_pos)) ^
 						(bit_pos ? 0 : data_in);
 			end
 		end
@@ -36,8 +38,7 @@ module dsynN #(
 			if (start)
 				synN <= #TCQ {{M-1{1'b0}}, data_in};
 			else if (ce)
-				synN <= #TCQ {synN[0+:syndrome_size(M, idx2syn(M, IDX))-1], data_in} ^
-					(SYNDROME_POLY & {M{synN[syndrome_size(M, idx2syn(M, IDX))-1]}});
+				synN <= #TCQ {synN[M-2:0], data_in} ^ (SYNDROME_POLY & {M{synN[SYNDROME_SIZE-1]}});
 		end
 	end
 endmodule

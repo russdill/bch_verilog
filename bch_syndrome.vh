@@ -87,11 +87,11 @@ function [MAX_M-1:0] syndrome_poly;
 	integer done;
 	integer curr;
 	integer prev;
-	reg [MAX_M*MAX_M-1:0] poly = 0;
+	reg [MAX_M*MAX_M-1:0] poly;
 begin
 	n = m2n(m);
 
-	poly[0*MAX_M+:MAX_M] = 1;
+	poly = 1;
 	first = lpow(m, s);
 	a = first;
 	done = 0;
