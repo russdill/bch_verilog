@@ -18,32 +18,22 @@ module dch #(
 
 	localparam TCQ = 1;
 
-	function integer chien_terms;
-		input [31:0] m;
-		input [31:0] bit_pos;
-		input [31:0] no;
-		integer i;
-		integer ret;
-	begin
-		ret = 0;
-		for (i = 0; i < m; i = i + 1)
-			ret = ret | (((lpow(M, i + no) >> bit_pos) & 1) << i);
-		chien_terms = ret;
-	end
-	endfunction
-
+	wire [M-1:0] mul_out;
 	reg [M-1:0] _out = 0;
-	integer i;
-	assign out = _out ^ errcheck;
 
-	always @(posedge clk) begin
+	parallel_standard_multiplier #(M) u_mult(
+		.standard_in1(lpow(M, P)),
+		.standard_in2(_out ^ err),
+		.standard_out(mul_out)
+	);
+
+	always @(posedge clk)
 		if (start)
 			_out <= #TCQ in;
-		else if (ce) begin
-			for (i = 0; i < M; i = i + 1)
-				_out[i] <= #TCQ ^((_out ^ err) & chien_terms(M, i, P));
-		end
-	end
+		else if (ce)
+			_out <= #TCQ mul_out;
+
+	assign out = _out ^ errcheck;
 endmodule
 
 module chien #(
