@@ -20,7 +20,7 @@ module dec_decode #(
 	localparam TCQ = 1;
 	localparam M = n2m(N);
 
-	wire [M-1:0] syn1;
+	wire [2*T*M-1:M] synN;
 	wire [M-1:0] ch1;
 	wire start;			/* Indicates syndrome calculation start/complete */
 	wire done;
@@ -31,7 +31,6 @@ module dec_decode #(
 	wire output_last;
 	reg pipeline_hot = 0;
 
-	wire [M-1:0] syn3;
 	wire [M-1:0] ch3;
 	wire [M-1:0] power;
 	wire neq;
@@ -57,12 +56,14 @@ module dec_decode #(
 		assign errcheck = 0;
 	end
 
-	dsynN #(M, T, 0) u_syn1(
+	/* sN dsynN */
+	bch_syndrome #(M, T) u_bch_syndrome(
 		.clk(clk),
-		.ce(1'b1),
+		.syn_ce(1'b1),
 		.start(start),
-		.data_in(data_in),
-		.synN(syn1)
+		.shuffle_ce(1'b0),
+		.din(data_in),
+		.out(synN)
 	);
 
 	dch #(M, 1) u_dch1(
@@ -71,25 +72,17 @@ module dec_decode #(
 		.errcheck(errcheck),
 		.ce(1'b1),
 		.start(start),
-		.in(syn1),
+		.in(synN[1*M+:M]),
 		.out(ch1)
 	);
 	if (T > 1) begin
-		dsynN #(M, T, 1) u_syn3(
-			.clk(clk),
-			.ce(1'b1),
-			.start(start),
-			.data_in(data_in),
-			.synN(syn3)
-		);
-
 		dch #(M, 3) u_dch3(
 			.clk(clk),
 			.err(err),
 			.errcheck(errcheck),
 			.ce(1'b1),
 			.start(start),
-			.in(syn3),
+			.in(synN[3*M+:M]),
 			.out(ch3)
 		);
 
