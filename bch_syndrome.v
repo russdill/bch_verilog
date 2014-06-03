@@ -14,6 +14,7 @@ module dsynN #(
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
+	localparam SYNDROME_POLY = syndrome_poly(M, idx2syn(M, IDX));
 
 	genvar bit_pos;
 
@@ -36,7 +37,7 @@ module dsynN #(
 				synN <= #TCQ {{M-1{1'b0}}, data_in};
 			else if (ce)
 				synN <= #TCQ {synN[0+:syndrome_size(M, idx2syn(M, IDX))-1], data_in} ^
-					(syndrome_poly(M, idx2syn(M, IDX)) & {M{synN[syndrome_size(M, idx2syn(M, IDX))-1]}});
+					(SYNDROME_POLY & {M{synN[syndrome_size(M, idx2syn(M, IDX))-1]}});
 		end
 	end
 endmodule

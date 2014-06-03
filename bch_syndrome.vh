@@ -76,45 +76,40 @@ begin
 end
 endfunction
 
-function [(1<<MAX_M)-1:0] syndrome_poly;
+function [MAX_M-1:0] syndrome_poly;
 	input [31:0] m;
 	input [31:0] s;
 	integer i;
-	integer b;
-	integer c;
+	integer j;
+	integer n;
+	integer a;
+	integer first;
 	integer done;
 	integer curr;
 	integer prev;
-	integer s_size;
-	reg [(1<<MAX_M)*MAX_M-1:0] poly;
+	reg [MAX_M*MAX_M-1:0] poly = 0;
 begin
-	poly[0*(1<<MAX_M)+:1<<MAX_M] = 1;
-	for (i = 1; i < MAX_M; i = i + 1)
-		poly[i*(1<<MAX_M)+:1<<MAX_M] = 0;
+	n = m2n(m);
 
-	b = lpow(m, s);
-	c = b;
+	poly[0*MAX_M+:MAX_M] = 1;
+	first = lpow(m, s);
+	a = first;
 	done = 0;
-	s_size = 0;
-
 	while (!done) begin
 		prev = 0;
-		for (i = 0; i < MAX_M; i = i + 1) begin
-			curr = poly[i*(1<<MAX_M)+:1<<MAX_M];
-			poly[i*(1<<MAX_M)+:1<<MAX_M] = finite_mult(m, curr, c) ^ prev;
+		for (j = 0; j < m; j = j + 1) begin
+			curr = poly[j*MAX_M+:MAX_M];
+			poly[j*MAX_M+:MAX_M] = finite_mult(m, curr, a) ^ prev;
 			prev = curr;
 		end
-		poly[i*(1<<MAX_M)+:1<<MAX_M] = prev;
 
-		s_size = s_size + 1;
-
-		c = finite_mult(m, c, c);
-		if (c == b)
+		a = finite_mult(m, a, a);
+		if (a == first)
 			done = 1;
 	end
 
-	for (i = 0; i < s_size; i = i + 1)
-		syndrome_poly[i] = poly[i*(1<<MAX_M)+:1<<MAX_M] ? 1 : 0;
+	for (i = 0; i < m; i = i + 1)
+		syndrome_poly[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
 end
 endfunction
 
