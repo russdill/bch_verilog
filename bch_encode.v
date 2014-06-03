@@ -45,10 +45,10 @@ begin
 
 	nk = 0;
 	poly[0*MAX_M+:MAX_M] = 1;
+	a = lpow(m, 0);
 	for (i = 0; i < n; i = i + 1) begin
 		if (roots[i]) begin
 			prev = 0;
-			a = lpow(m, i);
 			poly[(nk+1)*MAX_M+:MAX_M] = 1;
 			for (j = 0; j <= nk; j = j + 1) begin
 				curr = poly[j*MAX_M+:MAX_M];
@@ -57,6 +57,7 @@ begin
 			end
 			nk = nk + 1;
 		end
+		a = mul1(m, a);
 	end
 
 	for (i = 0; i < nk; i = i + 1)
