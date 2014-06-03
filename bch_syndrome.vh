@@ -7,9 +7,8 @@ function integer first_way_terms;
 
 	integer i;
 begin
-	first_way_terms = 0;
 	for (i = 0; i < m; i = i + 1)
-		first_way_terms = first_way_terms | (((lpow(m, i + s) >> bit_pos) & 1) << i);
+		first_way_terms[i] = (lpow(m, i + s) >> bit_pos) & 1;
 end
 endfunction
 
@@ -19,9 +18,8 @@ function integer second_way_terms;
 	input [31:0] bit_pos;
 	integer i;
 begin
-	second_way_terms = 0;
 	for (i = 0; i < m; i = i + 1)
-		second_way_terms = second_way_terms | (((lpow(m, i * s) >> bit_pos) & 1) << i);
+		second_way_terms[i] = (lpow(m, i * s) >> bit_pos) & 1;
 end
 endfunction
 
@@ -115,11 +113,8 @@ begin
 			done = 1;
 	end
 
-	syndrome_poly = 0;
-	for (i = 0; i < s_size; i = i + 1) begin
-		if (poly[i*(1<<MAX_M)+:1<<MAX_M])
-			syndrome_poly = syndrome_poly | (1 << i);
-	end
+	for (i = 0; i < s_size; i = i + 1)
+		syndrome_poly[i] = poly[i*(1<<MAX_M)+:1<<MAX_M] ? 1 : 0;
 end
 endfunction
 

@@ -100,7 +100,7 @@ function integer standard_to_dual;
 begin
 	ret = 0;
 	for (i = 0; i < m; i = i + 1) begin
-		if (standard & (1 << i))
+		if (standard[i])
 			ret = ret ^ conversion_term(m, i);
 	end
 	standard_to_dual = ret;
