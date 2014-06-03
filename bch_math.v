@@ -295,22 +295,18 @@ module generate_cs #(
 	input [M*(T+1)-1:0] terms,
 	output [M-1:0] cs
 );
-	wire [M*(T+1)-1:0] rearranged;
 	genvar i, j;
 
 	/* cs generation, input rearranged_in, output cs */
-	/* snNen dandm/msN doxrt */
 	for (i = 0; i < M; i = i + 1) begin : snen
+		wire [T:0] z;
+		/* snNen dandm/msN doxrt */
 		for (j = 0; j <= T; j = j + 1) begin : ms
-			assign rearranged[i*(T+1)+j] = terms[j*M+i];
+			assign z[j] = terms[j*M+i];
 		end
+		/* msN dxort */
+		assign cs[i] = ^z;
 	end
-
-	/* msN dxort */
-	for (i = 0; i < M; i = i + 1) begin : cs_arrange
-		assign cs[i] = ^rearranged[i*(T+1)+:T+1];
-	end
-
 endmodule
 
 module lfsr_counter #(
