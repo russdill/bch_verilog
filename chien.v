@@ -50,30 +50,31 @@ module chien #(
 	wire [M*(T+1)-1:0] chNout;
 	wire [M*(T+1)-1:0] chien_mask;
 	
-	genvar i;
+	genvar i, j;
 	generate
-		/* Chien search */
-		/* chN dchN */
-		for (i = 0; i <= T; i = i + 1) begin : ch
-			dch #(M, i) u_ch(
-				.clk(clk),
-				.err(1'b0),
-				.errcheck(1'b0),
-				.ce(cei),
-				.start(ch_start),
-				.in(cNout[i*M+:M]),
-				.out(chNout[i*M+:M]))
-			;
-		end
-	endgenerate
-
-	/* cheg dcheq */
-	for (i = 0; i < M*(T+1); i = i + 1) begin : CHEG
-		assign chien_mask[i] = !(i % M);
+	/* Chien search */
+	/* chN dchN */
+	for (i = 0; i <= T; i = i + 1) begin : ch
+		dch #(M, i) u_ch(
+			.clk(clk),
+			.err(1'b0),
+			.errcheck(1'b0),
+			.ce(cei),
+			.start(ch_start),
+			.in(cNout[i*M+:M]),
+			.out(chNout[i*M+:M])
+		);
 	end
 
 	for (i = 0; i < M; i = i + 1) begin : assign_eq
-		assign eq[i] = ^(chNout & (chien_mask << i));
+		wire [T:0] z;
+		for (j = 0; j <= T; j = j + 1) begin : assign_z
+			/* cheg dcheq */
+			assign z[j] = chNout[j*M+i];
+		end
+		assign eq[i] = ^z;
 	end
+	endgenerate
+
 	assign err = !eq;
 endmodule
