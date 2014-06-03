@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /* parallel inversionless */
-module bch_decode_parallel #(
+module tmec_decode_parallel #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
 ) (
@@ -75,7 +75,7 @@ module bch_decode_parallel #(
 		else if (snce)
 			cNout[0*M+:M] <= #TCQ mcNout[0*M+:M];
 
-		/* ch0 drdce FIXME: In chien search?*/
+		/* ch0 drdce */
 		if (chpe)
 			chNout[0*M+:M] <= #TCQ cNout[0*M+:M];
 

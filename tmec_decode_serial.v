@@ -1,7 +1,7 @@
 `timescale 1ns / 1ps
 
 /* serial with inversion */
-module bch_decode_serial #(
+module tmec_decode_serial #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
 ) (
@@ -136,7 +136,7 @@ module bch_decode_serial #(
 	);
 
 	if (bch_is_pentanomial(M)) begin
-		/* FIXME */
+		serial_cannot_handle_pentanomials_yet u_schpy();
 
 	end else begin
 		dmli #(M) mli_dmli(

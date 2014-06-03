@@ -20,7 +20,7 @@ module count_ready #(
 endmodule
 
 /* count dcount */
-module bch_decode_control #(
+module tmec_decode_control #(
 	parameter N = 15,
 	parameter K = 5,
 	parameter T = 3,
@@ -50,13 +50,16 @@ module bch_decode_control #(
 localparam TCQ = 1;
 localparam M = n2m(N);
 
-localparam ITERATION = (OPTION == "SERIAL") ? (M + 2) : 3;
+localparam ITERATION = calc_iteration(N, T, OPTION == "SERIAL");
 if (OPTION != "SERIAL" && OPTION != "PARALLEL")
 	illegal_option_value u_iov();
 
 localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
 localparam CHPE = T * ITERATION - 2;
 localparam VDOUT = CHPE + INTERLEAVE + 2 - CHPE % INTERLEAVE;
+
+if (VDOUT - 2 >= N * INTERLEAVE)
+	interleave_too_small u_its();
 
 reg [$clog2(ITERATION+1)-1:0] ca = 0;
 reg [$clog2(N * INTERLEAVE / ITERATION + 2)-1:0] cb = 0;
@@ -98,7 +101,8 @@ assign cceSR = cceS || cceR;
 assign cbBeg = !cb;
 assign c0first = ca == ITERATION - 2;
 if (bch_is_pentanomial(M)) begin
-	/* FIXME */
+	if (OPTION == "SERIAL")
+		serial_cannot_handle_pentanomials_yet u_schp();
 end else
 	assign dringPe = caLast || ca == M - polyi(M) - 1;
 assign msmpe = ca == 1;
@@ -156,3 +160,4 @@ always @(posedge clk) begin
 end
 
 endmodule
+

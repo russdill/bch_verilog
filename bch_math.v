@@ -255,6 +255,9 @@ module dinv #(
 	wire ce2b = bsel || ce2a;
 	wire sel = caLast || synpe;
 
+	if (bch_is_pentanomial(M))
+		inverter_cannot_handle_pentanomials_yet u_ichp();
+
 	assign ce1 = ce2 || caLast || synpe;
 	assign ce2 = cce && !snce && (bsel || (drnzero && cbBeg));
 	assign reset = (snce && bsel) || synpe;
@@ -275,6 +278,81 @@ module dinv #(
 			mdin <= #TCQ standard_to_dual(M, 1);
 		else if (ce2)
 			mdin <= #TCQ out;
+	end
+endmodule
+
+module pow3 #(
+	parameter M = 4
+) (
+	input [M-1:0] in,
+	output [M-1:0] out
+);
+	`include "bch.vh"
+
+	function [MAX_M*(MAX_M+1)/2-1:0] pow3_terms;
+		input [31:0] m;
+		input [31:0] bit_pos;
+		integer i;
+		integer j;
+		integer k;
+		integer s;
+		integer mask;
+		integer ret;
+	begin
+		s = (m * (m + 1)) / 2;
+		mask = 1 << (m - 1 - bit_pos);
+		k = 1;
+
+		ret = 0;
+		for (i = 0; i < m; i = i + 1) begin
+			ret = ret | ((lpow(m, 3*i) & mask) ? k : 1'b0);
+			k = k << 1;
+		end
+
+		for (i = 0; i < m - 1; i = i + 1) begin
+			for (j = i + 1; j < m; j = j + 1) begin
+				ret = ret | (((lpow(m, 2*i+j) ^ lpow(m, 2*j+i)) & mask) ? k : 1'b0);
+				k = k << 1;
+			end
+		end
+
+		pow3_terms = ret;
+	end
+	endfunction
+
+	function integer dxor_terms;
+		input [31:0] m;
+		input [31:0] bit_pos;
+		integer k;
+		integer i;
+		integer done;
+		integer ret;
+	begin
+		k = 0;
+		ret = 0;
+		done = 0;
+		for (i = 0; i < m && !done; i = i + 1) begin
+			if (bit_pos < k + m - i) begin
+				if (i > 0)
+					ret = ret | (1 << (i - 1));
+				ret = ret | (1 << (bit_pos - k + i));
+				done = 1;
+			end
+			k = k + m - i;
+		end
+		dxor_terms = ret;
+	end
+	endfunction
+
+	wire [M*(M+1)/2-1:0] dxor;
+	genvar i;
+
+	for (i = 0; i < M * (M + 1) / 2; i = i + 1) begin : gen_xor
+		assign dxor[i] = !(dxor_terms(M, i) & ~in);
+	end
+
+	for (i = 0; i < M; i = i + 1) begin : gen_out
+		assign out[i] = ^(dxor & pow3_terms(M, i));
 	end
 endmodule
 

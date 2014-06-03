@@ -32,7 +32,7 @@ tb_bch_encode: tb_bch_encode.v bch_encode.v
 tb_bch_decode: tb_bch_decode.v bch_decode.v bch_math.v bch_decode_control.v bch_syndrome.v chien.v
 	$(IVERILOG) $(VFLAGS) $^ -o $@
 
-tb_sim: tb_sim.v sim.v bch_encode.v bch_decode.v bch_decode_serial.v bch_decode_parallel.v bch_math.v bch_decode_control.v bch_syndrome.v chien.v
+tb_sim: tb_sim.v sim.v bch_encode.v bch_decode.v tmec_decode.v tmec_decode_serial.v tmec_decode_parallel.v dec_decode.v bch_math.v tmec_decode_control.v bch_syndrome.v chien.v
 	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ON) $(OK) $(OT) $(OSEED) $(OOPTION)
 
 tb_bch_syndrome: tb_bch_syndrome.v bch_syndrome.v
