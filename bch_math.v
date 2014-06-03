@@ -138,9 +138,10 @@ module serial_standard_multiplier_final #(
 	end
 endmodule
 
-/* Square the standard basis input */
-module parallel_standard_square #(
-	parameter M = 4
+/* Raise standard basis input to a power */
+module parallel_standard_power #(
+	parameter M = 4,
+	parameter P = 2
 ) (
 	input [M-1:0] standard_in,
 	output [M-1:0] standard_out
@@ -149,7 +150,7 @@ module parallel_standard_square #(
 
 	genvar i, j;
 	for (i = 0; i < M; i = i + 1) begin : out_assign
-		wire [M-1:0] terms = lpow(M, i * 2);
+		wire [M-1:0] terms = lpow(M, i * P);
 		wire [M-1:0] rot;
 		for (j = 0; j < M; j = j + 1) begin : rotate
 			assign rot[j] = out_assign[j].terms[i];
@@ -198,7 +199,7 @@ module finite_divider #(
 		inverter_cannot_handle_pentanomials_yet u_ichp();
 
 	/* Square the input each cycle */
-	parallel_standard_square #(M) u_dsq(
+	parallel_standard_power #(M, 2) u_dsq(
 		.standard_in(start ? standard_denom : standard_a),
 		.standard_out(standard_b)
 	);
