@@ -60,6 +60,80 @@ module dpdbm #(
 	endgenerate
 endmodule
 
+/* Bit-parallel standard basis multiplier */
+module dpm #(
+	parameter M = 4
+) (
+	input [M-1:0] in1,
+	input [M-1:0] in2,
+	output [M-1:0] out
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+	localparam Z = (ham(M) - 1) * (M - 1) + 1;
+	localparam lZ = log2(Z);
+
+	function [M*M*lZ-1:0] dpm_table;
+		input [31:0] m;
+		integer i;
+		integer j;
+		integer poly;
+		integer pos;
+		integer bi;
+	begin
+		poly = bch_polynomial(m);
+
+		for (i = 0; i < M; i = i + 1)
+			dpm_table[(0*M+i)*lZ+:lZ] = i;
+
+		bi = M;
+		for (i = 1; i < M; i = i + 1) begin : convert
+			dpm_table[(i*M+0)*lZ+:lZ] = dpm_table[((i-1)*M+M-1)*lZ+:lZ];
+			for (j = 1; j < M; j = j + 1) begin
+				if ((1 << j) & poly) begin
+					dpm_table[(i*M+j)*lZ+:lZ] = bi;
+					bi = bi + 1;
+				end else
+					dpm_table[(i*M+j)*lZ+:lZ] = dpm_table[((i-1)*M+j-1)*lZ+:lZ];
+			end
+		end
+	end
+	endfunction
+
+	wire [Z-1:0] b;
+	wire [M*M-1:0] cN;
+	localparam [M*M*lZ-1:0] map = dpm_table(M);
+
+	genvar i, j;
+
+	assign b[M-1:0] = in1;
+
+	for (i = 0; i < M; i = i + 1) begin : cn_block
+		assign cN[i*M] = b[i];
+	end
+
+	for (i = 1; i < M; i = i + 1) begin : convert
+		assign cN[i] = b[map[(i*M+0)*lZ+:lZ]];
+		for (j = 1; j < M; j = j + 1) begin : b_swizzle
+			if ((1 << j) & bch_polynomial(M))
+				assign b[map[(i*M+j)*lZ+:lZ]] = b[map[((i-1)*M+j-1)*lZ+:lZ]] ^ b[map[((i-1)*M+M-1)*lZ+:lZ]];
+			assign cN[j*M+i] = b[map[(i*M+j)*lZ+:lZ]];
+		end
+		dsdbm #(M) u_mn(
+			.dual_in(in2),
+			.standard_in(cN[i*M+:M]),
+			.out(out[i])
+		);
+	end
+
+	dsdbm #(M) u_mn(
+		.dual_in(in2),
+		.standard_in(cN[0+:M]),
+		.out(out[0])
+	);
+endmodule
+
 /* Bit-serial standard basis multiplier */
 module dssbm #(
 	parameter M = 4
@@ -201,6 +275,31 @@ module dinv #(
 			mdin <= #TCQ standard_to_dual(M, 1);
 		else if (ce2)
 			mdin <= #TCQ out;
+	end
+endmodule
+
+module generate_cs #(
+	parameter M = 4,
+	parameter T = 3
+) (
+	input [M*(T+1)-1:0] terms,
+	output [M-1:0] cs
+);
+	wire [M*(T+1)-1:0] rearranged;
+	genvar i, j;
+
+	/* cs generation, input rearranged_in, output cs */
+	/* snNen dandm/msN doxrt */
+	for (i = 0; i < M; i = i + 1) begin : snen
+		for (j = 0; j <= T; j = j + 1) begin : ms
+			assign rearranged[i*(T+1)+j] = terms[j*M+i];
+		end
+	end
+
+	/* msN dxort */
+	assign cs[0] = ^rearranged[0*(T+1)+:T+1];
+	for (i = 1; i < M; i = i + 1) begin : cs_arrange
+		assign cs[i] = ^rearranged[i*(T+1)+:T+1];
 	end
 
 endmodule

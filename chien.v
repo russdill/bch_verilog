@@ -45,29 +45,29 @@ module chien #(
 	input clk,
 	input cei,
 	input chpe,
-	input [M*(T+1)-1:M] cNout,
+	input [M*(T+1)-1:0] cNout,
 	output err
 );
 	wire [M-1:0] eq;
-	wire [M*(T+1)-1:M] chout;
-	wire [M*T-1:0] chien_mask;
+	wire [M*(T+1)-1:0] chNout;
+	wire [M*(T+1)-1:0] chien_mask;
 	
 	genvar i;
 	generate
 		/* Chien search */
 		/* chN dchN */
-		for (i = 1; i <= T; i = i + 1) begin : ch
-			dch #(M, i) u_ch(clk, cei, chpe, cNout[i*M+:M], chout[i*M+:M]);
+		for (i = 0; i <= T; i = i + 1) begin : ch
+			dch #(M, i) u_ch(clk, cei, chpe, cNout[i*M+:M], chNout[i*M+:M]);
 		end
 	endgenerate
 
 	/* cheg dcheq */
-	for (i = 0; i < M*T; i = i + 1) begin : CHEG
+	for (i = 0; i < M*(T+1); i = i + 1) begin : CHEG
 		assign chien_mask[i] = !(i % M);
 	end
 
 	for (i = 0; i < M; i = i + 1) begin : assign_eq
-		assign eq[i] = ^(chout[M*(T+1)-1:M] & (chien_mask << i));
+		assign eq[i] = ^(chNout & (chien_mask << i));
 	end
-	assign err = !(eq ^ 1'b1);
+	assign err = !eq;
 endmodule

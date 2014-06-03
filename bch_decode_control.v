@@ -48,6 +48,7 @@ module bch_decode_control #(
 
 localparam TCQ = 1;
 localparam M = n2m(N);
+/* FIXME: ITERATION = 3 for option 2, M+2 for option 3 */
 localparam ITERATION = M + 2;
 localparam INTERLEAVE = calc_interleave(N, T);
 localparam CHPE = T * ITERATION - 2;
@@ -83,6 +84,7 @@ count_ready #(N, K, T, K * INTERLEAVE - 1)		u_bufR(ca, cb, bufR);
 
 assign res = reset || clast;
 assign caLast = ca == ITERATION - 1 || res;
+/* FIXME: For option 2, lCe = !ca */
 assign lCe = caLast && cb;
 assign cceR = ca == M - 1;
 assign cceS = caLast || synpe;

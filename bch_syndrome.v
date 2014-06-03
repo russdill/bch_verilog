@@ -7,8 +7,10 @@ module bch_syndrome #(
 	input clk,
 	input ce,
 	input pe,
+	input snce,
 	input din,
-	output [2*T*M-1:M] out
+	output [2*T*M-1:M] out,
+	output reg [(2*T-1)*M-1:0] snNout = 0
 );
 
 `include "bch.vh"
@@ -16,6 +18,7 @@ module bch_syndrome #(
 
 localparam TCQ = 1;
 
+genvar i;
 genvar j;
 genvar bit_pos;
 genvar idx;
@@ -66,5 +69,23 @@ for (dat = 1; dat < 2 * T; dat = dat + 1) begin : assign_dat
 		end
 	end
 end
+
+
+/* Syndrome shuffling */
+/* snN drdce */
+generate
+	for (i = 0; i < 2*T-1; i = i + 1) begin : s
+		if (i == T + 1 && T < 4) begin
+			always @(posedge clk)
+				if (pe)
+					snNout[i*M+:M] <= #TCQ out[(3*T-i-1)*M+:M];
+		end else begin
+			always @(posedge clk)
+				if (snce)				/* xN dmul21 */
+					snNout[i*M+:M] <= #TCQ pe ? out[M*((2*T+1-i)%(2*T-1)+1)+:M] : snNout[M*((i+(2*T-3))%(2*T-1))+:M];
+		end
+	end
+endgenerate
+
 
 endmodule
