@@ -10,6 +10,8 @@
  * 2: accumulator *= alpha^j
  * 3: z = z - 1
  * 4: z >= 0 -> goto 1
+ *
+ * takes n cycles
  */
 module dsynN_method1 #(
 	parameter M = 4,
@@ -24,32 +26,22 @@ module dsynN_method1 #(
 );
 	`include "bch.vh"
 
-	function integer first_way_terms;
-		input [31:0] m;
-		input [31:0] s;
-		input [31:0] bit_pos;
-		integer i;
-	begin
-		for (i = 0; i < m; i = i + 1)
-			first_way_terms[i] = (lpow(m, i + s) >> bit_pos) & 1;
-	end
-	endfunction
-
 	localparam TCQ = 1;
-	localparam SYN = idx2syn(M, IDX);
+	wire [M-1:0] mul_out;
 
-	genvar bit_pos;
+	/* accumulator *= alpha^j */
+	parallel_standard_multiplier #(M) u_mult(
+		.standard_in1(lpow(M, idx2syn(M, IDX))),
+		.standard_in2(synN),
+		.standard_out(mul_out)
+	);
 
-	for (bit_pos = 0; bit_pos < M; bit_pos = bit_pos + 1) begin : first
-		always @(posedge clk) begin
-			if (start)
-				synN[bit_pos] <= #TCQ bit_pos ? 1'b0 : data_in;
-			else if (ce)
-				synN[bit_pos] <= #TCQ
-					^(synN & first_way_terms(M, SYN, bit_pos)) ^
-					(bit_pos ? 0 : data_in);
-		end
-	end
+	/* accumulator += r_z */
+	always @(posedge clk)
+		if (start)
+			synN <= #TCQ {{M-1{1'b0}}, data_in};
+		else if (ce)
+			synN <= #TCQ mul_out ^ {{M-1{1'b0}}, data_in};
 endmodule
 
 module syndrome_expand_method1 #(
