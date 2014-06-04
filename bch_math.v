@@ -37,16 +37,16 @@ module serial_mixed_multiplier #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam POLY = bch_polynomial(M);
 
 	reg [M-1:0] lfsr = 0;
-	wire [M-1:0] poly = bch_polynomial(M);
 
 	/* LFSR for generating aux bits */
 	always @(posedge clk) begin
 		if (start)
 			lfsr <= #TCQ dual_in;
 		else
-			lfsr <= #TCQ {^(lfsr & poly), lfsr[M-1:1]};
+			lfsr <= #TCQ {^(lfsr & POLY), lfsr[M-1:1]};
 	end
 
 	matrix_vector_mult #(M, N_INPUT) u_mult(standard_in, lfsr, dual_out);
@@ -62,8 +62,9 @@ module parallel_mixed_multiplier #(
 );
 	`include "bch.vh"
 
+	localparam POLY = bch_polynomial(M);
+
 	wire [M-2:0] aux;
-	wire [M-1:0] POLY = bch_polynomial(M);
 	wire [M*2-2:0] all;
 
 	assign all = {aux, dual_in};
@@ -158,10 +159,10 @@ module parallel_standard_power #(
 
 	genvar i, j;
 	for (i = 0; i < M; i = i + 1) begin : out_assign
-		wire [M-1:0] terms = lpow(M, i * P);
+		localparam TERMS = lpow(M, i * P);
 		wire [M-1:0] rot;
 		for (j = 0; j < M; j = j + 1) begin : rotate
-			assign rot[j] = out_assign[j].terms[i];
+			assign rot[j] = out_assign[j].TERMS[i];
 		end
 		assign standard_out[i] = ^(standard_in & rot);
 	end
@@ -257,24 +258,17 @@ module pow3 #(
 
 	generate
 	for (i = 0; i < M; i = i + 1) begin : FIRST_TERM
-		wire [M-1:0] bits;
+		localparam BITS = lpow(M, 3 * i);
 		/* first_term = a_i * alpha^(3*i) */
 		assign ft_in[i] = in[i];
-		assign bits = lpow(M, 3 * i);
 	end
 
 	/* i = 0 to m - 2, j = i to m - 1 */
 	for (k = 0; k < M * M; k = k + 1) begin : SECOND_TERM
 		/* i = k / M, j = j % M */
-		wire [M-1:0] bits;
-		if (k/M < k%M) begin
-			/* second_term = a_i * a_j * (alpha^(2*i+j) + alpha^(2*i+j)) */
-			assign st_in[k] = in[k/M] & in[k%M];
-			assign bits = lpow(M, 2*(k/M)+k%M) ^ lpow(M, 2*(k%M)+k/M);
-		end else begin
-			assign st_in[k] = 0;
-			assign bits = 0;
-		end
+		/* second_term = a_i * a_j * (alpha^(2*i+j) + alpha^(2*i+j)) */
+		localparam BITS = (k/M < k%M) ? (lpow(M, 2*(k/M)+k%M) ^ lpow(M, 2*(k%M)+k/M)) : 0;
+		assign st_in[k] = (k/M < k%M) ? (in[k/M] & in[k%M]) : 0;
 	end
 
 	for (i = 0; i < M; i = i + 1) begin : CALC
@@ -283,11 +277,11 @@ module pow3 #(
 
 		/* Rearrange bits for multiplication */
 		for (j = 0; j < M; j = j + 1) begin : arrange1
-			assign first_term[j] = FIRST_TERM[j].bits[i];
+			assign first_term[j] = FIRST_TERM[j].BITS[i];
 		end
 
 		for (j = 0; j < M*M; j = j + 1) begin : arrange2
-			assign second_term[j] = SECOND_TERM[j].bits[i];
+			assign second_term[j] = SECOND_TERM[j].BITS[i];
 		end
 
 		/* a^3 = first_term + second_term*/
@@ -325,8 +319,9 @@ module lfsr_counter #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam POLY = bch_polynomial(M);
 
 	always @(posedge clk)
 		count <= #TCQ reset ? 1'b1 : {count[M-2:0], 1'b0} ^
-			({M{count[M-1]}} & bch_polynomial(M));
+			({M{count[M-1]}} & POLY);
 endmodule

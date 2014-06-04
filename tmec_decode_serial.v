@@ -132,6 +132,8 @@ module tmec_decode_serial #(
 		.dual_out(drpd)
 	);
 
+	localparam LPOW_P = lpow(M, polyi(M));
+
 	if (bch_is_pentanomial(M)) begin
 		serial_cannot_handle_pentanomials_yet u_schpy();
 
@@ -139,7 +141,7 @@ module tmec_decode_serial #(
 		/* Muliply by L^i */
 		parallel_mixed_multiplier #(M) u_dmli(
 			.dual_in(drpd),
-			.standard_in(lpow(M, polyi(M))),
+			.standard_in(LPOW_P[M-1:0]),
 			.dual_out(dli)
 		);
 		assign dmIn = caLast ? dli : qd;

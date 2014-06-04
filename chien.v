@@ -17,12 +17,13 @@ module dch #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam LPOW = lpow(M, P);
 
 	wire [M-1:0] mul_out;
 	reg [M-1:0] _out = 0;
 
 	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(lpow(M, P)),
+		.standard_in1(LPOW[M-1:0]),
 		.standard_in2(_out ^ err),
 		.standard_out(mul_out)
 	);

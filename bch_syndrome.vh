@@ -62,15 +62,20 @@ function integer next_syndrome;
 	input [31:0] m;
 	input [31:0] s;
 	integer tmp;
+	integer n;
 	integer done;
 	integer ret;
 begin
+
+	n = m2n(m);
 	ret = s + 2;
 	tmp = ret;
 	done = 0;
 
 	while (!done) begin
-		tmp = (tmp * 2) % m2n(m);
+		tmp = tmp * 2;
+		if (tmp >= n)
+			tmp = tmp - n;
 		if (tmp < ret) begin
 			ret = ret + 2;
 			tmp = ret;

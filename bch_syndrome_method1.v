@@ -27,11 +27,13 @@ module dsynN_method1 #(
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
+	localparam LPOW_S = lpow(M, idx2syn(M, IDX));
+
 	wire [M-1:0] mul_out;
 
 	/* accumulator *= alpha^j */
 	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(lpow(M, idx2syn(M, IDX))),
+		.standard_in1(LPOW_S[M-1:0]),
 		.standard_in2(synN),
 		.standard_out(mul_out)
 	);
