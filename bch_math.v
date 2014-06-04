@@ -1,5 +1,22 @@
 `timescale 1ns / 1ps
 
+
+module matrix_vector_mult #(
+	parameter C = 4,
+	parameter R = C,
+	parameter SHIFT = C
+) (
+	input [C+SHIFT*(R-1)-1:0] matrix,
+	input [C-1:0] vector,
+	output [R-1:0] out
+);
+	genvar i;
+	for (i = 0; i < R; i = i + 1) begin : mult
+		assign out[i] = ^(matrix[SHIFT*i+:C] & vector);
+	end
+endmodule
+
+
 /*
  * Bit-serial Berlekamp (mixed dual/standard basis) multiplier)
  * Can multiply one dual basis input by N_INPUTS standard basis
@@ -23,7 +40,6 @@ module serial_mixed_multiplier #(
 
 	reg [M-1:0] lfsr = 0;
 	wire [M-1:0] poly = bch_polynomial(M);
-	genvar i;
 
 	/* LFSR for generating aux bits */
 	always @(posedge clk) begin
@@ -33,9 +49,7 @@ module serial_mixed_multiplier #(
 			lfsr <= #TCQ {^(lfsr & poly), lfsr[M-1:1]};
 	end
 
-	for (i = 0; i < N_INPUT; i = i + 1) begin : mult
-		assign dual_out[i] = ^(standard_in[M*i+:M] & lfsr);
-	end
+	matrix_vector_mult #(M, N_INPUT) u_mult(standard_in, lfsr, dual_out);
 endmodule
 
 /* Berlekamp bit-parallel dual-basis multiplier */
@@ -49,22 +63,16 @@ module parallel_mixed_multiplier #(
 	`include "bch.vh"
 
 	wire [M-2:0] aux;
-	wire [M-1:0] poly = bch_polynomial(M);
+	wire [M-1:0] POLY = bch_polynomial(M);
 	wire [M*2-2:0] all;
-	genvar i;
 
 	assign all = {aux, dual_in};
 
 	/* Generate additional terms via an LFSR */
-	for (i = 0; i < M - 1; i = i + 1) begin : aux_assign
-		assign aux[i] = ^(all[i+:M] & poly);
-	end
+	matrix_vector_mult #(M, M-1, 1) u_lfsr(all[M*2-3:0], POLY[M-1:0], all[M*2-2:M]);
 
 	/* Perform matrix multiplication of terms */
-	for (i = 0; i < M; i = i + 1) begin : mult
-		assign dual_out[i] = ^(all[i+:M] & standard_in);
-	end
-
+	matrix_vector_mult #(M, M, 1) u_mult(all, standard_in, dual_out);
 endmodule
 
 /* Bit-parallel standard basis multiplier (PPBML) */
