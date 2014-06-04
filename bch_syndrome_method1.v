@@ -24,7 +24,7 @@ module dsynN_method1 #(
 	input data_in,
 	output reg [M-1:0] synN = 0
 );
-	`include "bch.vh"
+	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
 	wire [M-1:0] mul_out;
