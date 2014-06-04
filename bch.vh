@@ -127,10 +127,8 @@ begin
 	p = 0;
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
-			if (b & 1)
-				p = p ^ a;
+			p = p ^ (a & {MAX_M{b[i]}});
 			a = mul1(m, a);
-			b = b >> 1;
 		end
 	end
 	finite_mult = p;
