@@ -3,7 +3,8 @@
 module bch_decode #(
 	parameter N = 15,
 	parameter K = 5,
-	parameter T = 3		/* Correctable errors */
+	parameter T = 3,	/* Correctable errors */
+	parameter OPTION = "SERIAL"
 ) (
 	input clk,
 	input reset,
@@ -272,6 +273,9 @@ wire [M-1:0] sn4out = snNout[M*4+:M];
 wire [M-1:0] c1out = cNout[1*M+:M];
 wire [M-1:0] c2out = cNout[2*M+:M];
 wire [M-1:0] c3out = cNout[3*M+:M];
+
+if (OPTION != "SERIAL")
+	only_serial_decoder_available u_osda();
 
 /* snNe dandm */
 assign snNen[0+:M] = c0first ? snNout[0+:M] : 0;

@@ -3,7 +3,8 @@
 module sim #(
 	parameter N = 15,
 	parameter K = 5,
-	parameter T = 3
+	parameter T = 3,
+	parameter OPTION = "SERIAL"
 ) (
 	input clk,
 	input reset,
@@ -46,7 +47,7 @@ wire clkEncEn;
 wire encOut;
 wire decOut;
 
-bch_encode #(N, K, T) u_bch_encode(
+bch_encode #(N, K, T, OPTION) u_bch_encode(
 	.clk(clkEnc),
 	.reset(reset),
 	.din(encIn),
