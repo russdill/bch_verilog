@@ -45,14 +45,13 @@ module tmec_decode_serial #(
 	wire [T:1] cin;
 	wire [T:1] cNbits;
 
-	reg [M*(T+1)-1:M*2] bNout = 0;	/* Beta */
+	reg [M*(T+1)-1:M*2] beta = 0;
 	reg [M*(T-1)-1:M*2] ccNout = 0;
 	reg [M-1:0] qd = 0;
 
 	wire b2ce;
 	wire b3ce;
 	wire b3set;
-	wire b4set;
 	wire b3sIn;
 	wire b4sIn;
 	wire xbsel;
@@ -62,25 +61,16 @@ module tmec_decode_serial #(
 	genvar i;
 
 	assign cNout[0+:M] = 1;
-	assign b2ce = synpe || b3ce;
-	assign b3ce = caLast && !cbBeg;
+
+	/* beta_1 is always 0 */
+	assign cin[1] = 0;
 
 	assign drnzero = synpe ? |dra : qdr_or;
 
 	/* xdr dmul21 */
 	assign dra = synpe ? syn1 : dr;
-
-	assign b3set = synpe || (b3ce && !bsel);
-	assign b3sIn = synpe && !drnzero;
-	if (T > 3) begin
-		assign b4set = caLast && !bsel;
-		assign b4sIn = !cbBeg && bNout[2*M];
-	end
 	assign xbsel = bsel || cbBeg;
 	assign ccCe = (msmpe && cbBeg) || caLast;
-
-	/* beta_1 is always 0 */
-	assign cin[1] = 0;
 
 	always @(posedge clk) begin
 		/* qdrOr drdr1ce */
@@ -91,32 +81,26 @@ module tmec_decode_serial #(
 		if (caLast)
 			qd <= #TCQ drpd;
 
-		/* b2 drd1ce */
-		if (b2ce)
-			bNout[2*M] <= #TCQ bsel;
-
-		/* drdcesone b3 */
-		if (b3set)
-			bNout[3*M+:M] <= #TCQ {{M-1{1'b0}}, b3sIn};
-		else if (b3ce)
-			bNout[3*M+:M] <= #TCQ cNout[1*M+:M];
-
-		if (T > 3) begin
-			/* b4 drdceSOne */
-			if (b4set)
-				bNout[4*M+:M] <= #TCQ {{M-1{1'b0}}, b4sIn};
-			else if (caLast)
-				bNout[4*M+:M] <= #TCQ ccNout[2*M+:M];
-		end
-
+		/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
 		/* bN drdce */
-		if (T >= 5)
-			if (caLast)				/* bNin, xbN dmul21 */
-				bNout[5*M+:M*(T-4)] <= #TCQ xbsel ? ccNout[3*M+:M*(T-4)] : bNout[3*M+:M*(T-4)];
+		if (synpe) begin
+			beta[2*M+:M] <= #TCQ cNout[0*M+:M];
+			beta[3*M+:M] <= #TCQ {{M-1{1'b0}}, !drnzero};
+		end else if (caLast) begin
+			if (cbBeg) begin
+				if (T >= 4)
+					beta[4*M+:M*(T-3)] <= #TCQ ccNout[2*M+:M*(T-3)];
+			end else begin
+				beta[2*M+:M] <= #TCQ bsel ? cNout[0*M+:M] : {M{1'b0}};
+				beta[3*M+:M] <= #TCQ bsel ? cNout[1*M+:M] : {M{1'b0}};
+				if (T >= 4)
+					beta[4*M+:M*(T-3)] <= #TCQ bsel ? ccNout[2*M+:M*(T-3)] : beta[2*M+:M*(T-3)];
+			end
+		end
 
 		/* ccN drdce */
 		if (ccCe)
-			ccNout <= #TCQ cNout[2*M+:M*(T-2)];
+			ccNout[2*M+:M*(T-3)] <= #TCQ cNout[2*M+:M*(T-2)];
 	end
 
 	finite_divider #(M) u_dinv(
@@ -138,13 +122,14 @@ module tmec_decode_serial #(
 		.clk(clk),
 		.start(dringPe),
 		.dual_in(dmIn),
-		.standard_in(bNout[2*M+:(T-1)*M]),
+		.standard_in(beta[2*M+:(T-1)*M]),
 		.dual_out(cin[2+:(T-1)])
 	);
 
 	/* cN dshr */
 	/* Add Beta * drp to sigma (Summation) */
 	/* simga_i^(r-1) + d_rp * beta_i^(r) */
+	/* Initial value 1 + S_1 * x */
 	finite_serial_adder #(M) u_cN [T-1:0] (
 		.clk(clk),
 		.start(synpe),
