@@ -29,7 +29,7 @@ module tmec_decode_serial #(
 	input [M*(2*T-1)-1:0] snNout,
 
 	output drnzero,
-	output reg [M*(T+1)-1:0] cNout = 1	/* sigma */
+	output [M*(T+1)-1:0] cNout /* sigma */
 );
 
 	`include "bch.vh"
@@ -43,6 +43,7 @@ module tmec_decode_serial #(
 	wire [M-1:0] dmIn;
 	wire [M-1:0] c1in;
 	wire [T:1] cin;
+	wire [T:1] cNbits;
 
 	reg [M*(T+1)-1:M*2] bNout = 0;	/* Beta */
 	reg [M*(T-1)-1:M*2] ccNout = 0;
@@ -60,6 +61,7 @@ module tmec_decode_serial #(
 
 	genvar i;
 
+	assign cNout[0+:M] = 1;
 	assign b2ce = synpe || b3ce;
 	assign b3ce = caLast && !cbBeg;
 
@@ -76,7 +78,6 @@ module tmec_decode_serial #(
 	end
 	assign xbsel = bsel || cbBeg;
 	assign ccCe = (msmpe && cbBeg) || caLast;
-	assign c1in = {syn1[M-2:0], syn1[M-1]};
 
 	/* beta_1 is always 0 */
 	assign cin[1] = 0;
@@ -108,33 +109,15 @@ module tmec_decode_serial #(
 				bNout[4*M+:M] <= #TCQ ccNout[2*M+:M];
 		end
 
-		/* c1 dshpe */
-		/* Add Beta * drp to sigma */
-		if (synpe)
-			cNout[1*M+:M] <= #TCQ c1in;
-		else if (cce)
-			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1] ^ cin[1]};
+		/* bN drdce */
+		if (T >= 5)
+			if (caLast)				/* bNin, xbN dmul21 */
+				bNout[5*M+:M*(T-4)] <= #TCQ xbsel ? ccNout[3*M+:M*(T-4)] : bNout[3*M+:M*(T-4)];
 
 		/* ccN drdce */
 		if (ccCe)
 			ccNout <= #TCQ cNout[2*M+:M*(T-2)];
 	end
-
-	function [T:0] bit0;
-		input [M*(T+1)-1:0] in;
-		integer i;
-		for (i = 0; i < T + 1; i = i + 1)
-			bit0[i] = in[M*i];
-	endfunction
-
-	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier1(
-		.clk(clk), 
-		.run(!caLast),
-		.start(msmpe),
-		.parallel_in(snNout[0+:M*(T+1)]),
-		.serial_in(bit0({cNout[M+:M*T], {M{c0first}}})),
-		.out(dr)
-	);
 
 	finite_divider #(M) u_dinv(
 		.clk(clk),
@@ -147,20 +130,17 @@ module tmec_decode_serial #(
 
 	localparam LPOW_P = lpow(M, polyi(M));
 
-	if (bch_is_pentanomial(M)) begin
-		serial_cannot_handle_pentanomials_yet u_schpy();
+	/* Convert to standard basis (basis rearranging circuit) */
+	/* d_rp -> standard basis */
+	parallel_mixed_multiplier #(M) u_dmli(
+		.dual_in(drpd),
+		.standard_in(LPOW_P[M-1:0]),
+		.dual_out(dli)
+	);
 
-	end else begin
-		/* Convert to standard basis (basis rearranging circuit) */
-		parallel_mixed_multiplier #(M) u_dmli(
-			.dual_in(drpd),
-			.standard_in(LPOW_P[M-1:0]),
-			.dual_out(dli)
-		);
-		assign dmIn = caLast ? dli : qd;
-	end
+	assign dmIn = caLast ? dli : qd;
 
-	/* mbN SDBM */
+	/* mbN SDBM d_rp * beta_i(r) */
 	serial_mixed_multiplier #(M, T - 1) u_serial_mixed_multiplier(
 		.clk(clk),
 		.start(dringPe),
@@ -169,23 +149,27 @@ module tmec_decode_serial #(
 		.dual_out(cin[2+:(T-1)])
 	);
 
-	generate
-		/* cN dshr */
-		/* Add Beta * drp to sigma (Summation) */
-		for (i = 2; i <= T; i = i + 1) begin : c
-			always @(posedge clk) begin
-				if (cbBeg)
-					cNout[i*M+:M] <= #TCQ 0;
-				else if (cce)
-					cNout[i*M+:M] <= #TCQ {cNout[i*M+:M-1], cNout[i*M+M-1] ^ cin[i]};
-			end
-		end
+	/* cN dshr */
+	/* Add Beta * drp to sigma (Summation) */
+	/* simga_i^(r-1) + d_rp * beta_i^(r) */
+	finite_serial_adder #(M) u_cN [T-1:0] (
+		.clk(clk),
+		.start(synpe),
+		.ce(cce),
+		.parallel_in({{M*(T-1){1'b0}}, syn1}),
+		.serial_in({T{!cbBeg}} & cin[1+:T]),
+		.parallel_out(cNout[M+:M*T]),
+		.serial_out(cNbits[1+:T])
+	);
 
-		/* bN drdce */
-		if (T >= 5) begin : b
-			always @(posedge clk)
-				if (caLast)				/* bNin, xbN dmul21 */
-					bNout[5*M+:M*(T-4)] <= #TCQ xbsel ? ccNout[3*M+:M*(T-4)] : bNout[3*M+:M*(T-4)];
-		end
-	endgenerate
+	/* d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t */
+	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier(
+		.clk(clk), 
+		.run(!caLast),
+		.start(msmpe),
+		.parallel_in(snNout[0+:M*(T+1)]),
+		.serial_in({cNbits, c0first}),
+		.out(dr)
+	);
+
 endmodule
