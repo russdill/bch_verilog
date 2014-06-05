@@ -76,6 +76,24 @@ module parallel_mixed_multiplier #(
 	matrix_vector_mult #(M, M, 1) u_mult(all, standard_in, dual_out);
 endmodule
 
+/* Convert to standard basis (basis rearranging circuit) */
+module dual_to_standard #(
+	parameter M = 4
+) (
+	input [M-1:0] dual_in,
+	output [M-1:0] standard_out
+);
+	`include "bch.vh"
+
+	localparam LPOW_P = lpow(M, polyi(M));
+
+	parallel_mixed_multiplier #(M) u_dmli(
+		.dual_in(dual_in),
+		.standard_in(LPOW_P[M-1:0]),
+		.dual_out(standard_out)
+	);
+endmodule
+
 /* Bit-parallel standard basis multiplier (PPBML) */
 module parallel_standard_multiplier #(
 	parameter M = 4,

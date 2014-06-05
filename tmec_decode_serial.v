@@ -128,15 +128,8 @@ module tmec_decode_serial #(
 		.dual_out(drpd)
 	);
 
-	localparam LPOW_P = lpow(M, polyi(M));
-
-	/* Convert to standard basis (basis rearranging circuit) */
 	/* d_rp -> standard basis */
-	parallel_mixed_multiplier #(M) u_dmli(
-		.dual_in(drpd),
-		.standard_in(LPOW_P[M-1:0]),
-		.dual_out(dli)
-	);
+	dual_to_standard #(M) u_dmli(drpd, dli);
 
 	assign dmIn = caLast ? dli : qd;
 
