@@ -22,37 +22,21 @@ module tmec_decode_parallel #(
 
 	reg [M-1:0] dr = 0;
 	wire [M-1:0] cs;
-	wire [M-1:0] qdpin;
 	reg [M-1:0] dp = 0;
 	wire [M*(T+1)-1:0] mNout;
-	wire [M*(T+1)-1:1*M] cNin;
-	wire [M*(T+1)-1:2*M] mbNout;
+	wire [M*(T+1)-1:0] mbNout;
 	wire [M*(T+1)-1:0] mcNout;
-	reg [M*(T+1)-1:2*M] beta = 0;
-
-	wire qdpce;
-	wire qdpset;
-	wire b23set;
-	wire b2s;
-	wire b3s;
+	reg [M*(T+1)-1:0] beta = 0;
 
 	genvar i;
 
-	wire [M*2-1:0] beta0;
-	assign beta0 = {{M-1{1'b0}}, b3s, {M-1{1'b0}}, b2s};
+	wire [M*4-1:0] beta0;
+	assign beta0 = {{M-1{1'b0}}, !syn1, {M-1{1'b0}}, |syn1, {2*M{1'b0}}};
 
+	wire [M*2-1:0] sigma0;
+	assign sigma0 = {syn1[0+:M], {M-1{1'b0}}, 1'b1};
 
-	assign qdpce = snce && (bsel || (d_r_nonzero && synpe));
-	assign qdpset = synpe && !d_r_nonzero;
-	assign qdpin = synpe ? syn1 : dr;
-
-	assign d_r_nonzero = |qdpin;
-	assign b2s = synpe && d_r_nonzero;
-	assign b3s = synpe && !d_r_nonzero;
-
-	/* xc1 dmul21 */
-	/* csN dxorm */
-	assign cNin = {mbNout ^ mcNout[2*M+:M*(T-1)], synpe ? syn1[0+:M] : mcNout[1*M+:M]};
+	assign d_r_nonzero = |dr;
 
 	/* cs generation, input rearranged_in, output cs */
 	/* snNen dandm/msN doxrt */
@@ -61,33 +45,25 @@ module tmec_decode_parallel #(
 
 	always @(posedge clk) begin
 		/* qpd drdcesone */
-		if (qdpset)
-			dp <= #TCQ 1;
-		else if (qdpce)
-			dp <= #TCQ qdpin;
+		if (synpe) begin
+			dp <= #TCQ syn1 ? syn1 : 1;
+			sigma <= #TCQ sigma0;
+			beta <= #TCQ beta0;
+		end else if (snce) begin
+			if (bsel)
+				dp <= #TCQ dr;
+			sigma <= #TCQ {mbNout ^ mcNout};
+			beta[2*M+:M*(T-1)] <= #TCQ bsel ? sigma[0*M+:M*(T-1)] : beta[0*M+:M*(T-1)];
+		end
 
 		/* msm drdce */
 		if (msmpe)
 			dr <= #TCQ cs;
-
-		/* c0 drdcesone */
-		/* cN drdcer */
-		if (synpe)
-			sigma <= #TCQ {cNin[1*M+:M], {M-1{1'b0}}, 1'b1};
-		else if (snce)
-			sigma <= #TCQ {cNin, mcNout[0*M+:M]};
-
-		/* b2 drdcesone */
-		/* bN drdcer */
-		if (synpe) begin
-			beta[2*M+:M*(T-1)] <= #TCQ {beta0};
-		end else if (snce)
-			beta[2*M+:M*(T-1)] <= #TCQ bsel ? sigma[0*M+:M*(T-1)] : {beta[2*M+:M*(T-3)], beta0};
 	end
 
-	parallel_standard_multiplier #(M, T - 1) u_mbn(
+	parallel_standard_multiplier #(M, T+1) u_mbn(
 		.standard_in1(dr),
-		.standard_in2(beta[2*M+:M*(T-1)]),
+		.standard_in2(beta),
 		.standard_out(mbNout)
 	);
 
