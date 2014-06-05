@@ -222,6 +222,7 @@ endfunction
 function integer calc_interleave;
 	input [31:0] n;
 	input [31:0] t;
+	input is_serial;
 	integer chpe;
 	integer vdout;
 	integer done;
@@ -229,7 +230,7 @@ function integer calc_interleave;
 	integer iteration;
 begin
 	m = n2m(n);
-	iteration = m + 2;
+	iteration = t == 2 ? 1 : (is_serial ? m + 2 : 3);
 	calc_interleave = 1;
 	done = 0;
 	while (!done) begin

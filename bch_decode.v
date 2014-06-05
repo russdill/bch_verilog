@@ -17,7 +17,7 @@ module bch_decode #(
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam INTERLEAVE = calc_interleave(N, T);
+localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
 localparam ITERATION = M + 2;
 localparam CHPE = T * ITERATION - 2;
 localparam _BUF_SIZE = CHPE / INTERLEAVE + 2;
@@ -83,7 +83,7 @@ end else
 	illegal_option_value u_iov();
 
 /* count dcount */
-bch_decode_control #(N, K, T) u_count(
+bch_decode_control #(N, K, T, OPTION) u_count(
 	.clk(clk),
 	.reset(reset),
 	.drnzero(drnzero),

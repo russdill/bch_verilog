@@ -19,7 +19,6 @@ reg reset = 0;
 reg [K-1:0] din = 0;
 reg [$clog2(T+2)-1:0] nerr = 0;
 reg [N-1:0] error = 0;
-reg [$clog2(ITERATIONS+1)-1:0] iter = ITERATIONS;
 
 function [K-1:0] randk;
 	input [31:0] useless;
@@ -67,7 +66,7 @@ initial begin
         $dumpvars(0);
 end
 
-sim #(N, K, T) u_sim(
+sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
 	.reset(reset),
 	.din(din),
@@ -96,7 +95,7 @@ always @(negedge vdin) begin
 	#1;
 	error <= rande(nerr);
 	#1;
-	 $display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+	$display("%b %d flips - %b (seed = %d), last received - %b", din, nerr, error, s, dout);
 end
 
 initial begin

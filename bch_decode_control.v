@@ -4,7 +4,9 @@ module count_ready #(
 	parameter N = 15,
 	parameter K = 5,
 	parameter T = 3,
-	parameter COUNT = 1
+	parameter OPTION = "SERIAL",
+	parameter COUNT = 1,
+	parameter ITERATION = 3
 ) (
 	input [$clog2(ITERATION+1)-1:0] ca,
 	input [$clog2(N * INTERLEAVE / ITERATION + 2)-1:0] cb,
@@ -12,8 +14,7 @@ module count_ready #(
 );
 	`include "bch.vh"
 	localparam M = n2m(N);
-	localparam ITERATION = M + 2;
-	localparam INTERLEAVE = calc_interleave(N, T);
+	localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
 	localparam C = COUNT % (N * INTERLEAVE);
 	assign ready = ca == C % ITERATION && cb == C / ITERATION;
 endmodule
@@ -22,7 +23,8 @@ endmodule
 module bch_decode_control #(
 	parameter N = 15,
 	parameter K = 5,
-	parameter T = 3
+	parameter T = 3,
+	parameter OPTION = "SERIAL"
 ) (
 	input clk,
 	input reset,
@@ -43,14 +45,16 @@ module bch_decode_control #(
 	output dringPe,
 	output cei
 );
-
 `include "bch.vh"
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-/* FIXME: ITERATION = 3 for option 2, M+2 for option 3 */
-localparam ITERATION = M + 2;
-localparam INTERLEAVE = calc_interleave(N, T);
+
+localparam ITERATION = (OPTION == "SERIAL") ? (M + 2) : 3;
+if (OPTION != "SERIAL" && OPTION != "PARALLEL")
+	illegal_option_value u_iov();
+
+localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
 localparam CHPE = T * ITERATION - 2;
 localparam VDOUT = CHPE + INTERLEAVE + 2 - CHPE % INTERLEAVE;
 
@@ -76,16 +80,18 @@ reg vdout11aDel = 0;
 reg noFirstVdout = 0;
 reg bufCe1 = 0;
 
-count_ready #(N, K, T, N * INTERLEAVE - 1)		u_clast(ca, cb, clast);
-count_ready #(N, K, T, CHPE)				u_chpe(ca, cb, chpe);
-count_ready #(N, K, T, VDOUT - 2 + K * INTERLEAVE)	u_vdout1R(ca, cb, vdout1R);
-count_ready #(N, K, T, VDOUT - 2)			u_vdout1S(ca, cb, vdout1S);
-count_ready #(N, K, T, K * INTERLEAVE - 1)		u_bufR(ca, cb, bufR);
+count_ready #(N, K, T, OPTION, N * INTERLEAVE - 1, ITERATION)		u_clast(ca, cb, clast);
+count_ready #(N, K, T, OPTION, CHPE, ITERATION)				u_chpe(ca, cb, chpe);
+count_ready #(N, K, T, OPTION, VDOUT - 2 + K * INTERLEAVE, ITERATION)	u_vdout1R(ca, cb, vdout1R);
+count_ready #(N, K, T, OPTION, VDOUT - 2, ITERATION)			u_vdout1S(ca, cb, vdout1S);
+count_ready #(N, K, T, OPTION, K * INTERLEAVE - 1, ITERATION)		u_bufR(ca, cb, bufR);
 
 assign res = reset || clast;
 assign caLast = ca == ITERATION - 1 || res;
-/* FIXME: For option 2, lCe = !ca */
-assign lCe = caLast && cb;
+if (OPTION == "SERIAL")
+	assign lCe = caLast && cb;
+else
+	assign lCe = !ca;
 assign cceR = ca == M - 1;
 assign cceS = caLast || synpe;
 assign cceSR = cceS || cceR;

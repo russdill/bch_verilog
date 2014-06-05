@@ -21,8 +21,10 @@ module sim #(
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam INTERLEAVE = calc_interleave(N, T);
-localparam ITERATION = M + 2;
+localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
+localparam ITERATION = (OPTION == "SERIAL") ? (M + 2) : 3;
+if (OPTION != "SERIAL" && OPTION != "PARALLEL")
+	illegal_option_value u_iov();
 localparam CHPE = T * ITERATION - 2;
 localparam VDOUT = CHPE + INTERLEAVE + 2 - CHPE % INTERLEAVE;
 localparam BUF_SIZE = (INTERLEAVE > 1) ? (N + 2 + VDOUT / INTERLEAVE) : (N + VDOUT + 1);
@@ -55,7 +57,7 @@ bch_encode #(N, K, T, OPTION) u_bch_encode(
 	.dout(encOut)
 );
 
-bch_decode #(N, K, T) u_bch_decode(
+bch_decode #(N, K, T, OPTION) u_bch_decode(
 	.clk(clk),
 	.reset(resetDec),
 	.din(decIn),
@@ -69,7 +71,7 @@ assign comBOut = comB[BUF_SIZE-1];
 assign encIn = encBOut && !reset;
 assign vdin0_1 = (!vdinPrev && vdin) || reset;
 assign decIn = (encOut ^ err) && !reset;
-assign wrongIn = (decOut !== comBOut) && !reset && vdout && (vdout !== 1'bx) && (vdout !== 1'bz);
+assign wrongIn = ((decOut !== comBOut) && !reset && vdout) || ((vdout === 1'bx) || (vdout === 1'bz));
 assign clkEnc = INTERLEAVE > 1 ? (clkEncEn && !clk) : clk;
 assign clkEncEn = INTERLEAVE > 1 ? !ci : 1'b1;
 assign dout = decB;

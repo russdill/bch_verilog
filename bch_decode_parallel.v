@@ -123,6 +123,16 @@ module bch_decode_parallel #(
 					cNout[i*M+:M] <= #TCQ cNin[i*M+:M];
 			end
 		end
+
+		/* bN drdcer */
+		for (i = 4; i <= T; i = i + 1) begin : bN_drdcer
+			always @(posedge clk) begin
+				if (synpe)
+					bNout[i*M+:M] <= #TCQ 0;
+				else if (snce)
+					bNout[i*M+:M] <= bsel ? cNout[(i-2)*M+:M] : bNout[(i-2)*M+:M];
+			end
+		end
 	endgenerate
 
 endmodule
