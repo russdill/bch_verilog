@@ -28,6 +28,7 @@ function [(1<<MAX_M)-1:0] encoder_poly;
 	integer a;
 	integer curr;
 	integer prev;
+	reg [(1<<MAX_M)-1:0] ret;
 	reg [(1<<MAX_M)*MAX_M-1:0] poly;
 	reg [(1<<MAX_M)-1:0] roots;
 begin
@@ -61,7 +62,8 @@ begin
 	end
 
 	for (i = 0; i < nk; i = i + 1)
-		encoder_poly[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
+		ret[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
+	encoder_poly = ret;
 end
 endfunction
 
