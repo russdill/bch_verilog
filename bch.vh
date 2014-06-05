@@ -77,6 +77,30 @@ function integer polyi;
 	polyi = log2(bch_polynomial(m) >> 1);
 endfunction
 
+/* Berlekamp dual-basis multiplier for fixed values, returns value in dual basis */
+function [MAX_M-1:0] fixed_mixed_multiplier;
+	input [31:0] m;
+	input [MAX_M-1:0] dual_in;
+	input [MAX_M-1:0] standard_in;
+	integer i;
+	integer poly;
+	integer aux;
+	integer ret;
+begin
+	poly = bch_polynomial(m);
+
+	aux = dual_in;
+	for (i = 0; i < m - 1; i = i + 1)
+		aux[i+m] = ^((aux >> i) & poly);
+
+	ret = 0;
+	for (i = 0; i < m; i = i + 1)
+		ret[i] = ^((aux >> i) & standard_in);
+
+	fixed_mixed_multiplier = ret;
+end
+endfunction
+
 function integer conversion_term;
 	input [31:0] m;
 	input [31:0] bit_pos;

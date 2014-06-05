@@ -105,7 +105,7 @@ module tmec_decode_parallel #(
 		.standard_out(mbNout)
 	);
 
-	for (i = 0; i <= T; i = i + 1) begin : parallel_mixed_multiplier
+	for (i = 0; i <= T; i = i + 1) begin : parallel_standard_multiplier
 		parallel_standard_multiplier #(M, 2) u_mn(
 			.standard_in1(cNout[i*M+:M]),
 			.standard_in2({snNout[i*M+:M], dp}),
