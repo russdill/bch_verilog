@@ -30,7 +30,6 @@ module tmec_decode_parallel #(
 	wire [M*(T+1)-1:2*M] mbNout;
 	wire [M*(T+1)-1:0] mcNout;
 	reg [M*(T+1)-1:M*2] bNout = 0;
-	reg [M*(T+1)-1:0] chNout = 0;
 
 	wire qdpce;
 	wire qdpset;
@@ -50,10 +49,8 @@ module tmec_decode_parallel #(
 	assign b3s = synpe && !drnzero;
 
 	/* xc1 dmul21 */
-	assign cNin[1*M+:M] = synpe ? syn1[0+:M] : mcNout[1*M+:M];
-
 	/* csN dxorm */
-	assign cNin[2*M+:M*(T-1)] = mbNout[2*M+:M*(T-1)] ^ mcNout[2*M+:M*(T-1)];
+	assign cNin = {mbNout ^ mcNout[2*M+:M*(T-1)], synpe ? syn1[0+:M] : mcNout[1*M+:M]};
 
 	/* cs generation, input rearranged_in, output cs */
 	/* snNen dandm/msN doxrt */
@@ -72,29 +69,15 @@ module tmec_decode_parallel #(
 			dr <= #TCQ cs;
 
 		/* c0 drdcesone */
-		if (synpe)
-			cNout[0*M+:M] <= #TCQ 1;
-		else if (snce)
-			cNout[0*M+:M] <= #TCQ mcNout[0*M+:M];
-
-		/* c1 drdce */
-		if (snce)
-			cNout[1*M+:M] <= #TCQ cNin[1*M+:M];
-		
 		/* cN drdcer */
 		if (synpe)
-			cNout[2*M+:M*(T-1)] <= #TCQ 0;
+			cNout <= #TCQ {cNin[1*M+:M], {M-1{1'b0}}, 1'b1};
 		else if (snce)
-			cNout[2*M+:M*(T-1)] <= #TCQ cNin[2*M+:M*(T-1)];
-
-		/* ch0 drdce */
-		if (ch_start)
-			chNout[0*M+:M] <= #TCQ cNout[0*M+:M];
+			cNout <= #TCQ {cNin, mcNout[0*M+:M]};
 
 		/* b2 drdcesone */
 		if (b23set) begin
-			bNout[2*M+:M] <= #TCQ {{M-1{1'b0}}, b2s};
-			bNout[3*M+:M] <= #TCQ {{M-1{1'b0}}, b3s};
+			bNout[2*M+:M*2] <= #TCQ {{M-1{1'b0}}, b3s, {M-1{1'b0}}, b2s};
 		end else if (snce)
 			bNout[2*M+:M*2] <= #TCQ cNout[0*M+:M*2];
 	end
@@ -115,12 +98,12 @@ module tmec_decode_parallel #(
 
 	generate
 		/* bN drdcer */
-		for (i = 4; i <= T; i = i + 1) begin : bN_drdcer
+		if (T >= 3) begin : bN_drdcer
 			always @(posedge clk) begin
 				if (synpe)
-					bNout[i*M+:M] <= #TCQ 0;
+					bNout[4*M+:M*(T-3)] <= #TCQ 0;
 				else if (snce)
-					bNout[i*M+:M] <= bsel ? cNout[(i-2)*M+:M] : bNout[(i-2)*M+:M];
+					bNout[4*M+:M*(T-3)] <= bsel ? cNout[2*M+:M*(T-3)] : bNout[2*M+:M*(T-3)];
 			end
 		end
 	endgenerate
