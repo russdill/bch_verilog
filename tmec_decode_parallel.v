@@ -39,7 +39,7 @@ module tmec_decode_parallel #(
 
 	genvar i;
 
-	assign qdpce = bsel && snce;
+	assign qdpce = snce && (bsel || (drnzero && synpe));
 	assign qdpset = synpe && !drnzero;
 	assign qdpin = synpe ? syn1 : dr;
 

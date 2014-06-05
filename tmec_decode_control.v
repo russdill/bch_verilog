@@ -29,6 +29,7 @@ module tmec_decode_control #(
 	input clk,
 	input reset,
 	input drnzero,
+	input syn1_nonzero,
 	output bsel,
 	output bufCe,
 	output bufkCe,
@@ -99,7 +100,6 @@ assign cceR = ca == M - 1;
 assign cceS = caLast || synpe;
 assign cceSR = cceS || cceR;
 assign cbBeg = !cb;
-assign c0first = ca == ITERATION - 2;
 if (OPTION == "SERIAL")
 	assign dringPe = caLast || ca == M - polyi(M) - 1;
 assign msmpe = ca == 1;
@@ -110,7 +110,7 @@ assign bufkCe = bufkCe1 && cei;
 assign vdout1 = vdout11a && cei && noFirstVdout;
 assign snce = !ca;
 assign synpe = !ca && !cb;
-assign bsel = drnzero && (cb >= l || synpe);
+assign bsel = drnzero && cb >= l;
 
 always @(posedge clk) begin
 	/* a1 dca */
@@ -122,7 +122,7 @@ always @(posedge clk) begin
 
 	/* l1 dcl */
 	if (synpe)
-		l <= #TCQ {{log2(T+1)-1{1'b0}}, bsel};
+		l <= #TCQ {{log2(T+1)-1{1'b0}}, syn1_nonzero};
 	else if (lCe && bsel)
 		/* 2 * cb - l + 1 */
 		l <= #TCQ ((cb << 1) | 1'b1) - l;

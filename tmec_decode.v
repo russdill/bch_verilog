@@ -42,7 +42,6 @@ wire bufCe;
 wire bufkCe;
 wire vdout1;
 wire err;
-wire c0first;
 wire cce;
 wire caLast;
 wire cbBeg;
@@ -74,7 +73,6 @@ end else if (OPTION == "SERIAL") begin
 		.msmpe(msmpe),
 		.cce(cce),
 		.dringPe(dringPe),
-		.c0first(c0first),
 		.syn1(synN[1*M+:M]),
 		.snNout(snNout),
 		.drnzero(drnzero),
@@ -88,6 +86,7 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 	.clk(clk),
 	.reset(reset),
 	.drnzero(drnzero),
+	.syn1_nonzero(|synN[1*M+:M]),
 	.bsel(bsel),
 	.bufCe(bufCe),
 	.bufkCe(bufkCe),
@@ -97,7 +96,6 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 	.synpe(synpe),
 	.vdout(vdout),
 	.vdout1(vdout1),
-	.c0first(c0first),
 	.cce(cce),
 	.caLast(caLast),
 	.cbBeg(cbBeg),

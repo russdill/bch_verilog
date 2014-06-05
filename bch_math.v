@@ -200,7 +200,7 @@ endmodule
 /*
  * Divider, takes M clock cycles.
  * Inverse of denominator is calculated by using fermat inverter:
- * 	a^(-1) = (a^2)*(a^2^2)*(a^2^3)....*(a^2^(m-1))
+ * 	a^(-1) = a^(2^n-2) = (a^2)*(a^2^2)*(a^2^3)....*(a^2^(m-1))
  * Wang, Charles C., et al. "VLSI architectures for computing multiplications
  * and inverses in GF (2 m)." Computers, IEEE Transactions on 100.8 (1985):
  * 709-717.
@@ -212,7 +212,6 @@ module finite_divider #(
 	parameter M = 6
 ) (
 	input clk,
-	input reset,
 	input start,
 	input [M-1:0] standard_numer,
 	input [M-1:0] standard_denom,
@@ -257,12 +256,12 @@ module finite_divider #(
 
 	always @(posedge clk) begin
 		busy_last <= #TCQ busy;
-		if (start && !reset)
+		if (start)
 			busy <= #TCQ 1;
-		else if (count == lfsr_count(log2(M), M - 2) || reset)
+		else if (count == lfsr_count(log2(M), M - 2))
 			busy <= #TCQ 0;
 
-		if (start || reset)
+		if (start)
 			dual_c <= #TCQ standard_to_dual(M, lpow(M, 0));
 		else if (busy)
 			dual_c <= #TCQ dual_d;
