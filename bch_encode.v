@@ -18,59 +18,52 @@ module bch_encode #(
 `include "bch.vh"
 
 /* Calculate least common multiple which has x^2t .. x as its roots */
-function [(1<<MAX_M)-1:0] encoder_poly;
-	input [31:0] m;
-	input [31:0] t;
+function [N-K-1:0] encoder_poly;
 	integer nk;
 	integer i;
 	integer j;
-	integer n;
 	integer a;
 	integer curr;
 	integer prev;
-	reg [(1<<MAX_M)-1:0] ret;
-	reg [(1<<MAX_M)*MAX_M-1:0] poly;
-	reg [(1<<MAX_M)-1:0] roots;
+	reg [(N-K+1)*M-1:0] poly;
+	reg [N-1:0] roots;
 begin
-	n = m2n(m);
 
 	/* Calculate the roots for this finite field */
 	roots = 0;
-	for (i = 0; i < t; i = i + 1) begin
+	for (i = 0; i < T; i = i + 1) begin
 		a = 2 * i + 1;
-		for (j = 0; j < m; j = j + 1) begin
+		for (j = 0; j < M; j = j + 1) begin
 			roots[a] = 1;
-			a = (2 * a) % n;
+			a = (2 * a) % N;
 		end
 	end
 
 	nk = 0;
-	poly[0*MAX_M+:MAX_M] = 1;
-	a = lpow(m, 0);
-	for (i = 0; i < n; i = i + 1) begin
+	poly = 1;
+	a = lpow(M, 0);
+	for (i = 0; i < N; i = i + 1) begin
 		if (roots[i]) begin
 			prev = 0;
-			poly[(nk+1)*MAX_M+:MAX_M] = 1;
+			poly[(nk+1)*M+:M] = 1;
 			for (j = 0; j <= nk; j = j + 1) begin
-				curr = poly[j*MAX_M+:MAX_M];
-				poly[j*MAX_M+:MAX_M] = finite_mult(m, curr, a) ^ prev;
+				curr = poly[j*M+:M];
+				poly[j*M+:M] = finite_mult(M, curr, a) ^ prev;
 				prev = curr;
 			end
 			nk = nk + 1;
 		end
-		a = mul1(m, a);
+		a = mul1(M, a);
 	end
 
 	for (i = 0; i < nk; i = i + 1)
-		ret[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
-	encoder_poly = ret;
+		encoder_poly[i] = poly[i*M+:M] ? 1 : 0;
 end
 endfunction
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam ENC = encoder_poly(M, T);
-
+localparam ENC = encoder_poly();
 reg [N-K-1:0] lfsr = 0;
 wire [M-1:0] count;
 reg load_lfsr = 0;
