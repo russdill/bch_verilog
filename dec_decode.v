@@ -25,7 +25,7 @@ module dec_decode #(
 	parameter T = 2		/* Correctable errors */
 ) (
 	input clk,
-	input reset,
+	input start,
 	input data_in,
 	output reg output_valid = 0,
 	output reg data_out = 0
@@ -34,27 +34,24 @@ module dec_decode #(
 
 	localparam TCQ = 1;
 	localparam M = n2m(N);
+	localparam LAST = lfsr_count(M, K-1);
 
 	wire [2*T*M-1:M] synN;
 	wire [M-1:0] ch1;
 	wire [M-1:0] ch1_flipped;
-	wire start;			/* Indicates syndrome calculation start/complete */
-	reg first = 0;			/* First output cycle */
 	wire err;			/* The current output bit needs to be flipped */
 	reg next_output_valid = 0;
+	reg chien_ready = 0;
 	reg [N+1:0] buf_ = 0;
-	wire [M-1:0] count;
+	wire [M-1:0] chien_count;
 	wire output_last;
-	reg pipeline_hot = 0;
 
 	wire [M-1:0] ch3;
 	wire [M-1:0] ch3_flipped;
 	wire [M-1:0] power;
 	reg [1:0] errors_last = 0;
 	wire [1:0] errors;
-
-	assign start = count == lfsr_count(M, 0);
-	assign output_last = count == lfsr_count(M, K + 1);
+	wire syn_done;
 
 	if (T > 1) begin
 		/* For each cycle, try flipping the bit */
@@ -71,9 +68,10 @@ module dec_decode #(
 	/* sN dsynN */
 	bch_syndrome #(M, T) u_bch_syndrome(
 		.clk(clk),
-		.syn_ce(1'b1),
+		.ce(1'b1),
 		.start(start),
-		.din(data_in),
+		.done(syn_done),
+		.data_in(data_in),
 		.out(synN)
 	);
 
@@ -81,7 +79,7 @@ module dec_decode #(
 		.clk(clk),
 		.err(err),
 		.ce(1'b1),
-		.start(start),
+		.start(syn_done),
 		.in(synN[1*M+:M]),
 		.out(ch1)
 	);
@@ -94,7 +92,7 @@ module dec_decode #(
 			.clk(clk),
 			.err(err),
 			.ce(1'b1),
-			.start(start),
+			.start(syn_done),
 			.in(synN[3*M+:M]),
 			.out(ch3)
 		);
@@ -105,25 +103,19 @@ module dec_decode #(
 		);
 	end
 
-	/* Counts up to M^2-1 */
-	lfsr_counter #(M) u_counter(
+	lfsr_counter #(M) u_chien_counter(
 		.clk(clk),
-		.reset(reset),
-		.count(count)
+		.reset(syn_done),
+		.ce(1'b1),
+		.count(chien_count)
 	);
 
 	always @(posedge clk) begin
-		if (reset)
-			pipeline_hot <= #TCQ 1'b0;
-		else if (output_last)
-			pipeline_hot <= #TCQ 1'b1;
-
-		if (output_last || reset)
-			next_output_valid <= #TCQ 1'b0;
-		else if (pipeline_hot && first)
-			next_output_valid <= #TCQ 1'b1;
-
-		first <= #TCQ start;
+		if (chien_ready)
+			next_output_valid <= #TCQ 1;
+		else if (chien_count == LAST)
+			next_output_valid <= #TCQ 0;
+		chien_ready <= #TCQ syn_done;
 		output_valid <= #TCQ next_output_valid;
 
 		if (T > 1) begin
@@ -136,7 +128,7 @@ module dec_decode #(
 		end
 
 		/* buf dbuf */
-		buf_ <= #TCQ {buf_[N:0], data_in && !reset};
+		buf_ <= #TCQ {buf_[N:0], data_in};
 		data_out <= #TCQ (buf_[N+1] ^ err) && next_output_valid;
 	end
 endmodule

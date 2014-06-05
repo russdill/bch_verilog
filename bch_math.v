@@ -50,6 +50,7 @@ module serial_mixed_multiplier #(
 	lfsr_counter #(log2(M)) u_counter(
 		.clk(clk),
 		.reset(start),
+		.ce(1'b1),
 		.count(count)
 	);
 	assign change = count == TO;
@@ -258,6 +259,7 @@ module finite_divider #(
 	lfsr_counter #(log2(M)) u_counter(
 		.clk(clk),
 		.reset(start),
+		.ce(1'b1),
 		.count(count)
 	);
 
@@ -369,6 +371,7 @@ module lfsr_counter #(
 ) (
 	input clk,
 	input reset,
+	input ce,
 	output reg [M-1:0] count = 1
 );
 	`include "bch.vh"
@@ -377,6 +380,8 @@ module lfsr_counter #(
 	localparam POLY = bch_polynomial(M);
 
 	always @(posedge clk)
-		count <= #TCQ reset ? 1'b1 : {count[M-2:0], 1'b0} ^
-			({M{count[M-1]}} & POLY);
+		if (reset)
+			count <= #TCQ 1'b1;
+		else if (ce)
+			count <= {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & POLY);
 endmodule

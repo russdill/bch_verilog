@@ -8,6 +8,7 @@ module bch_decode #(
 ) (
 	input clk,
 	input reset,
+	input start,
 	input din,
 	output vdout,
 	output dout
@@ -18,7 +19,7 @@ module bch_decode #(
 if (T < 3) begin
 	dec_decode #(N, K, T) u_decode(
 		.clk(clk),
-		.reset(reset),
+		.start(start),
 		.data_in(din),
 		.output_valid(vdout),
 		.data_out(dout)

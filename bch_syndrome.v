@@ -6,10 +6,11 @@ module bch_syndrome #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
+	input start,		/* Accept first syndrome bit (assumes ce) */
 	input ce,		/* Accept syndrome bit */
-	input start,		/* Accept first syndrome bit */
 	input data_in,
-	output [2*T*M-1:M] out
+	output [2*T*M-1:M] out,
+	output reg done = 0
 );
 	`include "bch_syndrome.vh"
 
@@ -19,7 +20,28 @@ module bch_syndrome #(
 	genvar dat;
 
 	localparam SYN_COUNT = syndrome_count(M, T);
+	localparam DONE = lfsr_count(M, m2n(M)-2);
 	wire [SYN_COUNT*M-1:0] syndromes;
+	wire [M-1:0] count;
+	reg busy = 0;
+
+	lfsr_counter #(M) u_counter(
+		.clk(clk),
+		.reset(start),
+		.ce(ce),
+		.count(count)
+	);
+
+	always @(posedge clk) begin
+		if (start) begin
+			done <= #TCQ 0;
+			busy <= #TCQ 1;
+		end else if (ce && busy && count == DONE) begin
+			done <= #TCQ 1;
+			busy <= #TCQ 0;
+		end else if (ce)
+			done <= #TCQ 0;
+	end
 
 	/* LFSR registers */
 	generate
@@ -66,7 +88,7 @@ module bch_syndrome_shuffle #(
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit */
-	input ce,	/* Shuffle cycle */
+	input ce,		/* Shuffle cycle */
 	input [2*T*M-1:M] synN,
 	output reg [(2*T-1)*M-1:0] syn_shuffled = 0
 );

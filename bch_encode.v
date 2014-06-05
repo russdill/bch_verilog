@@ -74,6 +74,7 @@ wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
 lfsr_counter #(M) u_counter(
 	.clk(clk),
 	.reset(start),
+	.ce(1'b1),
 	.count(count)
 );
 

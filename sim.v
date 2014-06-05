@@ -64,6 +64,7 @@ bch_encode #(N, K, T, OPTION) u_bch_encode(
 bch_decode #(N, K, T, OPTION) u_bch_decode(
 	.clk(clk),
 	.reset(resetDec),
+	.start(encoded_first),
 	.din(decIn),
 	.vdout(vdout),
 	.dout(decOut)
