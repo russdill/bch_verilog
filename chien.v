@@ -73,7 +73,7 @@ module chien #(
 	end
 	endgenerate
 
-	finite_adder #(M, T+1) u_dcheq(chNout, eq);
+	finite_parallel_adder #(M, T+1) u_dcheq(chNout, eq);
 
 	assign err = !eq;
 endmodule

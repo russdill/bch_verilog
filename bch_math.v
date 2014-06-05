@@ -148,7 +148,7 @@ module serial_standard_multiplier #(
 		assign z[i*M+:M] = {M{serial_in[i]}} & parallel_in[i*M+:M];
 	end
 
-	finite_adder #(M, N_INPUT) u_adder(z, in);
+	finite_parallel_adder #(M, N_INPUT) u_adder(z, in);
 
 	always @(posedge clk) begin
 		if (start)
@@ -302,7 +302,7 @@ module pow3 #(
 endmodule
 
 /* Finite adder, xor each bit */
-module finite_adder #(
+module finite_parallel_adder #(
 	parameter M = 4,
 	parameter N_INPUT = 2
 ) (

@@ -55,7 +55,7 @@ module tmec_decode_parallel #(
 	/* cs generation, input rearranged_in, output cs */
 	/* snNen dandm/msN doxrt */
 	/* msN dxort */
-	finite_adder #(M, T+1) u_generate_cs(mNout, cs);
+	finite_parallel_adder #(M, T+1) u_generate_cs(mNout, cs);
 
 	always @(posedge clk) begin
 		/* qpd drdcesone */
