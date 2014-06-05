@@ -39,7 +39,6 @@ module tmec_decode_control #(
 	output synpe,
 	output reg vdout = 0,
 	output vdout1,
-	output c0first,
 	output reg cce = 0,
 	output caLast,
 	output cbBeg,

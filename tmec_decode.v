@@ -55,7 +55,6 @@ if (OPTION == "PARALLEL") begin
 		.snce(snce),
 		.bsel(bsel),
 		.msmpe(msmpe),
-		.ch_start(ch_start),
 		.syn1(synN[1*M+:M]),
 		.snNout(snNout),
 		.d_r_nonzero(d_r_nonzero),
