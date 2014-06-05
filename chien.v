@@ -48,32 +48,31 @@ module chien #(
 	parameter T = 3
 ) (
 	input clk,
-	input cei,
-	input ch_start,
+	input ce,
+	input start,
 	input [M*(T+1)-1:0] sigma,
 	output err
 );
 	wire [M-1:0] eq;
-	wire [M*(T+1)-1:0] chNout;
+	wire [M*(T+1)-1:0] z;
 	wire [M*(T+1)-1:0] chien_mask;
 	
-	genvar i, j;
+	genvar i;
 	generate
 	/* Chien search */
-	/* chN dchN */
 	for (i = 0; i <= T; i = i + 1) begin : ch
 		dch #(M, i) u_ch(
 			.clk(clk),
 			.err(1'b0),
-			.ce(cei),
-			.start(ch_start),
+			.ce(ce),
+			.start(start),
 			.in(sigma[i*M+:M]),
-			.out(chNout[i*M+:M])
+			.out(z[i*M+:M])
 		);
 	end
 	endgenerate
 
-	finite_parallel_adder #(M, T+1) u_dcheq(chNout, eq);
+	finite_parallel_adder #(M, T+1) u_dcheq(z, eq);
 
 	assign err = !eq;
 endmodule

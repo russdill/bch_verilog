@@ -11,7 +11,7 @@ module tmec_decode_parallel #(
 	input bsel,
 	input msmpe,
 	input [M-1:0] syn1,
-	input [M*(2*T-1)-1:0] snNout,
+	input [M*(2*T-1)-1:0] syn_shuffled,
 
 	output d_r_nonzero,
 	output reg [M*(T+1)-1:0] sigma = 0
@@ -72,7 +72,7 @@ module tmec_decode_parallel #(
 		/* d_r_terms = {sigma_i^(r) * S_(2 * r - i + 1)}[0..t], d_p * sigma^(r-1)(x) */
 		parallel_standard_multiplier #(M, 2) u_mn(
 			.standard_in1(sigma[i*M+:M]),
-			.standard_in2({snNout[i*M+:M], d_p}),
+			.standard_in2({syn_shuffled[i*M+:M], d_p}),
 			.standard_out({d_r_terms[i*M+:M], d_p_sigma[i*M+:M]})
 		);
 	end

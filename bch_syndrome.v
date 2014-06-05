@@ -6,9 +6,9 @@ module bch_syndrome #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input syn_ce,		/* Accept syndrome bit */
+	input ce,		/* Accept syndrome bit */
 	input start,		/* Accept first syndrome bit */
-	input din,
+	input data_in,
 	output [2*T*M-1:M] out
 );
 	`include "bch_syndrome.vh"
@@ -27,17 +27,17 @@ module bch_syndrome #(
 		if (syndrome_method(M, T, idx2syn(M, idx)) == 0)
 			dsynN_method1 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(syn_ce),
+				.ce(ce),
 				.start(start),
-				.data_in(din),
+				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
 			);
 		else
 			dsynN_method2 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(syn_ce),
+				.ce(ce),
 				.start(start),
-				.data_in(din),
+				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
 			);
 	end
@@ -66,9 +66,9 @@ module bch_syndrome_shuffle #(
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit */
-	input shuffle_ce,	/* Shuffle cycle */
+	input ce,	/* Shuffle cycle */
 	input [2*T*M-1:M] synN,
-	output reg [(2*T-1)*M-1:0] snNout = 0
+	output reg [(2*T-1)*M-1:0] syn_shuffled = 0
 );
 
 	`include "bch_syndrome.vh"
@@ -82,11 +82,11 @@ module bch_syndrome_shuffle #(
 		if (i == T + 1 && T < 4) begin
 			always @(posedge clk)
 				if (start)
-					snNout[i*M+:M] <= #TCQ synN[(3*T-i-1)*M+:M];
+					syn_shuffled[i*M+:M] <= #TCQ synN[(3*T-i-1)*M+:M];
 		end else begin
 			always @(posedge clk)
-				if (shuffle_ce)				/* xN dmul21 */
-					snNout[i*M+:M] <= #TCQ start ? synN[M*((2*T+1-i)%(2*T-1)+1)+:M] : snNout[M*((i+(2*T-3))%(2*T-1))+:M];
+				if (ce)				/* xN dmul21 */
+					syn_shuffled[i*M+:M] <= #TCQ start ? synN[M*((2*T+1-i)%(2*T-1)+1)+:M] : syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
 		end
 	end
 	endgenerate

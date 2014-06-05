@@ -24,7 +24,7 @@ module tmec_decode_serial #(
 	input msmpe,
 	input cce,
 	input [M-1:0] syn1,
-	input [M*(2*T-1)-1:0] snNout,
+	input [M*(2*T-1)-1:0] syn_shuffled,
 
 	output reg d_r_nonzero = 0,
 	output [M*(T+1)-1:0] sigma
@@ -109,7 +109,7 @@ module tmec_decode_serial #(
 		.clk(clk), 
 		.run(!caLast),
 		.start(msmpe),
-		.parallel_in(snNout[0+:M*(T+1)]),
+		.parallel_in(syn_shuffled[0+:M*(T+1)]),
 		.serial_in(sigma_serial),
 		.out(d_r)
 	);

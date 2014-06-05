@@ -27,7 +27,7 @@ localparam BUF_SIZE = T > 2 ? ((_BUF_SIZE > K + 1) ? K : _BUF_SIZE) : (N + 1 - K
 
 reg [K-1:0] bufk = 0;
 reg [BUF_SIZE-1:0] buf_ = 0;
-wire [M*(2*T-1)-1:0] snNout;
+wire [M*(2*T-1)-1:0] syn_shuffled;
 wire [2*T*M-1:M] synN;
 wire [M*(T+1)-1:0] sigma;
 
@@ -56,7 +56,7 @@ if (OPTION == "PARALLEL") begin
 		.bsel(bsel),
 		.msmpe(msmpe),
 		.syn1(synN[1*M+:M]),
-		.snNout(snNout),
+		.syn_shuffled(syn_shuffled),
 		.d_r_nonzero(d_r_nonzero),
 		.sigma(sigma)
 	);
@@ -71,7 +71,7 @@ end else if (OPTION == "SERIAL") begin
 		.msmpe(msmpe),
 		.cce(cce),
 		.syn1(synN[1*M+:M]),
-		.snNout(snNout),
+		.syn_shuffled(syn_shuffled),
 		.d_r_nonzero(d_r_nonzero),
 		.sigma(sigma)
 	);
@@ -102,24 +102,24 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 /* sN dsynN */
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
-	.syn_ce(cei),
+	.ce(cei),
 	.start(synpe),
-	.din(din),
+	.data_in(din),
 	.out(synN)
 );
 
 bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
 	.clk(clk),
 	.start(synpe),
-	.shuffle_ce(snce),
+	.ce(snce),
 	.synN(synN),
-	.snNout(snNout)
+	.syn_shuffled(syn_shuffled)
 );
 
 chien #(M, T) u_chien(
 	.clk(clk),
-	.cei(cei),
-	.ch_start(ch_start),
+	.ce(cei),
+	.start(ch_start),
 	.sigma(sigma),
 	.err(err)
 );
@@ -139,7 +139,7 @@ for (i = 1; i < 2*T; i = i + 1) begin : syn
 end
 
 for (i = 0; i < 2*T-1; i = i + 1) begin : sn_out
-	wire [M-1:0] sn_out = snNout[i*M+:M];
+	wire [M-1:0] sn_out = syn_shuffled[i*M+:M];
 end
 
 for (i = 1; i < T+1; i = i + 1) begin : c_out
