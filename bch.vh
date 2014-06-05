@@ -59,10 +59,11 @@ function integer bch_is_pentanomial;
 	input [31:0] m;
 	integer p;
 	integer bits;
+	integer i;
 begin
 	p = bch_polynomial(m);
 	bits = 1;
-	while (p) begin
+	for (i = 0; i < m; i = i + 1) begin
 		if (p & 1)
 			bits = bits + 1;
 		p = p >> 1;
