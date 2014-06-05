@@ -116,22 +116,24 @@ module parallel_standard_multiplier #(
 endmodule
 
 /*
- * Final portion of MSB first bit-serial standard basis multiplier
+ * Final portion of MSB first bit-serial standard basis multiplier (SPBMM)
  * Input per cycle:
  *	M{a[M-1]} & b
  *	M{a[M-2]} & b
  *	...
  *	M[a[0]} & b
- * The above input stage can be combined with other functions.
+ * All products of input paris are summed together.
  * Takes M cycles
  */
-module serial_standard_multiplier_final #(
-	parameter M = 4
+module serial_standard_multiplier #(
+	parameter M = 4,
+	parameter N_INPUT = 1
 ) (
 	input clk,
 	input run, /* FIXME: Probably not required */
 	input start,
-	input [M-1:0] standard_in,
+	input [M*N_INPUT-1:0] parallel_in,
+	input [N_INPUT-1:0] serial_in,
 	output reg [M-1:0] out = 0
 );
 	`include "bch.vh"
@@ -139,11 +141,20 @@ module serial_standard_multiplier_final #(
 	localparam TCQ = 1;
 	localparam POLY = bch_polynomial(M);
 
+	wire [M*N_INPUT-1:0] z;
+	wire [M-1:0] in;
+
+	for (i = 0; i < N_INPUT; i = i + 1) begin : mult
+		assign z[i*M+:M] = {M{serial_in[i]}} & parallel_in[i*M+:M];
+	end
+
+	finite_adder #(M, N_INPUT) u_adder(z, in);
+
 	always @(posedge clk) begin
 		if (start)
-			out <= #TCQ standard_in;
+			out <= #TCQ in;
 		else if (run)
-			out <= standard_in ^ {out[M-2:0], 1'b0} ^ (POLY & {M{out[M-1]}});
+			out <= in ^ {out[M-2:0], 1'b0} ^ (POLY & {M{out[M-1]}});
 	end
 endmodule
 

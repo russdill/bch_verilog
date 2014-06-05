@@ -1,6 +1,16 @@
 `timescale 1ns / 1ps
 
-/* serial with inversion */
+/*
+ * serial with inversion
+ * Berlekamp–Massey algorithm
+ *
+ * sigma_i^(r) = sigma_i^(r-1) + d_rp * beta_i^(r) (i = 1 to t-1)
+ * d_r = summation sigma_i^(r) * S_(2 * r - i + 1) from i = 0 to t
+ * d_rp = d_p^-1 * d_r
+ *
+ * combine above equations:
+ * d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t
+ */
 module tmec_decode_serial #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
@@ -19,7 +29,7 @@ module tmec_decode_serial #(
 	input [M*(2*T-1)-1:0] snNout,
 
 	output drnzero,
-	output reg [M*(T+1)-1:0] cNout = 1
+	output reg [M*(T+1)-1:0] cNout = 1	/* sigma */
 );
 
 	`include "bch.vh"
@@ -31,12 +41,10 @@ module tmec_decode_serial #(
 	wire [M-1:0] drpd;
 	wire [M-1:0] dli;
 	wire [M-1:0] dmIn;
-	wire [M-1:0] cs;
 	wire [M-1:0] c1in;
-	wire [T:2] cin;
-	wire [M*(T+1)-1:0] snNen;
+	wire [T:1] cin;
 
-	reg [M*(T+1)-1:M*2] bNout = 0;
+	reg [M*(T+1)-1:M*2] bNout = 0;	/* Beta */
 	reg [M*(T-1)-1:M*2] ccNout = 0;
 	reg [M-1:0] qd = 0;
 
@@ -70,16 +78,8 @@ module tmec_decode_serial #(
 	assign ccCe = (msmpe && cbBeg) || caLast;
 	assign c1in = {syn1[M-2:0], syn1[M-1]};
 
-	/* snNe dandm */
-	assign snNen[0+:M] = c0first ? snNout[0+:M] : 0;
-	for (i = 1; i <= T; i = i + 1) begin : sn
-		assign snNen[i*M+:M] = cNout[i*M] ? snNout[i*M+:M] : 0;
-	end
-
-	/* cs generation, input rearranged_in, output cs */
-	/* snNen dandm/msN doxrt */
-	/* msN dxort */
-	finite_adder #(M, T+1) u_generate_cs(snNen, cs);
+	/* beta_1 is always 0 */
+	assign cin[1] = 0;
 
 	always @(posedge clk) begin
 		/* qdrOr drdr1ce */
@@ -109,21 +109,30 @@ module tmec_decode_serial #(
 		end
 
 		/* c1 dshpe */
+		/* Add Beta * drp to sigma */
 		if (synpe)
 			cNout[1*M+:M] <= #TCQ c1in;
 		else if (cce)
-			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1]};
+			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1] ^ cin[1]};
 
 		/* ccN drdce */
 		if (ccCe)
 			ccNout <= #TCQ cNout[2*M+:M*(T-2)];
 	end
-	
-	serial_standard_multiplier_final #(M) msm_serial_standard_multiplier_final(
+
+	function [T:0] bit0;
+		input [M*(T+1)-1:0] in;
+		integer i;
+		for (i = 0; i < T + 1; i = i + 1)
+			bit0[i] = in[M*i];
+	endfunction
+
+	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier1(
 		.clk(clk), 
 		.run(!caLast),
 		.start(msmpe),
-		.standard_in(cs),
+		.parallel_in(snNout[0+:M*(T+1)]),
+		.serial_in(bit0({cNout[M+:M*T], {M{c0first}}})),
 		.out(dr)
 	);
 
@@ -142,7 +151,7 @@ module tmec_decode_serial #(
 		serial_cannot_handle_pentanomials_yet u_schpy();
 
 	end else begin
-		/* Muliply by L^i */
+		/* Convert to standard basis (basis rearranging circuit) */
 		parallel_mixed_multiplier #(M) u_dmli(
 			.dual_in(drpd),
 			.standard_in(LPOW_P[M-1:0]),
@@ -150,8 +159,19 @@ module tmec_decode_serial #(
 		);
 		assign dmIn = caLast ? dli : qd;
 	end
+
+	/* mbN SDBM */
+	serial_mixed_multiplier #(M, T - 1) u_serial_mixed_multiplier(
+		.clk(clk),
+		.start(dringPe),
+		.dual_in(dmIn),
+		.standard_in(bNout[2*M+:(T-1)*M]),
+		.dual_out(cin[2+:(T-1)])
+	);
+
 	generate
 		/* cN dshr */
+		/* Add Beta * drp to sigma (Summation) */
 		for (i = 2; i <= T; i = i + 1) begin : c
 			always @(posedge clk) begin
 				if (cbBeg)
@@ -160,15 +180,6 @@ module tmec_decode_serial #(
 					cNout[i*M+:M] <= #TCQ {cNout[i*M+:M-1], cNout[i*M+M-1] ^ cin[i]};
 			end
 		end
-
-		/* mbN */
-		serial_mixed_multiplier #(M, T - 1) u_serial_mixed_multiplier(
-			.clk(clk),
-			.start(dringPe),
-			.dual_in(dmIn),
-			.standard_in(bNout[2*M+:(T-1)*M]),
-			.dual_out(cin[2+:(T-1)])
-		);
 
 		/* bN drdce */
 		if (T >= 5) begin : b
