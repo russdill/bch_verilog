@@ -100,10 +100,7 @@ assign cceS = caLast || synpe;
 assign cceSR = cceS || cceR;
 assign cbBeg = !cb;
 assign c0first = ca == ITERATION - 2;
-if (bch_is_pentanomial(M)) begin
-	if (OPTION == "SERIAL")
-		serial_cannot_handle_pentanomials_yet u_schp();
-end else
+if (OPTION == "SERIAL")
 	assign dringPe = caLast || ca == M - polyi(M) - 1;
 assign msmpe = ca == 1;
 assign bufCe = (bufCe1 || CHPE / INTERLEAVE + 2 < K + 2) && cei;
