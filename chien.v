@@ -50,7 +50,7 @@ module chien #(
 	input clk,
 	input cei,
 	input ch_start,
-	input [M*(T+1)-1:0] cNout,
+	input [M*(T+1)-1:0] sigma,
 	output err
 );
 	wire [M-1:0] eq;
@@ -67,7 +67,7 @@ module chien #(
 			.err(1'b0),
 			.ce(cei),
 			.start(ch_start),
-			.in(cNout[i*M+:M]),
+			.in(sigma[i*M+:M]),
 			.out(chNout[i*M+:M])
 		);
 	end

@@ -29,13 +29,13 @@ reg [K-1:0] bufk = 0;
 reg [BUF_SIZE-1:0] buf_ = 0;
 wire [M*(2*T-1)-1:0] snNout;
 wire [2*T*M-1:M] synN;
-wire [M*(T+1)-1:0] cNout;
+wire [M*(T+1)-1:0] sigma;
 
 wire bsel;
 wire synpe;
 wire msmpe;
 wire ch_start;
-wire drnzero;
+wire d_r_nonzero;
 wire snce;
 wire cei;
 wire bufCe;
@@ -45,7 +45,6 @@ wire err;
 wire cce;
 wire caLast;
 wire cbBeg;
-wire dringPe;
 
 genvar i;
 
@@ -59,8 +58,8 @@ if (OPTION == "PARALLEL") begin
 		.ch_start(ch_start),
 		.syn1(synN[1*M+:M]),
 		.snNout(snNout),
-		.drnzero(drnzero),
-		.cNout(cNout)
+		.d_r_nonzero(d_r_nonzero),
+		.sigma(sigma)
 	);
 end else if (OPTION == "SERIAL") begin
 	tmec_decode_serial #(M, T) u_decode_serial (
@@ -72,11 +71,10 @@ end else if (OPTION == "SERIAL") begin
 		.cbBeg(cbBeg),
 		.msmpe(msmpe),
 		.cce(cce),
-		.dringPe(dringPe),
 		.syn1(synN[1*M+:M]),
 		.snNout(snNout),
-		.drnzero(drnzero),
-		.cNout(cNout)
+		.d_r_nonzero(d_r_nonzero),
+		.sigma(sigma)
 	);
 end else
 	illegal_option_value u_iov();
@@ -85,7 +83,7 @@ end else
 tmec_decode_control #(N, K, T, OPTION) u_count(
 	.clk(clk),
 	.reset(reset),
-	.drnzero(drnzero),
+	.d_r_nonzero(d_r_nonzero),
 	.syn1_nonzero(|synN[1*M+:M]),
 	.bsel(bsel),
 	.bufCe(bufCe),
@@ -99,7 +97,6 @@ tmec_decode_control #(N, K, T, OPTION) u_count(
 	.cce(cce),
 	.caLast(caLast),
 	.cbBeg(cbBeg),
-	.dringPe(dringPe),
 	.cei(cei)
 );
 
@@ -124,7 +121,7 @@ chien #(M, T) u_chien(
 	.clk(clk),
 	.cei(cei),
 	.ch_start(ch_start),
-	.cNout(cNout),
+	.sigma(sigma),
 	.err(err)
 );
 
@@ -147,7 +144,7 @@ for (i = 0; i < 2*T-1; i = i + 1) begin : sn_out
 end
 
 for (i = 1; i < T+1; i = i + 1) begin : c_out
-	wire [M-1:0] c_out = cNout[i*M+:M];
+	wire [M-1:0] c_out = sigma[i*M+:M];
 end
 
 

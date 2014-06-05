@@ -14,8 +14,8 @@ module tmec_decode_parallel #(
 	input [M-1:0] syn1,
 	input [M*(2*T-1)-1:0] snNout,
 
-	output drnzero,
-	output reg [M*(T+1)-1:0] cNout = 0
+	output d_r_nonzero,
+	output reg [M*(T+1)-1:0] sigma = 0
 );
 	`include "bch.vh"
 
@@ -39,14 +39,14 @@ module tmec_decode_parallel #(
 
 	genvar i;
 
-	assign qdpce = snce && (bsel || (drnzero && synpe));
-	assign qdpset = synpe && !drnzero;
+	assign qdpce = snce && (bsel || (d_r_nonzero && synpe));
+	assign qdpset = synpe && !d_r_nonzero;
 	assign qdpin = synpe ? syn1 : dr;
 
-	assign drnzero = |qdpin;
+	assign d_r_nonzero = |qdpin;
 	assign b23set = synpe || (snce && !bsel);
-	assign b2s = synpe && drnzero;
-	assign b3s = synpe && !drnzero;
+	assign b2s = synpe && d_r_nonzero;
+	assign b3s = synpe && !d_r_nonzero;
 
 	/* xc1 dmul21 */
 	/* csN dxorm */
@@ -71,15 +71,15 @@ module tmec_decode_parallel #(
 		/* c0 drdcesone */
 		/* cN drdcer */
 		if (synpe)
-			cNout <= #TCQ {cNin[1*M+:M], {M-1{1'b0}}, 1'b1};
+			sigma <= #TCQ {cNin[1*M+:M], {M-1{1'b0}}, 1'b1};
 		else if (snce)
-			cNout <= #TCQ {cNin, mcNout[0*M+:M]};
+			sigma <= #TCQ {cNin, mcNout[0*M+:M]};
 
 		/* b2 drdcesone */
 		if (b23set) begin
 			bNout[2*M+:M*2] <= #TCQ {{M-1{1'b0}}, b3s, {M-1{1'b0}}, b2s};
 		end else if (snce)
-			bNout[2*M+:M*2] <= #TCQ cNout[0*M+:M*2];
+			bNout[2*M+:M*2] <= #TCQ sigma[0*M+:M*2];
 	end
 
 	parallel_standard_multiplier #(M, T - 1) u_mbn(
@@ -90,7 +90,7 @@ module tmec_decode_parallel #(
 
 	for (i = 0; i <= T; i = i + 1) begin : parallel_standard_multiplier
 		parallel_standard_multiplier #(M, 2) u_mn(
-			.standard_in1(cNout[i*M+:M]),
+			.standard_in1(sigma[i*M+:M]),
 			.standard_in2({snNout[i*M+:M], dp}),
 			.standard_out({mNout[i*M+:M], mcNout[i*M+:M]})
 		);
@@ -103,7 +103,7 @@ module tmec_decode_parallel #(
 				if (synpe)
 					bNout[4*M+:M*(T-3)] <= #TCQ 0;
 				else if (snce)
-					bNout[4*M+:M*(T-3)] <= bsel ? cNout[2*M+:M*(T-3)] : bNout[2*M+:M*(T-3)];
+					bNout[4*M+:M*(T-3)] <= bsel ? sigma[2*M+:M*(T-3)] : bNout[2*M+:M*(T-3)];
 			end
 		end
 	endgenerate

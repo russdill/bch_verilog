@@ -31,25 +31,48 @@ module serial_mixed_multiplier #(
 	input start,
 	input [M-1:0] dual_in,
 	input [M*N_INPUT-1:0] standard_in,
-	output [N_INPUT-1:0] dual_out
+	output [N_INPUT-1:0] standard_out
 );
-
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 	localparam POLY = bch_polynomial(M);
+	localparam POLY_I = polyi(M);
+	localparam LPOW_P = lpow(M, POLY_I);
+	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
 
 	reg [M-1:0] lfsr = 0;
+	reg [M-1:0] dual_stored;
+	wire [M-1:0] lfsr_in;
+	wire [log2(M)-1:0] count;
+	wire change;
+
+	lfsr_counter #(log2(M)) u_counter(
+		.clk(clk),
+		.reset(start),
+		.count(count)
+	);
+	assign change = count == TO;
+
+	/* part of basis conversion */
+	parallel_mixed_multiplier #(M) u_dmli(
+		.dual_in(dual_in),
+		.standard_in(LPOW_P[M-1:0]),
+		.dual_out(lfsr_in)
+	);
 
 	/* LFSR for generating aux bits */
 	always @(posedge clk) begin
 		if (start)
-			lfsr <= #TCQ dual_in;
+			dual_stored <= #TCQ dual_in;
+
+		if (start || change)
+			lfsr <= #TCQ change ? dual_stored : lfsr_in;
 		else
 			lfsr <= #TCQ {^(lfsr & POLY), lfsr[M-1:1]};
 	end
 
-	matrix_vector_mult #(M, N_INPUT) u_mult(standard_in, lfsr, dual_out);
+	matrix_vector_mult #(M, N_INPUT) u_mult(standard_in, lfsr, standard_out);
 endmodule
 
 /* Berlekamp bit-parallel dual-basis multiplier */
@@ -74,24 +97,6 @@ module parallel_mixed_multiplier #(
 
 	/* Perform matrix multiplication of terms */
 	matrix_vector_mult #(M, M, 1) u_mult(all, standard_in, dual_out);
-endmodule
-
-/* Convert to standard basis (basis rearranging circuit) */
-module dual_to_standard #(
-	parameter M = 4
-) (
-	input [M-1:0] dual_in,
-	output [M-1:0] standard_out
-);
-	`include "bch.vh"
-
-	localparam LPOW_P = lpow(M, polyi(M));
-
-	parallel_mixed_multiplier #(M) u_dmli(
-		.dual_in(dual_in),
-		.standard_in(LPOW_P[M-1:0]),
-		.dual_out(standard_out)
-	);
 endmodule
 
 /* Bit-parallel standard basis multiplier (PPBML) */
@@ -222,7 +227,6 @@ module finite_divider #(
 
 	localparam TCQ = 1;
 
-	reg busy_last = 0;
 	reg [M-1:0] standard_a = 0;
 	wire [M-1:0] standard_b;
 	reg [M-1:0] dual_c = standard_to_dual(M, lpow(M, 0));
@@ -241,10 +245,13 @@ module finite_divider #(
 		.standard_out(standard_b)
 	);
 
-	/* Accumulate the term each cycle (Reuse for C = A*B^(-1) ) */
+	/*
+	 * Accumulate the term each cycle (Reuse for C = A*B^(-1) )
+	 * Reuse multiplier to multiply by numerator
+	 */
 	parallel_mixed_multiplier #(M) u_parallel_mixed_multiplier(
 		.dual_in(dual_c),
-		.standard_in((busy || busy_last) ? standard_a : standard_numer),
+		.standard_in(busy ? standard_a : standard_numer),
 		.dual_out(dual_d)
 	);
 
@@ -255,7 +262,6 @@ module finite_divider #(
 	);
 
 	always @(posedge clk) begin
-		busy_last <= #TCQ busy;
 		if (start)
 			busy <= #TCQ 1;
 		else if (count == lfsr_count(log2(M), M - 2))

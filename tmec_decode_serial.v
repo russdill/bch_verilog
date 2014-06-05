@@ -23,40 +23,33 @@ module tmec_decode_serial #(
 	input cbBeg,
 	input msmpe,
 	input cce,
-	input dringPe,
 	input [M-1:0] syn1,
 	input [M*(2*T-1)-1:0] snNout,
 
-	output reg drnzero = 0,
-	output [M*(T+1)-1:0] cNout /* sigma */
+	output reg d_r_nonzero = 0,
+	output [M*(T+1)-1:0] sigma
 );
 
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 
-	wire [M-1:0] dr;
-	wire [M-1:0] drpd;
-	wire [M-1:0] dli;
-	wire [M-1:0] dmIn;
+	wire [M-1:0] d_r;
+	wire [M-1:0] d_rp_dual;
 	wire [T:0] cin;
-	wire [M*(T+1)-1:0] sigma;
 	wire [T:0] sigma_serial;		/* 0 bits of each sigma */
 
 	reg [M*(T+1)-1:0] beta = 0;
 	reg [M*(T-1)-1:0] sigma_last = 0;	/* Last sigma values */
-	reg [M-1:0] qd = 0;
 
 	wire [M*4-1:0] beta0;			/* Initial beta */
-	wire [M*(T+1)-1:0] dr0;			/* Initial dr */
+	wire [M*(T+1)-1:0] d_r0;		/* Initial dr */
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	assign beta0 = {{{M-1{1'b0}}, !syn1}, {{M-1{1'b0}}, |syn1}, {(M*2){1'b0}}};
 
-	/* dr(0) = 1 + S_1 * x */
-	assign dr0 = {syn1, {(M-1){1'b0}}, 1'b1};
-
-	assign cNout = sigma;
+	/* d_r(0) = 1 + S_1 * x */
+	assign d_r0 = {syn1, {(M-1){1'b0}}, 1'b1};
 
 	always @(posedge clk) begin
 		/* bN drdce */
@@ -66,10 +59,7 @@ module tmec_decode_serial #(
 		end else if (caLast) begin
 
 			/* qdrOr drdr1ce */
-			drnzero <= #TCQ |dr;
-
-			/* qdd drdce */
-			qd <= #TCQ drpd;
+			d_r_nonzero <= #TCQ |d_r;
 
 			/* ccN drdce */
 			sigma_last <= #TCQ sigma[0*M+:M*T];
@@ -80,30 +70,25 @@ module tmec_decode_serial #(
 	end
 
 	wire [M-1:0] denom;
-	assign denom = synpe ? syn1 : dr;	/* syn1 is d_p initial value */
+	assign denom = synpe ? syn1 : d_r;	/* syn1 is d_p initial value */
 
 	/* d_rp = d_p^-1 * d_r */
 	finite_divider #(M) u_dinv(
 		.clk(clk),
 		.start(synpe || (snce && bsel)),
-		.standard_numer(dr),
+		.standard_numer(d_r),
 		/* d_p = S_1 ? S_1 : 1 */
 		.standard_denom(denom ? denom : {1'b1}),
-		.dual_out(drpd)
+		.dual_out(d_rp_dual)
 	);
-
-	/* d_rp -> standard basis */
-	dual_to_standard #(M) u_dmli(drpd, dli);
-
-	assign dmIn = caLast ? dli : qd;
 
 	/* mbN SDBM d_rp * beta_i(r) */
 	serial_mixed_multiplier #(M, T + 1) u_serial_mixed_multiplier(
 		.clk(clk),
-		.start(dringPe),
-		.dual_in(dmIn),
+		.start(caLast),
+		.dual_in(d_rp_dual),
 		.standard_in(beta),
-		.dual_out(cin)
+		.standard_out(cin)
 	);
 
 	/* cN dshr */
@@ -113,7 +98,7 @@ module tmec_decode_serial #(
 		.clk(clk),
 		.start(synpe),
 		.ce(cce),
-		.parallel_in(dr0),
+		.parallel_in(d_r0),
 		.serial_in({(T+1){!cbBeg}} & cin),
 		.parallel_out(sigma),
 		.serial_out(sigma_serial)
@@ -126,7 +111,7 @@ module tmec_decode_serial #(
 		.start(msmpe),
 		.parallel_in(snNout[0+:M*(T+1)]),
 		.serial_in(sigma_serial),
-		.out(dr)
+		.out(d_r)
 	);
 
 endmodule
