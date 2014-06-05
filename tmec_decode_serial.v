@@ -52,8 +52,8 @@ module tmec_decode_serial #(
 
 	genvar i;
 
-	assign b3ce = caLast && !cbBeg;
 	assign b2ce = synpe || b3ce;
+	assign b3ce = caLast && !cbBeg;
 
 	assign drnzero = synpe ? |dra : qdr_or;
 
@@ -82,10 +82,6 @@ module tmec_decode_serial #(
 	finite_adder #(M, T+1) u_generate_cs(snNen, cs);
 
 	always @(posedge clk) begin
-		/* b2 drd1ce */
-		if (b2ce)
-			bNout[2*M] <= #TCQ bsel;
-
 		/* qdrOr drdr1ce */
 		if (synpe || caLast)
 			qdr_or <= #TCQ |dra;
@@ -93,6 +89,10 @@ module tmec_decode_serial #(
 		/* qdd drdce */
 		if (caLast)
 			qd <= #TCQ drpd;
+
+		/* b2 drd1ce */
+		if (b2ce)
+			bNout[2*M] <= #TCQ bsel;
 
 		/* drdcesone b3 */
 		if (b3set)
@@ -113,6 +113,10 @@ module tmec_decode_serial #(
 			cNout[1*M+:M] <= #TCQ c1in;
 		else if (cce)
 			cNout[1*M+:M] <= #TCQ {cNout[1*M+:M-1], cNout[1*M+M-1]};
+
+		/* ccN drdce */
+		if (ccCe)
+			ccNout <= #TCQ cNout[2*M+:M*(T-2)];
 	end
 	
 	serial_standard_multiplier_final #(M) msm_serial_standard_multiplier_final(
@@ -157,14 +161,6 @@ module tmec_decode_serial #(
 			end
 		end
 
-		/* ccN drdce */
-		for (i = 2; i < T - 1; i = i + 1) begin : cc
-			always @(posedge clk) begin
-				if (ccCe)
-					ccNout[i*M+:M] <= #TCQ cNout[i*M+:M];
-			end
-		end
-
 		/* mbN */
 		serial_mixed_multiplier #(M, T - 1) u_serial_mixed_multiplier(
 			.clk(clk),
@@ -175,10 +171,10 @@ module tmec_decode_serial #(
 		);
 
 		/* bN drdce */
-		for (i = 5; i <= T; i = i + 1) begin : b
+		if (T >= 5) begin : b
 			always @(posedge clk)
 				if (caLast)				/* bNin, xbN dmul21 */
-					bNout[i*M+:M] <= #TCQ xbsel ? ccNout[(i-2)*M+:M] : bNout[(i-2)*M+:M];
+					bNout[5*M+:M*(T-4)] <= #TCQ xbsel ? ccNout[3*M+:M*(T-4)] : bNout[3*M+:M*(T-4)];
 		end
 	endgenerate
 endmodule
