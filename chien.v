@@ -8,11 +8,10 @@ module dch #(
 ) (
 	input clk,
 	input err,		/* Error was found so correct it */
-	input errcheck,		/* Try to see if an error was found */
 	input ce,
 	input start,
 	input [M-1:0] in,
-	output [M-1:0] out
+	output reg [M-1:0] out = 0
 );
 	`include "bch.vh"
 
@@ -20,21 +19,20 @@ module dch #(
 	localparam LPOW = lpow(M, P);
 
 	wire [M-1:0] mul_out;
-	reg [M-1:0] _out = 0;
 
 	parallel_standard_multiplier #(M) u_mult(
 		.standard_in1(LPOW[M-1:0]),
-		.standard_in2(_out ^ err),
+		.standard_in2(out ^ err),
 		.standard_out(mul_out)
 	);
 
 	always @(posedge clk)
 		if (start)
-			_out <= #TCQ in;
+			/* Initialize with coefficients of the error location polynomial */
+			out <= #TCQ in;
 		else if (ce)
-			_out <= #TCQ mul_out;
-
-	assign out = _out ^ errcheck;
+			/* Multiply by alpha^P */
+			out <= #TCQ mul_out;
 endmodule
 
 module chien #(
@@ -59,7 +57,6 @@ module chien #(
 		dch #(M, i) u_ch(
 			.clk(clk),
 			.err(1'b0),
-			.errcheck(1'b0),
 			.ce(cei),
 			.start(ch_start),
 			.in(cNout[i*M+:M]),
