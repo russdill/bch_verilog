@@ -23,46 +23,43 @@ module dsynN_method2 #(
 );
 	`include "bch_syndrome.vh"
 
-	function [MAX_M-1:0] syndrome_poly;
-		input [31:0] m;
-		input [31:0] s;
+	function [M-1:0] syndrome_poly;
 		integer i;
 		integer j;
-		integer n;
 		integer a;
 		integer first;
 		integer done;
 		integer curr;
 		integer prev;
-		reg [MAX_M*MAX_M-1:0] poly;
+		reg [M*M-1:0] poly;
 	begin
-		n = m2n(m);
 
 		poly = 1;
-		first = lpow(m, s);
+		first = lpow(M, SYN);
 		a = first;
 		done = 0;
 		while (!done) begin
 			prev = 0;
-			for (j = 0; j < m; j = j + 1) begin
-				curr = poly[j*MAX_M+:MAX_M];
-				poly[j*MAX_M+:MAX_M] = finite_mult(m, curr, a) ^ prev;
+			for (j = 0; j < M; j = j + 1) begin
+				curr = poly[j*M+:M];
+				poly[j*M+:M] = finite_mult(M, curr, a) ^ prev;
 				prev = curr;
 			end
 
-			a = finite_mult(m, a, a);
+			a = finite_mult(M, a, a);
 			if (a == first)
 				done = 1;
 		end
 
-		for (i = 0; i < m; i = i + 1)
-			syndrome_poly[i] = poly[i*MAX_M+:MAX_M] ? 1 : 0;
+		for (i = 0; i < M; i = i + 1)
+			syndrome_poly[i] = poly[i*M+:M] ? 1 : 0;
 	end
 	endfunction
 
 	localparam TCQ = 1;
+	localparam N = m2n(M);
 	localparam SYN = idx2syn(M, IDX);
-	localparam SYNDROME_POLY = syndrome_poly(M, SYN);
+	localparam SYNDROME_POLY = syndrome_poly();
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 
 	genvar bit_pos;
