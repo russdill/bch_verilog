@@ -28,7 +28,7 @@ module tmec_decode_parallel #(
 	wire [M*(T+1)-1:1*M] cNin;
 	wire [M*(T+1)-1:2*M] mbNout;
 	wire [M*(T+1)-1:0] mcNout;
-	reg [M*(T+1)-1:M*2] bNout = 0;
+	reg [M*(T+1)-1:2*M] beta = 0;
 
 	wire qdpce;
 	wire qdpset;
@@ -38,12 +38,15 @@ module tmec_decode_parallel #(
 
 	genvar i;
 
+	wire [M*2-1:0] beta0;
+	assign beta0 = {{M-1{1'b0}}, b3s, {M-1{1'b0}}, b2s};
+
+
 	assign qdpce = snce && (bsel || (d_r_nonzero && synpe));
 	assign qdpset = synpe && !d_r_nonzero;
 	assign qdpin = synpe ? syn1 : dr;
 
 	assign d_r_nonzero = |qdpin;
-	assign b23set = synpe || (snce && !bsel);
 	assign b2s = synpe && d_r_nonzero;
 	assign b3s = synpe && !d_r_nonzero;
 
@@ -75,15 +78,16 @@ module tmec_decode_parallel #(
 			sigma <= #TCQ {cNin, mcNout[0*M+:M]};
 
 		/* b2 drdcesone */
-		if (b23set) begin
-			bNout[2*M+:M*2] <= #TCQ {{M-1{1'b0}}, b3s, {M-1{1'b0}}, b2s};
+		/* bN drdcer */
+		if (synpe) begin
+			beta[2*M+:M*(T-1)] <= #TCQ {beta0};
 		end else if (snce)
-			bNout[2*M+:M*2] <= #TCQ sigma[0*M+:M*2];
+			beta[2*M+:M*(T-1)] <= #TCQ bsel ? sigma[0*M+:M*(T-1)] : {beta[2*M+:M*(T-3)], beta0};
 	end
 
 	parallel_standard_multiplier #(M, T - 1) u_mbn(
 		.standard_in1(dr),
-		.standard_in2(bNout),
+		.standard_in2(beta[2*M+:M*(T-1)]),
 		.standard_out(mbNout)
 	);
 
@@ -94,16 +98,4 @@ module tmec_decode_parallel #(
 			.standard_out({mNout[i*M+:M], mcNout[i*M+:M]})
 		);
 	end
-
-	generate
-		/* bN drdcer */
-		if (T >= 3) begin : bN_drdcer
-			always @(posedge clk) begin
-				if (synpe)
-					bNout[4*M+:M*(T-3)] <= #TCQ 0;
-				else if (snce)
-					bNout[4*M+:M*(T-3)] <= bsel ? sigma[2*M+:M*(T-3)] : bNout[2*M+:M*(T-3)];
-			end
-		end
-	endgenerate
 endmodule
