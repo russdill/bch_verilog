@@ -55,7 +55,10 @@ module tmec_decode_parallel #(
 	/* csN dxorm */
 	assign cNin[2*M+:M*(T-1)] = mbNout[2*M+:M*(T-1)] ^ mcNout[2*M+:M*(T-1)];
 
-	generate_cs #(M, T) u_generate_cs(mNout, cs);
+	/* cs generation, input rearranged_in, output cs */
+	/* snNen dandm/msN doxrt */
+	/* msN dxort */
+	finite_adder #(M, T+1) u_generate_cs(mNout, cs);
 
 	always @(posedge clk) begin
 		/* qpd drdcesone */

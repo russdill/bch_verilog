@@ -288,24 +288,22 @@ module pow3 #(
 	endgenerate
 endmodule
 
-module generate_cs #(
+/* Finite adder, xor each bit */
+module finite_adder #(
 	parameter M = 4,
-	parameter T = 3
+	parameter N_INPUT = 2
 ) (
-	input [M*(T+1)-1:0] terms,
-	output [M-1:0] cs
+	input [M*N_INPUT-1:0] in,
+	output [M-1:0] out
 );
 	genvar i, j;
 
-	/* cs generation, input rearranged_in, output cs */
-	for (i = 0; i < M; i = i + 1) begin : snen
-		wire [T:0] z;
-		/* snNen dandm/msN doxrt */
-		for (j = 0; j <= T; j = j + 1) begin : ms
-			assign z[j] = terms[j*M+i];
+	for (i = 0; i < M; i = i + 1) begin : add
+		wire [N_INPUT-1:0] z;
+		for (j = 0; j < N_INPUT; j = j + 1) begin : arrange
+			assign z[j] = in[j*M+i];
 		end
-		/* msN dxort */
-		assign cs[i] = ^z;
+		assign out[i] = ^z;
 	end
 endmodule
 

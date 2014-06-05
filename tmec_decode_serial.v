@@ -76,7 +76,10 @@ module tmec_decode_serial #(
 		assign snNen[i*M+:M] = cNout[i*M] ? snNout[i*M+:M] : 0;
 	end
 
-	generate_cs #(M, T) u_generate_cs(snNen, cs);
+	/* cs generation, input rearranged_in, output cs */
+	/* snNen dandm/msN doxrt */
+	/* msN dxort */
+	finite_adder #(M, T+1) u_generate_cs(snNen, cs);
 
 	always @(posedge clk) begin
 		/* b2 drd1ce */

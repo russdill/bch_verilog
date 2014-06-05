@@ -65,16 +65,9 @@ module chien #(
 			.out(chNout[i*M+:M])
 		);
 	end
-
-	for (i = 0; i < M; i = i + 1) begin : assign_eq
-		wire [T:0] z;
-		for (j = 0; j <= T; j = j + 1) begin : assign_z
-			/* cheg dcheq */
-			assign z[j] = chNout[j*M+i];
-		end
-		assign eq[i] = ^z;
-	end
 	endgenerate
+
+	finite_adder #(M, T+1) u_dcheq(chNout, eq);
 
 	assign err = !eq;
 endmodule
