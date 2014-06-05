@@ -35,6 +35,14 @@ module dch #(
 			out <= #TCQ mul_out;
 endmodule
 
+/*
+ * Tradition chien search, for each cycle, check if the
+ * sum of all the equations is zero, if so, this location
+ * is a bit error. K cycles are required.
+ *
+ * Each register is loaded with the associated syndrome
+ * and multiplied by alpha^i each cycle.
+ */
 module chien #(
 	parameter M = 4,
 	parameter T = 3
