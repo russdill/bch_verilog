@@ -7,144 +7,142 @@ module tmec_decode #(
 	parameter OPTION = "SERIAL"
 ) (
 	input clk,
-	input reset,
-	input din,
-	output vdout,
-	output reg dout = 0
+	input start,
+	input data_in,
+	output reg ready = 1,
+	output reg output_valid = 0,
+	output reg data_out = 0
 );
 
 `include "bch.vh"
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam INTERLEAVE = calc_interleave(N, T, OPTION == "SERIAL");
-localparam ITERATION = calc_iteration(N, T, OPTION == "SERIAL");
-localparam CHPE = T * ITERATION - 2;
-localparam _BUF_SIZE = CHPE / INTERLEAVE + 2;
-localparam BUF_SIZE = T > 2 ? ((_BUF_SIZE > K + 1) ? K : _BUF_SIZE) : (N + 1 - K);
-/* FIXME: possible off by one?, comment indicates BUF_SIZE > K */
-/* buf_size= chpe/interleave + 2 if buf_size<k+1; else buf_size= k */
+localparam BUF_SIZE = OPTION == "SERIAL" ? (N + T * (M + 2) + 0) : (N + T*2 + 1);
 
-reg [K-1:0] bufk = 0;
+if (BUF_SIZE > 2 * N) begin
+	wire [log2(BUF_SIZE - N + 3)-1:0] wait_count;
+	counter #(BUF_SIZE - N + 2) u_wait(
+		.clk(clk),
+		.reset(start),
+		.ce(!ready),
+		.count(wait_count)
+	);
+	always @(posedge clk) begin
+		if (start)
+			ready <= #TCQ 0;
+		else if (wait_count == BUF_SIZE - N + 2)
+			ready <= #TCQ 1;
+	end
+end
+
 reg [BUF_SIZE-1:0] buf_ = 0;
 wire [M*(2*T-1)-1:0] syn_shuffled;
 wire [2*T*M-1:M] synN;
 wire [M*(T+1)-1:0] sigma;
 
 wire bsel;
-wire synpe;
-wire msmpe;
 wire ch_start;
+wire next_l;
 wire d_r_nonzero;
-wire snce;
-wire cei;
-wire bufCe;
-wire bufkCe;
-wire vdout1;
 wire err;
-wire cce;
-wire caLast;
-wire cbBeg;
+wire syn_done;
+
+wire syn_shuffle;
+reg next_output_valid = 0;
+wire ch_done;
+reg ch_ready = 0;
+wire [log2(T+1)-1:0] bch_n;
+
 
 genvar i;
 
 if (OPTION == "PARALLEL") begin
 	tmec_decode_parallel #(M, T) u_decode_parallel (
 		.clk(clk),
-		.synpe(synpe),
-		.snce(snce),
+		.syn_done(syn_done),
 		.bsel(bsel),
-		.msmpe(msmpe),
+		.bch_n(bch_n),
 		.syn1(synN[1*M+:M]),
 		.syn_shuffled(syn_shuffled),
+		.syn_shuffle(syn_shuffle),
+		.next_l(next_l),
+		.ch_start(ch_start),
 		.d_r_nonzero(d_r_nonzero),
 		.sigma(sigma)
 	);
 end else if (OPTION == "SERIAL") begin
 	tmec_decode_serial #(M, T) u_decode_serial (
 		.clk(clk),
-		.synpe(synpe),
-		.snce(snce),
+		.syn_done(syn_done),
 		.bsel(bsel),
-		.caLast(caLast),
-		.cbBeg(cbBeg),
-		.msmpe(msmpe),
-		.cce(cce),
+		.bch_n(bch_n),
 		.syn1(synN[1*M+:M]),
 		.syn_shuffled(syn_shuffled),
+		.syn_shuffle(syn_shuffle),
+		.next_l(next_l),
+		.ch_start(ch_start),
 		.d_r_nonzero(d_r_nonzero),
 		.sigma(sigma)
 	);
 end else
 	illegal_option_value u_iov();
 
-/* count dcount */
-tmec_decode_control #(N, K, T, OPTION) u_count(
+reg [log2(T+1)-1:0] l = 0;
+wire syn1_nonzero = |synN[1*M+:M];
+
+counter #(T) u_bch_n_counter(
 	.clk(clk),
-	.reset(reset),
-	.d_r_nonzero(d_r_nonzero),
-	.syn1_nonzero(|synN[1*M+:M]),
-	.bsel(bsel),
-	.bufCe(bufCe),
-	.bufkCe(bufkCe),
-	.ch_start(ch_start),
-	.msmpe(msmpe),
-	.snce(snce),
-	.synpe(synpe),
-	.vdout(vdout),
-	.vdout1(vdout1),
-	.cce(cce),
-	.caLast(caLast),
-	.cbBeg(cbBeg),
-	.cei(cei)
+	.reset(syn_done),
+	.ce(next_l),
+	.count(bch_n)
 );
 
-/* sN dsynN */
+assign bsel = d_r_nonzero && bch_n >= l;
+
+always @(posedge clk)
+	if (syn_done)
+		l <= #TCQ {{log2(T+1)-1{1'b0}}, syn1_nonzero};
+	else if (next_l)
+		if (bsel)
+			l <= #TCQ 2 * bch_n - l + 1;
+
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
-	.ce(cei),
-	.start(synpe),
-	.data_in(din),
+	.ce(1'b1),
+	.start(start),
+	.done(syn_done),
+	.data_in(data_in),
 	.out(synN)
 );
 
 bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
 	.clk(clk),
-	.start(synpe),
-	.ce(snce),
+	.start(syn_done),
+	.ce(syn_shuffle),
 	.synN(synN),
 	.syn_shuffled(syn_shuffled)
 );
 
-chien #(M, T) u_chien(
+chien #(M, K, T) u_chien(
 	.clk(clk),
-	.ce(cei),
+	.ce(1'b1),
 	.start(ch_start),
 	.sigma(sigma),
+	.done(ch_done),
 	.err(err)
 );
 
-/* buf dbuf */
 always @(posedge clk) begin
-	if (bufCe)
-		buf_ <= #TCQ {buf_[BUF_SIZE-2:0], bufk[K-1]};
-	if (bufkCe)
-		bufk <= #TCQ {bufk[K-2:0], din};
-	dout <= #TCQ (buf_[BUF_SIZE-1] ^ err) && vdout1;
-end
+	if (ch_ready)
+		next_output_valid <= #TCQ 1;
+	else if (ch_done)
+		next_output_valid <= #TCQ 0;
+	output_valid <= #TCQ next_output_valid;
+	ch_ready <= #TCQ ch_start;
 
-/* Debug to easily access syndromes, etc */
-for (i = 1; i < 2*T; i = i + 1) begin : syn
-	wire [M-1:0] syn = synN[i*M+:M];
+	buf_ <= #TCQ {buf_[BUF_SIZE-2:0], data_in};
+	data_out <= #TCQ (buf_[BUF_SIZE-1] ^ err) && next_output_valid;
 end
-
-for (i = 0; i < 2*T-1; i = i + 1) begin : sn_out
-	wire [M-1:0] sn_out = syn_shuffled[i*M+:M];
-end
-
-for (i = 1; i < T+1; i = i + 1) begin : c_out
-	wire [M-1:0] c_out = sigma[i*M+:M];
-end
-
 
 endmodule

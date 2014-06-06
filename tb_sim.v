@@ -59,25 +59,26 @@ end
 endfunction
 
 reg encode_start = 0;
-wire encode_clk;
 wire encoded_penult;
 wire vdout;
 wire wrongNow;
 wire wrong;
 wire [K-1:0] dout;
+wire ready;
+reg waiting = 0;
 
 sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
-	.clkEnc(encode_clk),
-	.reset(reset),
-	.din(din),
+	.reset(1'b0),
+	.data_in(din),
 	.error(error),
+	.ready(ready),
 	.encode_start(encode_start),
 	.encoded_penult(encoded_penult),
-	.vdout(vdout),
-	.wrongNow(wrongNow),
+	.output_valid(vdout),
+	.wrong_now(wrongNow),
 	.wrong(wrong),
-	.dout(dout)
+	.data_out(dout)
 );
 
 always
@@ -88,18 +89,23 @@ always @(posedge wrong)
 
 reg [31:0] s;
 
-always @(posedge encode_clk) begin
-	if (encoded_penult || reset) begin
-		s = seed;
-		#1;
-		din <= randk(0);
-		#1;
-		nerr <= n_errors(0);
-		#1;
-		error <= rande(nerr);
-		encode_start <= 1;
-		#1;
-		$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+always @(posedge clk) begin
+	if (waiting || encoded_penult || reset) begin
+		if (!ready)
+			waiting <= 1;
+		else begin
+			waiting <= 0;
+			s = seed;
+			#1;
+			din <= randk(0);
+			#1;
+			nerr <= n_errors(0);
+			#1;
+			error <= rande(nerr);
+			encode_start <= 1;
+			#1;
+			$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+		end
 	end else
 		encode_start <= #TCQ 0;
 end

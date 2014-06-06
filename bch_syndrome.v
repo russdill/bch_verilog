@@ -49,7 +49,7 @@ module bch_syndrome #(
 		if (syndrome_method(M, T, idx2syn(M, idx)) == 0)
 			dsynN_method1 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(ce),
+				.ce(ce && busy),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
@@ -57,7 +57,7 @@ module bch_syndrome #(
 		else
 			dsynN_method2 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(ce),
+				.ce(ce && busy),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
@@ -107,7 +107,7 @@ module bch_syndrome_shuffle #(
 					syn_shuffled[i*M+:M] <= #TCQ synN[(3*T-i-1)*M+:M];
 		end else begin
 			always @(posedge clk)
-				if (ce)				/* xN dmul21 */
+				if (start || ce)		/* xN dmul21 */
 					syn_shuffled[i*M+:M] <= #TCQ start ? synN[M*((2*T+1-i)%(2*T-1)+1)+:M] : syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
 		end
 	end

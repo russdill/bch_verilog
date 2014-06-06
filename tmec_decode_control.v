@@ -92,8 +92,6 @@ assign res = reset || clast;
 assign caLast = ca == ITERATION - 1 || res;
 if (OPTION == "SERIAL")
 	assign lCe = caLast && cb;
-else
-	assign lCe = !ca;
 assign cceR = ca == M - 1;
 assign cceS = caLast || synpe;
 assign cceSR = cceS || cceR;

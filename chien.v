@@ -45,18 +45,24 @@ endmodule
  */
 module chien #(
 	parameter M = 4,
+	parameter K = 5,
 	parameter T = 3
 ) (
 	input clk,
 	input ce,
 	input start,
 	input [M*(T+1)-1:0] sigma,
+	output done,
 	output err
 );
 	wire [M-1:0] eq;
 	wire [M*(T+1)-1:0] z;
 	wire [M*(T+1)-1:0] chien_mask;
+	wire [M-1:0] count;
+	reg busy = 0;
 	
+	localparam TCQ = 1;
+
 	genvar i;
 	generate
 	/* Chien search */
@@ -64,13 +70,23 @@ module chien #(
 		dch #(M, i) u_ch(
 			.clk(clk),
 			.err(1'b0),
-			.ce(ce),
+			.ce(ce && busy),
 			.start(start),
 			.in(sigma[i*M+:M]),
 			.out(z[i*M+:M])
 		);
 	end
 	endgenerate
+
+	lfsr_counter #(M) u_counter(
+		.clk(clk),
+		.reset(start),
+		.ce(busy),
+		.count(count)
+	);
+	assign done = busy && (count == lfsr_count(M, K));
+	always @(posedge clk)
+		busy <= #TCQ start || (busy && !done);
 
 	finite_parallel_adder #(M, T+1) u_dcheq(z, eq);
 

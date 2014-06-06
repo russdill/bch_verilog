@@ -7,30 +7,32 @@ module bch_decode #(
 	parameter OPTION = "SERIAL"
 ) (
 	input clk,
-	input reset,
 	input start,
-	input din,
-	output vdout,
-	output dout
+	input data_in,
+	input ready,
+	output output_valid,
+	output data_out
 );
 
 `include "bch.vh"
 
 if (T < 3) begin
+	assign ready = 1;
 	dec_decode #(N, K, T) u_decode(
 		.clk(clk),
 		.start(start),
-		.data_in(din),
-		.output_valid(vdout),
-		.data_out(dout)
+		.data_in(data_in),
+		.output_valid(output_valid),
+		.data_out(data_out)
 	);
 end else begin
 	tmec_decode #(N, K, T, OPTION) u_decode(
 		.clk(clk),
-		.reset(reset),
-		.din(din),
-		.vdout(vdout),
-		.dout(dout)
+		.start(start),
+		.ready(ready),
+		.data_in(data_in),
+		.output_valid(output_valid),
+		.data_out(data_out)
 	);
 end
 

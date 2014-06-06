@@ -40,9 +40,10 @@ module serial_mixed_multiplier #(
 	localparam POLY_I = polyi(M);
 	localparam LPOW_P = lpow(M, POLY_I);
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
+	localparam END = lfsr_count(log2(M), M - 1);
 
 	reg [M-1:0] lfsr = 0;
-	reg [M-1:0] dual_stored;
+	reg [M-1:0] dual_stored = 0;
 	wire [M-1:0] lfsr_in;
 	wire [log2(M)-1:0] count;
 	wire change;
@@ -50,7 +51,7 @@ module serial_mixed_multiplier #(
 	lfsr_counter #(log2(M)) u_counter(
 		.clk(clk),
 		.reset(start),
-		.ce(1'b1),
+		.ce(count != END),
 		.count(count)
 	);
 	assign change = count == TO;
@@ -360,7 +361,7 @@ module finite_serial_adder #(
 
 	always @(posedge clk)
 		if (start)
-			parallel_out <= #TCQ {parallel_in[0+:M-1], parallel_in[M-1] ^ serial_in};
+			parallel_out <= #TCQ {parallel_in[0+:M-1], parallel_in[M-1]};
 		else if (ce)
 			parallel_out <= #TCQ {parallel_out[0+:M-1], parallel_out[M-1] ^ serial_in};
 	assign serial_out = parallel_out[0];
@@ -383,5 +384,25 @@ module lfsr_counter #(
 		if (reset)
 			count <= #TCQ 1'b1;
 		else if (ce)
-			count <= {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & POLY);
+			count <= #TCQ {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & POLY);
 endmodule
+
+module counter #(
+	parameter MAX = 15
+) (
+	input clk,
+	input reset,
+	input ce,
+	output reg [log2(MAX)-1:0] count = 0
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+
+	always @(posedge clk)
+		if (reset)
+			count <= #TCQ 1'b0;
+		else if (ce)
+			count <= #TCQ count + 1'b1;
+endmodule
+
