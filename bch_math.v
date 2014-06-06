@@ -169,6 +169,7 @@ module serial_standard_multiplier #(
 	wire [M*N_INPUT-1:0] z;
 	wire [M-1:0] in;
 
+	genvar i;
 	for (i = 0; i < N_INPUT; i = i + 1) begin : mult
 		assign z[i*M+:M] = {M{serial_in[i]}} & parallel_in[i*M+:M];
 	end

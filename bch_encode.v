@@ -19,6 +19,7 @@ module bch_encode #(
 
 /* Calculate least common multiple which has x^2t .. x as its roots */
 function [N-K-1:0] encoder_poly;
+	input dummy;
 	integer nk;
 	integer i;
 	integer j;
@@ -63,7 +64,7 @@ endfunction
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam ENC = encoder_poly();
+localparam ENC = encoder_poly(0);
 reg [N-K-1:0] lfsr = 0;
 wire [M-1:0] count;
 reg load_lfsr = 0;

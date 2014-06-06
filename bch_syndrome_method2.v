@@ -24,6 +24,7 @@ module dsynN_method2 #(
 	`include "bch_syndrome.vh"
 
 	function [M-1:0] syndrome_poly;
+		input dummy;
 		integer i;
 		integer j;
 		integer a;
@@ -59,7 +60,7 @@ module dsynN_method2 #(
 	localparam TCQ = 1;
 	localparam N = m2n(M);
 	localparam SYN = idx2syn(M, IDX);
-	localparam SYNDROME_POLY = syndrome_poly();
+	localparam SYNDROME_POLY = syndrome_poly(0);
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 
 	genvar bit_pos;

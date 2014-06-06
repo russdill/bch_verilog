@@ -52,10 +52,7 @@ wire syn_shuffle;
 reg next_output_valid = 0;
 wire ch_done;
 reg ch_ready = 0;
-wire [log2(T+1)-1:0] bch_n;
-
-
-genvar i;
+wire [log2(T)-1:0] bch_n;
 
 if (OPTION == "PARALLEL") begin
 	tmec_decode_parallel #(M, T) u_decode_parallel (
