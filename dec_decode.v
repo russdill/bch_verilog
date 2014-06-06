@@ -39,6 +39,7 @@ module dec_decode #(
 	wire [2*T*M-1:M] synN;
 	wire [M-1:0] ch1;
 	wire [M-1:0] ch1_flipped;
+	reg first = 0;			/* First output cycle */
 	wire err;			/* The current output bit needs to be flipped */
 	reg next_output_valid = 0;
 	reg chien_ready = 0;
@@ -119,6 +120,7 @@ module dec_decode #(
 		output_valid <= #TCQ next_output_valid;
 
 		if (T > 1) begin
+			first <= #TCQ start;
 			/*
 			 * Load the new error count on cycle zero or when
 			 * we find an error
