@@ -38,13 +38,15 @@ end
 
 reg [BUF_SIZE-1:0] buf_ = 0;
 
-/* Process syndromes */
 wire [2*T*M-1:M] syndromes;
+wire [M*(T+1)-1:0] sigma;
 wire syn_done;
 wire err_start;
 wire err_valid;
 wire err;
+wire ch_start;
 
+/* Process syndromes */
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
 	.start(start),
@@ -53,25 +55,24 @@ bch_syndrome #(M, T) u_bch_syndrome(
 	.out(syndromes)
 );
 
-if (T < 3) begin
-	dec_decode #(N, K, T) u_decode(
-		.clk(clk),
-		.start(syn_done),
-		.syndromes(syndromes),
-		.err_start(err_start),
-		.err_valid(err_valid),
-		.err(err)
-	);
-end else begin
-	tmec_decode #(N, K, T, OPTION) u_decode(
-		.clk(clk),
-		.start(syn_done),
-		.syndromes(syndromes),
-		.err_start(err_start),
-		.err_valid(err_valid),
-		.err(err)
-	);
-end
+/* Solve key equation */
+bch_key #(M, T, OPTION) u_key(
+	.clk(clk),
+	.start(syn_done),
+	.syndromes(syndromes),
+	.sigma(sigma),
+	.done(ch_start)
+);
+
+/* Locate errors */
+chien #(M, K, T) u_chien(
+	.clk(clk),
+	.start(ch_start),
+	.sigma(sigma),
+	.ready(err_start),
+	.valid(err_valid),
+	.err(err)
+);
 
 always @(posedge clk) begin
 	buf_ <= #TCQ {buf_[BUF_SIZE-2:0], data_in};

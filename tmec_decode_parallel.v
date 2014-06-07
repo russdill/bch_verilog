@@ -1,21 +1,15 @@
 `timescale 1ns / 1ps
 
 /* parallel inversionless */
-module tmec_decode_parallel #(
+module bch_key_bma_parallel #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
 	input start,
-	input bsel,
-	input [log2(T)-1:0] bch_n,
-	input [M-1:0] syn1,
-	input [M*(2*T-1)-1:0] syn_shuffled,
+	input [2*T*M-1:M] syndromes,
 
-	output next_l,
-	output reg syn_shuffle = 0,
 	output reg done = 0,
-	output d_r_nonzero,
 	output reg [M*(T+1)-1:0] sigma = 0
 );
 	`include "bch.vh"
@@ -26,14 +20,13 @@ module tmec_decode_parallel #(
 	wire [M-1:0] d_r_next;
 	reg [M-1:0] d_p = 0;
 	wire [M*(T+1)-1:0] d_r_terms;
-	wire [M*(T+1)-1:0] product;
 	reg [M*(T+1)-1:0] d_r_beta;
 	reg [M*(T+1)-1:0] beta = 0;
+	wire [M-1:0] syn1 = syndromes[M+:M];
+	wire [M*(T+1)-1:0] product;
+	reg [M*(T+1)-1:0] in2;
+	reg syn_shuffle = 0;
 	reg busy = 0;
-
-	assign next_l = !syn_shuffle;
-
-	genvar i;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;
@@ -43,10 +36,34 @@ module tmec_decode_parallel #(
 	wire [M*2-1:0] sigma0;
 	assign sigma0 = {syn1, {M-1{1'b0}}, 1'b1};
 
-	assign d_r_nonzero = |d_r;
-	reg [M*(T+1)-1:0] in2;
+	wire [log2(T)-1:0] bch_n;
+	counter #(T) u_bch_n_counter(
+		.clk(clk),
+		.reset(start),
+		.ce(!syn_shuffle),
+		.count(bch_n)
+	);
+
+	wire [M*(2*T-1)-1:0] syn_shuffled;
+	bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
+		.clk(clk),
+		.start(start),
+		.ce(syn_shuffle),
+		.synN(syndromes),
+		.syn_shuffled(syn_shuffled)
+	);
+
+	wire bsel;
+	reg [log2(T+1)-1:0] l = 0;
+	assign bsel = |d_r && bch_n >= l;
 
 	always @(posedge clk) begin
+		if (start)
+			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+		else if (!syn_shuffle)
+			if (bsel)
+				l <= #TCQ 2 * bch_n - l + 1;
+
 		if (start) begin
 			busy <= #TCQ 1;
 			syn_shuffle <= #TCQ 0;

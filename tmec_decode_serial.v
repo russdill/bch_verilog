@@ -11,24 +11,17 @@
  * combine above equations:
  * d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t
  */
-module tmec_decode_serial #(
+module bch_key_bma_serial #(
 	parameter M = 4,
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
 	input start,
-	input bsel,
-	input [log2(T)-1:0] bch_n,
-	input [M-1:0] syn1,
-	input [M*(2*T-1)-1:0] syn_shuffled,
+	input [2*T*M-1:M] syndromes,
 
-	output syn_shuffle,
-	output next_l,
 	output reg done = 0,
-	output reg d_r_nonzero = 0,
 	output [M*(T+1)-1:0] sigma
 );
-
 	`include "bch.vh"
 
 	localparam TCQ = 1;
@@ -37,13 +30,11 @@ module tmec_decode_serial #(
 	wire [M-1:0] d_rp_dual;
 	wire [T:0] cin;
 	wire [T:0] sigma_serial;		/* 0 bits of each sigma */
+	wire [M-1:0] syn1 = syndromes[M+:M];
 
 	reg [M*(T+1)-1:0] beta = 0;
 	reg [M*(T-1)-1:0] sigma_last = 0;	/* Last sigma values */
 	reg adder_ce = 0;
-
-	wire [M*4-1:0] beta0;			/* Initial beta */
-	wire [M*(T+1)-1:0] d_r0;		/* Initial dr */
 
 	reg first_cycle = 0;
 	reg second_cycle = 0;
@@ -55,16 +46,51 @@ module tmec_decode_serial #(
 	reg final_calc = 0;	/* bch_n == T - 1 */
 	reg counting = 0;
 
-	assign syn_shuffle = last_cycle;
-	assign next_l = last_cycle;
-
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
+	wire [M*4-1:0] beta0;			/* Initial beta */
 	assign beta0 = {{{M-1{1'b0}}, !syn1}, {{M-1{1'b0}}, |syn1}, {(M*2){1'b0}}};
 
 	/* d_r(0) = 1 + S_1 * x */
+	wire [M*(T+1)-1:0] d_r0;		/* Initial dr */
 	assign d_r0 = {syn1, {(M-1){1'b0}}, 1'b1};
 
+	wire [log2(T)-1:0] bch_n;
+	counter #(T) u_bch_n_counter(
+		.clk(clk),
+		.reset(start),
+		.ce(last_cycle),
+		.count(bch_n)
+	);
+
+	wire [log2(M-4)-1:0] count;
+	counter #(M-4) u_counter(
+		.clk(clk),
+		.reset(second_cycle),
+		.ce(counting),
+		.count(count)
+	);
+
+	wire [M*(2*T-1)-1:0] syn_shuffled;
+	bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
+		.clk(clk),
+		.start(start),
+		.ce(last_cycle),
+		.synN(syndromes),
+		.syn_shuffled(syn_shuffled)
+	);
+
+	reg d_r_nonzero = 0;
+	wire bsel;
+	reg [log2(T+1)-1:0] l = 0;
+	assign bsel = d_r_nonzero && bch_n >= l;
+
 	always @(posedge clk) begin
+		if (start)
+			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+		else if (last_cycle)
+			if (bsel)
+				l <= #TCQ 2 * bch_n - l + 1;
+
 		if (last_cycle || start)
 			adder_ce <= #TCQ 1;
 		else if (done || penult2_cycle)
@@ -144,13 +170,4 @@ module tmec_decode_serial #(
 		.serial_in(sigma_serial),
 		.out(d_r)
 	);
-
-	wire [log2(M-4)-1:0] count;
-	counter #(M-4) u_counter(
-		.clk(clk),
-		.reset(second_cycle),
-		.ce(counting),
-		.count(count)
-	);
-
 endmodule
