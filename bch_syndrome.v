@@ -7,7 +7,6 @@ module bch_syndrome #(
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
-	input ce,		/* Accept syndrome bit */
 	input data_in,
 	output [2*T*M-1:M] out,
 	output reg done = 0
@@ -28,7 +27,7 @@ module bch_syndrome #(
 	lfsr_counter #(M) u_counter(
 		.clk(clk),
 		.reset(start),
-		.ce(ce),
+		.ce(count != DONE),
 		.count(count)
 	);
 
@@ -36,10 +35,10 @@ module bch_syndrome #(
 		if (start) begin
 			done <= #TCQ 0;
 			busy <= #TCQ 1;
-		end else if (ce && busy && count == DONE) begin
+		end else if (busy && count == DONE) begin
 			done <= #TCQ 1;
 			busy <= #TCQ 0;
-		end else if (ce)
+		end else
 			done <= #TCQ 0;
 	end
 
@@ -49,7 +48,7 @@ module bch_syndrome #(
 		if (syndrome_method(M, T, idx2syn(M, idx)) == 0)
 			dsynN_method1 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(ce && busy),
+				.ce(busy),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
@@ -57,7 +56,7 @@ module bch_syndrome #(
 		else
 			dsynN_method2 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(ce && busy),
+				.ce(busy),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
@@ -107,8 +106,10 @@ module bch_syndrome_shuffle #(
 					syn_shuffled[i*M+:M] <= #TCQ synN[(3*T-i-1)*M+:M];
 		end else begin
 			always @(posedge clk)
-				if (start || ce)		/* xN dmul21 */
-					syn_shuffled[i*M+:M] <= #TCQ start ? synN[M*((2*T+1-i)%(2*T-1)+1)+:M] : syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
+				if (start)
+					syn_shuffled[i*M+:M] <= #TCQ synN[M*((2*T+1-i)%(2*T-1)+1)+:M];
+				else if (ce)
+					syn_shuffled[i*M+:M] <= #TCQ syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
 		end
 	end
 	endgenerate

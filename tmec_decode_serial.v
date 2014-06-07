@@ -16,7 +16,7 @@ module tmec_decode_serial #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input syn_done,
+	input start,
 	input bsel,
 	input [log2(T)-1:0] bch_n,
 	input [M-1:0] syn1,
@@ -24,7 +24,7 @@ module tmec_decode_serial #(
 
 	output syn_shuffle,
 	output next_l,
-	output reg ch_start = 0,
+	output reg done = 0,
 	output reg d_r_nonzero = 0,
 	output [M*(T+1)-1:0] sigma
 );
@@ -65,20 +65,20 @@ module tmec_decode_serial #(
 	assign d_r0 = {syn1, {(M-1){1'b0}}, 1'b1};
 
 	always @(posedge clk) begin
-		if (last_cycle || syn_done)
+		if (last_cycle || start)
 			adder_ce <= #TCQ 1;
-		else if (ch_start || penult2_cycle)
+		else if (done || penult2_cycle)
 			adder_ce <= #TCQ 0;
 
-		if (last_cycle || syn_done)
+		if (last_cycle || start)
 			final_calc <= #TCQ bch_n == T - 2;
 
-		if (syn_done)
+		if (start)
 			first_calc <= #TCQ 1;
 		else if (last_cycle)
 			first_calc <= #TCQ 0;
 
-		if (syn_done) begin
+		if (start) begin
 			beta <= #TCQ beta0;
 			sigma_last <= #TCQ beta0[2*M+:2*M];	/* beta(1) */
 		end else if (last_cycle) begin
@@ -93,8 +93,8 @@ module tmec_decode_serial #(
 		penult1_cycle <= #TCQ penult2_cycle && !final_calc;
 		last_cycle <= #TCQ penult1_cycle;
 		first_cycle <= #TCQ last_cycle;
-		second_cycle <= #TCQ first_cycle || syn_done;
-		ch_start <= #TCQ penult2_cycle && final_calc;
+		second_cycle <= #TCQ first_cycle || start;
+		done <= #TCQ penult2_cycle && final_calc;
 		if (second_cycle)
 			counting <= #TCQ 1;
 		else if (count == M - 4)
@@ -102,12 +102,12 @@ module tmec_decode_serial #(
 	end
 
 	wire [M-1:0] denom;
-	assign denom = syn_done ? syn1 : d_r;	/* syn1 is d_p initial value */
+	assign denom = start ? syn1 : d_r;	/* syn1 is d_p initial value */
 
 	/* d_rp = d_p^-1 * d_r */
 	finite_divider #(M) u_dinv(
 		.clk(clk),
-		.start(syn_done || (first_cycle && bsel)),
+		.start(start || (first_cycle && bsel)),
 		.standard_numer(d_r),
 		/* d_p = S_1 ? S_1 : 1 */
 		.standard_denom(denom ? denom : {1'b1}),
@@ -127,7 +127,7 @@ module tmec_decode_serial #(
 	/* simga_i^(r-1) + d_rp * beta_i^(r) */
 	finite_serial_adder #(M) u_cN [T:0] (
 		.clk(clk),
-		.start(syn_done),
+		.start(start),
 		.ce(adder_ce),
 		.parallel_in(d_r0),
 		.serial_in({(T+1){bch_n ? 1'b1 : 1'b0}} & cin),

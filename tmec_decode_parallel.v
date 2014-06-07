@@ -6,15 +6,15 @@ module tmec_decode_parallel #(
 	parameter T = 3		/* Correctable errors */
 ) (
 	input clk,
-	input syn_done,
+	input start,
 	input bsel,
-	input [log2(T+1)-1:0] bch_n,
+	input [log2(T)-1:0] bch_n,
 	input [M-1:0] syn1,
 	input [M*(2*T-1)-1:0] syn_shuffled,
 
 	output next_l,
 	output reg syn_shuffle = 0,
-	output reg ch_start = 0,
+	output reg done = 0,
 	output d_r_nonzero,
 	output reg [M*(T+1)-1:0] sigma = 0
 );
@@ -47,19 +47,19 @@ module tmec_decode_parallel #(
 	reg [M*(T+1)-1:0] in2;
 
 	always @(posedge clk) begin
-		if (syn_done) begin
+		if (start) begin
 			busy <= #TCQ 1;
 			syn_shuffle <= #TCQ 0;
-		end else if (busy && !ch_start)
+		end else if (busy && !done)
 			syn_shuffle <= #TCQ ~syn_shuffle;
 		else begin
 			busy <= #TCQ 0;
 			syn_shuffle <= #TCQ 0;
 		end
 
-		ch_start <= #TCQ busy && syn_shuffle && bch_n == T-1;
+		done <= #TCQ busy && syn_shuffle && bch_n == T-1;
 			
-		if (syn_done) begin
+		if (start) begin
 			d_r <= #TCQ syn1 ? syn1 : 1;
 			d_p <= #TCQ syn1 ? syn1 : 1;
 			in2 <= #TCQ sigma0;
