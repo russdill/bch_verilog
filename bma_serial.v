@@ -170,7 +170,7 @@ module bch_key_bma_serial #(
 	/* d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t */
 	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier(
 		.clk(clk), 
-		.run(ssm_ce),
+		.run(!last_cycle && !first_cycle && !second_cycle && !start),
 		.start(second_cycle && !final_calc),
 		.parallel_in(syn_shuffled[0+:M*(T+1)]),
 		.serial_in(sigma_serial),

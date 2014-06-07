@@ -70,7 +70,7 @@ module serial_mixed_multiplier #(
 
 		if (start || change)
 			lfsr <= #TCQ change ? dual_stored : lfsr_in;
-		else
+		else if (count != END)
 			lfsr <= #TCQ {^(lfsr & POLY), lfsr[M-1:1]};
 	end
 
@@ -155,7 +155,7 @@ module serial_standard_multiplier #(
 	parameter N_INPUT = 1
 ) (
 	input clk,
-	input run, /* FIXME: Probably not required */
+	input run,
 	input start,
 	input [M*N_INPUT-1:0] parallel_in,
 	input [N_INPUT-1:0] serial_in,
@@ -229,10 +229,12 @@ module finite_divider #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam DONE = lfsr_count(log2(M), M - 2);
+	localparam INITIAL = standard_to_dual(M, lpow(M, 0));
 
 	reg [M-1:0] standard_a = 0;
 	wire [M-1:0] standard_b;
-	reg [M-1:0] dual_c = standard_to_dual(M, lpow(M, 0));
+	reg [M-1:0] dual_c = INITIAL;
 	wire [M-1:0] dual_d;
 	wire [log2(M)-1:0] count;
 
@@ -261,18 +263,18 @@ module finite_divider #(
 	lfsr_counter #(log2(M)) u_counter(
 		.clk(clk),
 		.reset(start),
-		.ce(1'b1),
+		.ce(busy),
 		.count(count)
 	);
 
 	always @(posedge clk) begin
 		if (start)
 			busy <= #TCQ 1;
-		else if (count == lfsr_count(log2(M), M - 2))
+		else if (count == DONE)
 			busy <= #TCQ 0;
 
 		if (start)
-			dual_c <= #TCQ standard_to_dual(M, lpow(M, 0));
+			dual_c <= #TCQ INITIAL;
 		else if (busy)
 			dual_c <= #TCQ dual_d;
 
