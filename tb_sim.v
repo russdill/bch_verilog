@@ -65,6 +65,7 @@ wire wrongNow;
 wire wrong;
 wire [K-1:0] dout;
 wire busy;
+reg active = 0;
 
 sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
@@ -72,7 +73,7 @@ sim #(N, K, T, OPTION) u_sim(
 	.data_in(din),
 	.error(error),
 	.busy(busy),
-	.encode_start(!busy),
+	.encode_start(active && !busy),
 	.encoded_penult(encoded_penult),
 	.output_valid(vdout),
 	.wrong_now(wrongNow),
@@ -98,6 +99,7 @@ always @(posedge clk) begin
 		#1;
 		error <= rande(nerr);
 		#1;
+		active <= 1;
 		$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
 	end
 end

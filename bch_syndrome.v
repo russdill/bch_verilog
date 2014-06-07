@@ -11,7 +11,7 @@ module bch_syndrome #(
 	input accepted,
 	output busy,
 	output [2*T*M-1:M] out,
-	output reg done = 0
+	output done
 );
 	`include "bch_syndrome.vh"
 
@@ -25,6 +25,7 @@ module bch_syndrome #(
 	wire [SYN_COUNT*M-1:0] syndromes;
 	wire [M-1:0] count;
 	reg busy_internal = 0;
+	reg done_internal = 0;
 	reg waiting = 0;
 
 	lfsr_counter #(M) u_counter(
@@ -35,18 +36,19 @@ module bch_syndrome #(
 	);
 
 	assign busy = waiting && !accepted;
+	assign done = done_internal || waiting;
 
 	always @(posedge clk) begin
 		if (start) begin
-			done <= #TCQ 0;
+			done_internal <= #TCQ 0;
 			busy_internal <= #TCQ 1;
-		end else if (busy && count == DONE) begin
-			done <= #TCQ 1;
+		end else if (busy_internal && count == DONE) begin
+			done_internal <= #TCQ 1;
 			busy_internal <= #TCQ 0;
 		end else
-			done <= #TCQ 0;
+			done_internal <= #TCQ 0;
 
-		if (busy && count == DONE)
+		if (busy_internal && count == DONE)
 			waiting <= #TCQ 1;
 		else if (accepted)
 			waiting <= #TCQ 0;
@@ -58,7 +60,7 @@ module bch_syndrome #(
 		if (syndrome_method(M, T, idx2syn(M, idx)) == 0)
 			dsynN_method1 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(busy),
+				.ce(busy_internal),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
@@ -66,7 +68,7 @@ module bch_syndrome #(
 		else
 			dsynN_method2 #(M, T, idx) u_syn(
 				.clk(clk),
-				.ce(busy),
+				.ce(busy_internal),
 				.start(start),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])

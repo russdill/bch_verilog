@@ -43,6 +43,7 @@ module chien_sec #(
 	parameter M = 4,
 	parameter T = 3
 ) (
+	input clk,
 	input start,
 	input first_cycle,
 	input [M*(T+1)-1:0] z,
@@ -67,12 +68,15 @@ module chien_dec #(
 	parameter M = 4,
 	parameter T = 3
 ) (
+	input clk,
 	input start,
 	input first_cycle,
 	input [M*(T+1)-1:0] z,
 	output err,
 	output err_feedback
 );
+	localparam TCQ = 1;
+
 	wire [M-1:0] ch1_flipped;
 	wire [M-1:0] ch3_flipped;
 
@@ -121,6 +125,7 @@ module chien_tmec #(
 	parameter M = 4,
 	parameter T = 3
 ) (
+	input clk,
 	input start,
 	input first_cycle,
 	input [M*(T+1)-1:0] z,
@@ -162,6 +167,7 @@ module bch_error #(
 	wire [M-1:0] count;
 	reg first_cycle = 0;
 	wire err_feedback;
+	wire _err;
 	
 	lfsr_counter #(M) u_counter(
 		.clk(clk),
@@ -170,6 +176,7 @@ module bch_error #(
 		.count(count)
 	);
 
+	assign err = _err && valid;
 	always @(posedge clk) begin
 		first_cycle <= #TCQ start;
 		valid <= #TCQ busy;
@@ -193,26 +200,29 @@ module bch_error #(
 
 	if (T == 1) begin : SEC
 		chien_sec #(M, T) u_chien_sec(
+			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),
 			.z(z),
-			.err(err),
+			.err(_err),
 			.err_feedback(err_feedback)
 		);
 	end else if (T == 2) begin : DEC
 		chien_dec #(M, T) u_chien_dec(
+			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),
 			.z(z),
-			.err(err),
+			.err(_err),
 			.err_feedback(err_feedback)
 		);
 	end else begin : TMEC
 		chien_tmec #(M, T) u_chien_tmec(
+			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),
 			.z(z),
-			.err(err),
+			.err(_err),
 			.err_feedback(err_feedback)
 		);
 	end

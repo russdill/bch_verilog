@@ -13,7 +13,7 @@ module bch_encode #(
 	output reg first = 0,	/* First output cycle */
 	output reg last = 0,	/* Last output cycle */
 	output reg penult = 0,	/* Next cycle is last output cycle */
-	output reg busy = 0
+	output busy
 );
 
 `include "bch.vh"
@@ -69,6 +69,8 @@ localparam ENC = encoder_poly(0);
 reg [N-K-1:0] lfsr = 0;
 wire [M-1:0] count;
 reg load_lfsr = 0;
+reg busy_internal = 0;
+reg waiting = 0;
 
 /* Input XOR with highest LFSR bit */
 wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
@@ -76,16 +78,19 @@ wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
 lfsr_counter #(M) u_counter(
 	.clk(clk),
 	.reset(start),
-	.ce(accepted && busy),
+	.ce(accepted && busy_internal),
 	.count(count)
 );
 
+assign busy = busy_internal || (waiting && !accepted);
+
 always @(posedge clk) begin
-	first <= #TCQ start;
+	if (accepted)
+		first <= #TCQ start;
 	if (start) begin
 		penult <= #TCQ 0;
 		last <= #TCQ 0;
-	end else if (accepted && busy) begin
+	end else if (accepted && busy_internal) begin
 		penult <= #TCQ count == lfsr_count(M, N - 3);
 		last <= #TCQ penult;
 	end
@@ -95,9 +100,14 @@ always @(posedge clk) begin
 	 * spurious last signals as the count wraps around.
 	 */
 	if (start)
-		busy <= #TCQ 1;
+		busy_internal <= #TCQ 1;
 	else if (penult && accepted)
-		busy <= #TCQ 0;
+		busy_internal <= #TCQ 0;
+
+	if (penult && !accepted)
+		waiting <= #TCQ 1;
+	else if (accepted)
+		waiting <= #TCQ 0;
 
 	/* c1 ecount */
 	if (start)
@@ -108,10 +118,10 @@ always @(posedge clk) begin
 	/* r1 ering */
 	if (start)
 		lfsr <= #TCQ {N-K{data_in}} & ENC;
-	else if (accepted && busy)
+	else if (accepted && busy_internal)
 		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{lfsr_in}} & ENC);
 
-	if (accepted && (busy || start))
+	if (accepted && (busy_internal || start))
 		data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[N-K-1];
 end
 

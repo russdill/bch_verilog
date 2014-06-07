@@ -20,7 +20,7 @@ module bch_key #(
 		reg waiting = 0;
 		assign sigma = T == 1 ? {syndromes[M+:T*M]} : syndromes[M+:(T+1)*M];
 		assign done = start;
-		assign busy = !accepted;
+		assign busy = waiting && !accepted;
 		always @(posedge clk)
 			if (start && !accepted)
 				waiting <= #TCQ 1;

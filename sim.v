@@ -28,8 +28,6 @@ reg [K-1:0] encode_buf = 0;
 reg [K-1:0] decode_buf = 0;
 reg [N-1:0] flip_buf = 0;
 reg [K-1:0] current_buf = 0;
-reg [K-1:0] compare_buf1 = 0;
-reg [K-1:0] compare_buf2 = 0;
 reg last_data_valid = 0;
 
 wire decIn;
@@ -67,34 +65,36 @@ bch_decode #(N, K, T, OPTION) u_bch_decode(
 	.data_out(decoded_data)
 );
 
+assign data_out = first ? stack[K*rd_pos] : decode_buf[0];
 assign decoder_in = (encoded_data ^ flip_buf[0]) && !reset;
-assign new_wrong = ((decoded_data !== (first ? compare_buf1[0] : compare_buf2[0])) && !reset && output_valid) || ((output_valid === 1'bx) || (output_valid === 1'bz));
-assign data_out = decode_buf;
+assign new_wrong = (decoded_data !== data_out && !reset && output_valid) || output_valid === 1'bx || output_valid === 1'bz || (rd_pos == wr_pos && first);
+
+reg [3:0] rd_pos = 0;
+reg [3:0] wr_pos = 0;
+reg [K*4-1:0] stack = 0;
 
 always @(posedge clk) begin
+	if (encode_start && !encode_busy) begin
+		stack[K*wr_pos+:K] <= #TCQ data_in;
+		wr_pos <= #TCQ (wr_pos + 1) % 4;
+	end
 	last_data_valid <= #TCQ output_valid;
-	encode_buf <= #TCQ encode_start ? data_in : {1'b0, encode_buf[K-1:1]};
-	flip_buf <= #TCQ encode_start ? error : {1'b0, flip_buf[N-1:1]};
-	if (encode_start)
-		current_buf <= #TCQ data_in;
+	if (first) begin
+		decode_buf <= #TCQ {1'b0, stack[K*rd_pos+1+:K-1]};
+		rd_pos <= #TCQ (rd_pos + 1) % 4;
+	end else
+		decode_buf <= #TCQ {1'b0, decode_buf[K-1:1]};
 
-	if (encoded_last)
-		compare_buf1 <= #TCQ current_buf;
+	if (!decode_busy) begin
+		encode_buf <= #TCQ encode_start ? data_in : {1'b0, encode_buf[K-1:1]};
+		flip_buf <= #TCQ encode_start ? error : {1'b0, flip_buf[N-1:1]};
+	end
 
-	if (first)
-		compare_buf2 <= #TCQ {1'b0, compare_buf1[K-1:1]};
-	else if (output_valid)
-		compare_buf2 <= #TCQ {1'b0, compare_buf2[K-1:1]};
-
-	if (output_valid)
-		decode_buf <= #TCQ {decoded_data, decode_buf[K-1:1]};
 	if (reset)
 		wrong <= #TCQ 1'b0;
 	else if (new_wrong)
 		wrong <= #TCQ 1'b1;
 	wrong_now <= #TCQ new_wrong;
-
-
 end
 
 endmodule

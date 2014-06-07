@@ -10,7 +10,6 @@ module bch_decode #(
 	input start,
 	input data_in,
 	output busy,
-	output reg ready = 1,
 	output reg output_valid = 0,
 	output reg data_out = 0
 );
@@ -19,23 +18,7 @@ module bch_decode #(
 
 localparam TCQ = 1;
 localparam M = n2m(N);
-localparam BUF_SIZE = T < 3 ? (N + 2) : (OPTION == "SERIAL" ? (N + T * (M + 2) + 0) : (N + T*2 + 1));
-
-if (BUF_SIZE > 2 * N) begin
-	wire [log2(BUF_SIZE - N + 3)-1:0] wait_count;
-	counter #(BUF_SIZE - N + 2) u_wait(
-		.clk(clk),
-		.reset(start),
-		.ce(!ready),
-		.count(wait_count)
-	);
-	always @(posedge clk) begin
-		if (start)
-			ready <= #TCQ 0;
-		else if (wait_count == BUF_SIZE - N + 2)
-			ready <= #TCQ 1;
-	end
-end
+localparam BUF_SIZE = T < 3 ? (N + 2) : (OPTION == "SERIAL" ? (N + T * (M + 2) + 0) : (N + T*2 + 1)); /* cycles required */
 
 wire [2*T*M-1:M] syndromes;
 wire [M*(T+1)-1:0] sigma;
@@ -50,7 +33,7 @@ wire ch_busy;
 /* Process syndromes */
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
-	.start(start),
+	.start(start && !busy),
 	.busy(busy),
 	.data_in(data_in),
 	.out(syndromes),
@@ -61,7 +44,7 @@ bch_syndrome #(M, T) u_bch_syndrome(
 /* Solve key equation */
 bch_key #(M, T, OPTION) u_key(
 	.clk(clk),
-	.start(syn_done),
+	.start(syn_done && !key_busy),
 	.busy(key_busy),
 	.syndromes(syndromes),
 	.sigma(sigma),
@@ -72,7 +55,7 @@ bch_key #(M, T, OPTION) u_key(
 /* Locate errors */
 bch_error #(M, K, T) u_error(
 	.clk(clk),
-	.start(ch_start),
+	.start(ch_start && !ch_busy),
 	.busy(ch_busy),
 	.accepted(1'b1),
 	.sigma(sigma),
@@ -88,16 +71,16 @@ reg [K-1:0] buf_err = 0;
 always @(posedge clk) begin
 	if (start && !busy)
 		buf_in <= #TCQ {data_in, {N-1{1'b0}}};
-	else if (busy)
+	else if (!busy)
 		buf_in <= #TCQ {data_in, buf_in[N-1:1]};
 
 	if (syn_done && !key_busy)
 		buf_pipeline <= #TCQ buf_in;
 
 	if (ch_start)
-		buf_err <= #TCQ (syn_done && !key_busy) ? buf_in : buf_pipeline;
+		buf_err <= #TCQ (T < 3) ? buf_in : buf_pipeline;
 
-	if (err_valid)
+	else if (err_valid)
 		buf_err <= #TCQ {1'b0, buf_err[K-1:1]};
 
 	data_out <= #TCQ (buf_err[0] ^ err) && err_valid;

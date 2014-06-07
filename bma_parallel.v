@@ -11,6 +11,7 @@ module bch_key_bma_parallel #(
 	input accepted,
 
 	output reg done = 0,
+	output busy,
 	output reg [M*(T+1)-1:0] sigma = 0
 );
 	`include "bch.vh"
@@ -27,7 +28,11 @@ module bch_key_bma_parallel #(
 	wire [M*(T+1)-1:0] product;
 	reg [M*(T+1)-1:0] in2;
 	reg syn_shuffle = 0;
-	reg busy = 0;
+	reg busy_internal = 0;
+	reg waiting = 0;
+	wire bsel;
+	reg [log2(T+1)-1:0] l = 0;
+	assign bsel = |d_r && bch_n >= l;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;
@@ -54,28 +59,26 @@ module bch_key_bma_parallel #(
 		.syn_shuffled(syn_shuffled)
 	);
 
-	wire bsel;
-	reg [log2(T+1)-1:0] l = 0;
-	assign bsel = |d_r && bch_n >= l;
+	assign busy = busy_internal || (waiting && !accepted);
 
 	always @(posedge clk) begin
-		if (start)
-			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
-		else if (!syn_shuffle)
-			if (bsel)
-				l <= #TCQ 2 * bch_n - l + 1;
 
 		if (start) begin
-			busy <= #TCQ 1;
+			busy_internal <= #TCQ 1;
 			syn_shuffle <= #TCQ 0;
-		end else if (busy && !done)
+		end else if (busy_internal && !done)
 			syn_shuffle <= #TCQ ~syn_shuffle;
 		else begin
-			busy <= #TCQ 0;
+			busy_internal <= #TCQ 0;
 			syn_shuffle <= #TCQ 0;
 		end
 
-		done <= #TCQ busy && syn_shuffle && bch_n == T-1;
+		if (busy_internal && syn_shuffle && bch_n == T-1)
+			waiting <= #TCQ 1;
+		else if (accepted)
+			waiting <= #TCQ 0;
+
+		done <= #TCQ busy_internal && syn_shuffle && bch_n == T-1;
 			
 		if (start) begin
 			d_r <= #TCQ syn1 ? syn1 : 1;
@@ -83,14 +86,16 @@ module bch_key_bma_parallel #(
 			in2 <= #TCQ sigma0;
 			sigma <= #TCQ sigma0;
 			beta <= #TCQ beta0;
-		end else if (busy && !syn_shuffle) begin
+			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+		end else if (busy_internal && !syn_shuffle) begin
 			d_r <= #TCQ d_r_next;
 			d_r_beta <= #TCQ product;
 			in2 <= #TCQ beta;
-		end else if (busy) begin
+		end else if (busy_internal) begin
 			/* d_p = bsel ? d_r : d_p */
 			if (bsel) begin
 				d_p <= #TCQ d_r;
+				l <= #TCQ 2 * bch_n - l + 1;
 			end else
 				d_r <= #TCQ d_p;
 
