@@ -24,8 +24,21 @@ OOPTION = -Ptb_sim.OPTION=\"$(OPTION)\"
 endif
 
 all: $(BINS)
+V=\
+bch_decode.v \
+bch_encode.v \
+bch_error.v \
+bch_key.v \
+bch_math.v \
+bch_syndrome_method1.v \
+bch_syndrome_method2.v \
+bch_syndrome.v \
+bma_parallel.v \
+bma_serial.v \
+sim.v \
+tb_sim.v
 
-tb_sim: tb_sim.v sim.v bch_encode.v bch_decode.v tmec_decode.v tmec_decode_serial.v tmec_decode_parallel.v dec_decode.v bch_math.v bch_syndrome.v chien.v bch_syndrome_method1.v bch_syndrome_method2.v
+tb_sim: $(V)
 	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ON) $(OK) $(OT) $(OSEED) $(OOPTION)
 
 clean:

@@ -65,7 +65,7 @@ bch_key #(M, T, OPTION) u_key(
 );
 
 /* Locate errors */
-chien #(M, K, T) u_chien(
+bch_error #(M, K, T) u_error(
 	.clk(clk),
 	.start(ch_start),
 	.sigma(sigma),

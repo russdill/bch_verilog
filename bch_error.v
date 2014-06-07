@@ -140,7 +140,7 @@ endmodule
  * Each register is loaded with the associated syndrome
  * and multiplied by alpha^i each cycle.
  */
-module chien #(
+module bch_error #(
 	parameter M = 4,
 	parameter K = 5,
 	parameter T = 3
