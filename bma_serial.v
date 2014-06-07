@@ -18,8 +18,10 @@ module bch_key_bma_serial #(
 	input clk,
 	input start,
 	input [2*T*M-1:M] syndromes,
+	input accepted,
 
 	output reg done = 0,
+	output busy,
 	output [M*(T+1)-1:0] sigma
 );
 	`include "bch.vh"
@@ -45,6 +47,8 @@ module bch_key_bma_serial #(
 	reg first_calc = 0;	/* bch_n == 0 */
 	reg final_calc = 0;	/* bch_n == T - 1 */
 	reg counting = 0;
+	reg busy_internal = 0;
+	reg waiting = 0;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;			/* Initial beta */
@@ -84,12 +88,18 @@ module bch_key_bma_serial #(
 	reg [log2(T+1)-1:0] l = 0;
 	assign bsel = d_r_nonzero && bch_n >= l;
 
+	assign busy = busy_internal || (waiting && !accepted);
+
 	always @(posedge clk) begin
 		if (start)
-			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
-		else if (last_cycle)
-			if (bsel)
-				l <= #TCQ 2 * bch_n - l + 1;
+			busy_internal <= #TCQ 1;
+		else if (penult2_cycle && final_calc)
+			busy_internal <= #TCQ 0;
+
+		if (penult2_cycle && final_calc)
+			waiting <= #TCQ 1;
+		else if (accepted)
+			waiting <= #TCQ 0;
 
 		if (last_cycle || start)
 			adder_ce <= #TCQ 1;
@@ -107,12 +117,15 @@ module bch_key_bma_serial #(
 		if (start) begin
 			beta <= #TCQ beta0;
 			sigma_last <= #TCQ beta0[2*M+:2*M];	/* beta(1) */
+			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
 		end else if (last_cycle) begin
 			d_r_nonzero <= #TCQ |d_r;
 			sigma_last <= #TCQ sigma[0*M+:M*T];
 
 			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
 			beta[2*M+:(T-1)*M] <= #TCQ (first_calc || bsel) ? sigma_last[0*M+:(T-1)*M] : beta[0*M+:(T-1)*M];
+			if (bsel)
+				l <= #TCQ 2 * bch_n - l + 1;
 		end
 
 		penult2_cycle <= #TCQ counting && count == M - 4;

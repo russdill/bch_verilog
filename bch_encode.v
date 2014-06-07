@@ -8,6 +8,7 @@ module bch_encode #(
 	input clk,
 	input start,		/* First cycle */
 	input data_in,		/* Input data */
+	input accepted,		/* Output cycle accepted */
 	output reg data_out = 0,/* Encoded output */
 	output reg first = 0,	/* First output cycle */
 	output reg last = 0,	/* Last output cycle */
@@ -75,14 +76,19 @@ wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
 lfsr_counter #(M) u_counter(
 	.clk(clk),
 	.reset(start),
-	.ce(1'b1),
+	.ce(accepted && busy),
 	.count(count)
 );
 
 always @(posedge clk) begin
 	first <= #TCQ start;
-	penult <= #TCQ !start && busy && count == lfsr_count(M, N - 3);
-	last <= !start && penult;
+	if (start) begin
+		penult <= #TCQ 0;
+		last <= #TCQ 0;
+	end else if (accepted && busy) begin
+		penult <= #TCQ count == lfsr_count(M, N - 3);
+		last <= #TCQ penult;
+	end
 
 	/*
 	 * Keep track of whether or not we are running so we don't send out
@@ -90,22 +96,23 @@ always @(posedge clk) begin
 	 */
 	if (start)
 		busy <= #TCQ 1;
-	else if (last)
+	else if (penult && accepted)
 		busy <= #TCQ 0;
 
 	/* c1 ecount */
 	if (start)
 		load_lfsr <= #TCQ 1'b1;
-	else if (count == lfsr_count(M, K - 2))
+	else if (count == lfsr_count(M, K - 2) && accepted)
 		load_lfsr <= #TCQ 1'b0;
 
 	/* r1 ering */
 	if (start)
 		lfsr <= #TCQ {N-K{data_in}} & ENC;
-	else
+	else if (accepted && busy)
 		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{lfsr_in}} & ENC);
 
-	data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[N-K-1];
+	if (accepted && (busy || start))
+		data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[N-K-1];
 end
 
 endmodule

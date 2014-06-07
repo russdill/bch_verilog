@@ -8,6 +8,7 @@ module bch_key_bma_parallel #(
 	input clk,
 	input start,
 	input [2*T*M-1:M] syndromes,
+	input accepted,
 
 	output reg done = 0,
 	output reg [M*(T+1)-1:0] sigma = 0

@@ -8,6 +8,8 @@ module bch_syndrome #(
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
 	input data_in,
+	input accepted,
+	output busy,
 	output [2*T*M-1:M] out,
 	output reg done = 0
 );
@@ -22,7 +24,8 @@ module bch_syndrome #(
 	localparam DONE = lfsr_count(M, m2n(M)-2);
 	wire [SYN_COUNT*M-1:0] syndromes;
 	wire [M-1:0] count;
-	reg busy = 0;
+	reg busy_internal = 0;
+	reg waiting = 0;
 
 	lfsr_counter #(M) u_counter(
 		.clk(clk),
@@ -31,15 +34,22 @@ module bch_syndrome #(
 		.count(count)
 	);
 
+	assign busy = waiting && !accepted;
+
 	always @(posedge clk) begin
 		if (start) begin
 			done <= #TCQ 0;
-			busy <= #TCQ 1;
+			busy_internal <= #TCQ 1;
 		end else if (busy && count == DONE) begin
 			done <= #TCQ 1;
-			busy <= #TCQ 0;
+			busy_internal <= #TCQ 0;
 		end else
 			done <= #TCQ 0;
+
+		if (busy && count == DONE)
+			waiting <= #TCQ 1;
+		else if (accepted)
+			waiting <= #TCQ 0;
 	end
 
 	/* LFSR registers */
@@ -77,7 +87,6 @@ module bch_syndrome #(
 			);
 	end
 	endgenerate
-
 endmodule
 
 /* Syndrome shuffling */
@@ -113,6 +122,4 @@ module bch_syndrome_shuffle #(
 		end
 	end
 	endgenerate
-
-
 endmodule

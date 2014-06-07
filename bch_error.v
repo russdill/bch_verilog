@@ -148,29 +148,33 @@ module bch_error #(
 	input clk,
 	input start,			/* Latch inputs, start calculating */
 	input [M*(T+1)-1:0] sigma,
+	input accepted,
+	output reg busy = 0,
 	output reg ready = 0,		/* First valid output data */
 	output reg valid = 0,		/* Outputting data */
 	output err
 );
+	localparam TCQ = 1;
+	/* FIMXE: Maybe we care about errors in the N-K bits */
+	localparam DONE = lfsr_count(M, K-2);
+
 	wire [M*(T+1)-1:0] z;
 	wire [M-1:0] count;
 	reg first_cycle = 0;
 	wire err_feedback;
 	
-	localparam TCQ = 1;
-	localparam DONE = lfsr_count(M, K-2);
-
 	lfsr_counter #(M) u_counter(
 		.clk(clk),
 		.reset(first_cycle),
-		.ce(valid),
+		.ce(valid && accepted),
 		.count(count)
 	);
 
 	always @(posedge clk) begin
 		first_cycle <= #TCQ start;
-		valid <= #TCQ first_cycle || (valid && count != DONE);
+		valid <= #TCQ busy;
 		ready <= #TCQ first_cycle;
+		busy <= #TCQ start || (busy && count != DONE);
 	end
 
 	genvar i;

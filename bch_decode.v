@@ -9,6 +9,7 @@ module bch_decode #(
 	input clk,
 	input start,
 	input data_in,
+	output busy,
 	output reg ready = 1,
 	output reg output_valid = 0,
 	output reg data_out = 0
@@ -36,8 +37,6 @@ if (BUF_SIZE > 2 * N) begin
 	end
 end
 
-reg [BUF_SIZE-1:0] buf_ = 0;
-
 wire [2*T*M-1:M] syndromes;
 wire [M*(T+1)-1:0] sigma;
 wire syn_done;
@@ -45,38 +44,63 @@ wire err_start;
 wire err_valid;
 wire err;
 wire ch_start;
+wire key_busy;
+wire ch_busy;
 
 /* Process syndromes */
 bch_syndrome #(M, T) u_bch_syndrome(
 	.clk(clk),
 	.start(start),
-	.done(syn_done),
+	.busy(busy),
 	.data_in(data_in),
-	.out(syndromes)
+	.out(syndromes),
+	.done(syn_done),
+	.accepted(syn_done && !key_busy)
 );
 
 /* Solve key equation */
 bch_key #(M, T, OPTION) u_key(
 	.clk(clk),
 	.start(syn_done),
+	.busy(key_busy),
 	.syndromes(syndromes),
 	.sigma(sigma),
-	.done(ch_start)
+	.done(ch_start),
+	.accepted(ch_start && !ch_busy)
 );
 
 /* Locate errors */
 bch_error #(M, K, T) u_error(
 	.clk(clk),
 	.start(ch_start),
+	.busy(ch_busy),
+	.accepted(1'b1),
 	.sigma(sigma),
 	.ready(err_start),
 	.valid(err_valid),
 	.err(err)
 );
 
+reg [N-1:0] buf_in = 0;
+reg [K-1:0] buf_pipeline = 0;
+reg [K-1:0] buf_err = 0;
+
 always @(posedge clk) begin
-	buf_ <= #TCQ {buf_[BUF_SIZE-2:0], data_in};
-	data_out <= #TCQ (buf_[BUF_SIZE-1] ^ err) && err_valid;
+	if (start && !busy)
+		buf_in <= #TCQ {data_in, {N-1{1'b0}}};
+	else if (busy)
+		buf_in <= #TCQ {data_in, buf_in[N-1:1]};
+
+	if (syn_done && !key_busy)
+		buf_pipeline <= #TCQ buf_in;
+
+	if (ch_start)
+		buf_err <= #TCQ (syn_done && !key_busy) ? buf_in : buf_pipeline;
+
+	if (err_valid)
+		buf_err <= #TCQ {1'b0, buf_err[K-1:1]};
+
+	data_out <= #TCQ (buf_err[0] ^ err) && err_valid;
 	output_valid <= #TCQ err_valid;
 end
 

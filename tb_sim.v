@@ -2,9 +2,9 @@
 
 module tb_sim();
 
-parameter N = 15;
-parameter K = 5;
-parameter T = 3;
+parameter N = 1023;
+parameter K = 328;
+parameter T = 90;
 parameter OPTION = "SERIAL";
 parameter SEED = 0;
 
@@ -64,16 +64,15 @@ wire vdout;
 wire wrongNow;
 wire wrong;
 wire [K-1:0] dout;
-wire ready;
-reg waiting = 0;
+wire busy;
 
 sim #(N, K, T, OPTION) u_sim(
 	.clk(clk),
 	.reset(1'b0),
 	.data_in(din),
 	.error(error),
-	.ready(ready),
-	.encode_start(encode_start),
+	.busy(busy),
+	.encode_start(!busy),
 	.encoded_penult(encoded_penult),
 	.output_valid(vdout),
 	.wrong_now(wrongNow),
@@ -90,24 +89,17 @@ always @(posedge wrong)
 reg [31:0] s;
 
 always @(posedge clk) begin
-	if (waiting || encoded_penult || reset) begin
-		if (!ready)
-			waiting <= 1;
-		else begin
-			waiting <= 0;
-			s = seed;
-			#1;
-			din <= randk(0);
-			#1;
-			nerr <= n_errors(0);
-			#1;
-			error <= rande(nerr);
-			encode_start <= 1;
-			#1;
-			$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
-		end
-	end else
-		encode_start <= #TCQ 0;
+	if (!busy) begin
+		s = seed;
+		#1;
+		din <= randk(0);
+		#1;
+		nerr <= n_errors(0);
+		#1;
+		error <= rande(nerr);
+		#1;
+		$display("%b %d flips - %b (seed = %d)", din, nerr, error, s);
+	end
 end
 
 initial begin
