@@ -24,7 +24,7 @@ module tmec_decode_serial #(
 
 	output syn_shuffle,
 	output next_l,
-	output ch_start,
+	output reg ch_start = 0,
 	output reg d_r_nonzero = 0,
 	output [M*(T+1)-1:0] sigma
 );
@@ -41,16 +41,22 @@ module tmec_decode_serial #(
 	reg [M*(T+1)-1:0] beta = 0;
 	reg [M*(T-1)-1:0] sigma_last = 0;	/* Last sigma values */
 	reg adder_ce = 0;
-	reg busy = 0;
 
 	wire [M*4-1:0] beta0;			/* Initial beta */
 	wire [M*(T+1)-1:0] d_r0;		/* Initial dr */
 
-	wire last_cycle;
-	wire first_cycle;
-	wire second_cycle;
-	wire penult1_cycle;
-	wire penult2_cycle;
+	reg first_cycle = 0;
+	reg second_cycle = 0;
+	reg penult2_cycle = 0;
+	reg penult1_cycle = 0;
+	reg last_cycle = 0;
+
+	reg first_calc = 0;	/* bch_n == 0 */
+	reg final_calc = 0;	/* bch_n == T - 1 */
+	reg counting = 0;
+
+	assign syn_shuffle = last_cycle;
+	assign next_l = last_cycle;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	assign beta0 = {{{M-1{1'b0}}, !syn1}, {{M-1{1'b0}}, |syn1}, {(M*2){1'b0}}};
@@ -59,15 +65,18 @@ module tmec_decode_serial #(
 	assign d_r0 = {syn1, {(M-1){1'b0}}, 1'b1};
 
 	always @(posedge clk) begin
-		if (syn_done)
-			busy <= #TCQ 1;
-		else if (ch_start)
-			busy <= #TCQ 0;
-
 		if (last_cycle || syn_done)
 			adder_ce <= #TCQ 1;
-		else if (!busy || penult2_cycle)
+		else if (ch_start || penult2_cycle)
 			adder_ce <= #TCQ 0;
+
+		if (last_cycle || syn_done)
+			final_calc <= #TCQ bch_n == T - 2;
+
+		if (syn_done)
+			first_calc <= #TCQ 1;
+		else if (last_cycle)
+			first_calc <= #TCQ 0;
 
 		if (syn_done) begin
 			beta <= #TCQ beta0;
@@ -77,8 +86,19 @@ module tmec_decode_serial #(
 			sigma_last <= #TCQ sigma[0*M+:M*T];
 
 			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
-			beta[2*M+:(T-1)*M] <= #TCQ (!bch_n || bsel) ? sigma_last[0*M+:(T-1)*M] : beta[0*M+:(T-1)*M];
+			beta[2*M+:(T-1)*M] <= #TCQ (first_calc || bsel) ? sigma_last[0*M+:(T-1)*M] : beta[0*M+:(T-1)*M];
 		end
+
+		penult2_cycle <= #TCQ counting && count == M - 4;
+		penult1_cycle <= #TCQ penult2_cycle && !final_calc;
+		last_cycle <= #TCQ penult1_cycle;
+		first_cycle <= #TCQ last_cycle;
+		second_cycle <= #TCQ first_cycle || syn_done;
+		ch_start <= #TCQ penult2_cycle && final_calc;
+		if (second_cycle)
+			counting <= #TCQ 1;
+		else if (count == M - 4)
+			counting <= #TCQ 0;
 	end
 
 	wire [M-1:0] denom;
@@ -125,22 +145,11 @@ module tmec_decode_serial #(
 		.out(d_r)
 	);
 
-	wire [log2(M+2)-1:0] count;
-
-	assign last_cycle = busy && count == M;
-	assign first_cycle = busy && count == M+1;
-	assign second_cycle = busy && count == 0;
-	assign penult2_cycle = busy && count == M-2;
-	assign penult1_cycle = busy && count == M-1;
-
-	assign syn_shuffle = last_cycle;
-	assign ch_start = penult1_cycle && bch_n == T-1;
-	assign next_l = last_cycle;
-
-	counter #(M+2) u_counter(
+	wire [log2(M-4)-1:0] count;
+	counter #(M-4) u_counter(
 		.clk(clk),
-		.reset(syn_done || first_cycle),
-		.ce(busy),
+		.reset(second_cycle),
+		.ce(counting),
 		.count(count)
 	);
 
