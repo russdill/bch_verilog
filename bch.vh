@@ -160,7 +160,7 @@ begin
 end
 endfunction
 
-/* L^x, convert and integer to standard polynomial basis */
+/* L^x, convert an integer to standard polynomial basis */
 function integer lpow;
 	input [31:0] m;
 	input [31:0] x;
@@ -186,51 +186,6 @@ function integer m2n;
 	input [31:0] m;
 begin
 	m2n = (1 << m) - 1;
-end
-endfunction
-
-function integer calc_iteration;
-	input [31:0] n;
-	input [31:0] t;
-	input [31:0] is_serial;
-	integer ret;
-	integer m;
-begin
-	m = n2m(n);
-	if (t == 2)
-		ret = 1;
-	else if (is_serial)
-		ret = m + 2;
-	else
-		ret = 3;
-	calc_iteration = ret;
-end
-endfunction
-
-function integer calc_interleave;
-	input [31:0] n;
-	input [31:0] t;
-	input is_serial;
-	integer chpe;
-	integer vdout;
-	integer done;
-	integer m;
-	integer iteration;
-	integer ret;
-begin
-	m = n2m(n);
-	iteration = calc_iteration(n, t, is_serial);
-	ret = 1;
-	done = 0;
-	while (!done) begin
-		chpe = t * iteration - 2;
-		vdout = chpe + ret + 2 - chpe % ret;
-		if (vdout - 2 < n * ret)
-			done = 1;
-		else
-			ret = ret + 1;
-	end
-	calc_interleave = ret;
 end
 endfunction
 
