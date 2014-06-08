@@ -53,7 +53,7 @@ bch_key #(M, T, OPTION) u_key(
 );
 
 /* Locate errors */
-bch_error #(M, K, T) u_error(
+bch_error #(M, K, T, OPTION) u_error(
 	.clk(clk),
 	.start(ch_start && !ch_busy),
 	.busy(ch_busy),
@@ -78,7 +78,7 @@ always @(posedge clk) begin
 		buf_pipeline <= #TCQ buf_in;
 
 	if (ch_start)
-		buf_err <= #TCQ (T < 3) ? buf_in : buf_pipeline;
+		buf_err <= #TCQ (T == 1 || (T == 2 && OPTION == "POW3")) ? buf_in : buf_pipeline;
 
 	else if (err_valid)
 		buf_err <= #TCQ {1'b0, buf_err[K-1:1]};

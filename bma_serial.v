@@ -22,7 +22,8 @@ module bch_key_bma_serial #(
 
 	output reg done = 0,
 	output busy,
-	output [M*(T+1)-1:0] sigma
+	output [M*(T+1)-1:0] sigma,
+	output reg [log2(T+1)-1:0] err_count = 0
 );
 	`include "bch.vh"
 
@@ -84,8 +85,8 @@ module bch_key_bma_serial #(
 
 	reg d_r_nonzero = 0;
 	wire bsel;
-	reg [log2(T+1)-1:0] l = 0;
-	assign bsel = d_r_nonzero && bch_n >= l;
+	assign bsel = d_r_nonzero && bch_n >= err_count;
+	reg bsel_last = 0;
 
 	assign busy = busy_internal || (waiting && !accepted);
 
@@ -101,7 +102,7 @@ module bch_key_bma_serial #(
 			waiting <= #TCQ 0;
 
 		if (last_cycle || start)
-			final_calc <= #TCQ bch_n == T - 2;
+			final_calc <= #TCQ T == 2 ? first_calc : (bch_n == T - 2);
 
 		if (start)
 			first_calc <= #TCQ 1;
@@ -111,15 +112,18 @@ module bch_key_bma_serial #(
 		if (start) begin
 			beta <= #TCQ beta0;
 			sigma_last <= #TCQ beta0[2*M+:2*M];	/* beta(1) */
-			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+			err_count <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+			bsel_last <= #TCQ 1'b1;
+		end else if (first_cycle) begin
+			if (bsel)
+				err_count <= #TCQ 2 * bch_n - err_count + 1;
+			bsel_last <= #TCQ bsel;
 		end else if (last_cycle) begin
 			d_r_nonzero <= #TCQ |d_r;
 			sigma_last <= #TCQ sigma[0*M+:M*T];
 
 			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
-			beta[2*M+:(T-1)*M] <= #TCQ (first_calc || bsel) ? sigma_last[0*M+:(T-1)*M] : beta[0*M+:(T-1)*M];
-			if (bsel)
-				l <= #TCQ 2 * bch_n - l + 1;
+			beta[2*M+:(T-1)*M] <= #TCQ bsel_last ? sigma_last[0*M+:(T-1)*M] : beta[0*M+:(T-1)*M];
 		end
 
 		penult2_cycle <= #TCQ counting && count == M - 4;

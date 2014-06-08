@@ -64,7 +64,7 @@ endmodule
  * The below may be a better choice for large circuits (cycles tradeoff)
  * sigma_1(x) = S_1 + S_1^2 * x + (S_1^3 + S_3) * x^2
  */
-module chien_dec #(
+module chien_pow3 #(
 	parameter M = 4,
 	parameter T = 3
 ) (
@@ -134,6 +134,7 @@ module chien_tmec #(
 );
 	wire [M-1:0] eq;
 
+	/* Candidate for pipelining */
 	finite_parallel_adder #(M, T+1) u_dcheq(z, eq);
 
 	assign err = !eq;
@@ -148,7 +149,8 @@ endmodule
 module bch_error #(
 	parameter M = 4,
 	parameter K = 5,
-	parameter T = 3
+	parameter T = 3,
+	parameter OPTION = "POW3"
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
@@ -207,8 +209,11 @@ module bch_error #(
 			.err(_err),
 			.err_feedback(err_feedback)
 		);
-	end else if (T == 2) begin : DEC
-		chien_dec #(M, T) u_chien_dec(
+	end else if (OPTION == "POW3") begin : POW3
+		if (T != 2)
+			pow3_only_valid_for_t_2 u_povft2();
+
+		chien_pow3 #(M, T) u_chien_pow3(
 			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),

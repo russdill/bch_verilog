@@ -12,7 +12,8 @@ module bch_key_bma_parallel #(
 
 	output reg done = 0,
 	output busy,
-	output reg [M*(T+1)-1:0] sigma = 0
+	output reg [M*(T+1)-1:0] sigma = 0,
+	output reg [log2(T+1)-1:0] err_count = 0
 );
 	`include "bch.vh"
 
@@ -32,7 +33,7 @@ module bch_key_bma_parallel #(
 	reg waiting = 0;
 	wire bsel;
 	reg [log2(T+1)-1:0] l = 0;
-	assign bsel = |d_r && bch_n >= l;
+	assign bsel = |d_r && bch_n >= err_count;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;
@@ -86,7 +87,7 @@ module bch_key_bma_parallel #(
 			in2 <= #TCQ sigma0;
 			sigma <= #TCQ sigma0;
 			beta <= #TCQ beta0;
-			l <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+			err_count <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
 		end else if (busy_internal && !syn_shuffle) begin
 			d_r <= #TCQ d_r_next;
 			d_r_beta <= #TCQ product;
@@ -95,7 +96,7 @@ module bch_key_bma_parallel #(
 			/* d_p = bsel ? d_r : d_p */
 			if (bsel) begin
 				d_p <= #TCQ d_r;
-				l <= #TCQ 2 * bch_n - l + 1;
+				err_count <= #TCQ 2 * bch_n - err_count + 1;
 			end else
 				d_r <= #TCQ d_p;
 
