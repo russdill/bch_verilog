@@ -117,6 +117,20 @@ bch_syndrome #(M, T) u_bch_syndrome(
 	.accepted(syn_done && !key_busy)
 );
 
+/* Test for errors */
+bch_errors_present #(M, T, OPTION) u_errors(
+	.start(syn_done && !key_busy),
+	.syndromes(syndromes),
+	.errors_present(errors_present)
+);
+
+wire err_present_wrong = syn_done && !key_busy && (errors_present !== err_present_stack[err_present_rd_pos]);
+
+always @(posedge clk) begin
+	if (syn_done && !key_busy)
+		err_present_rd_pos = (err_present_rd_pos + 1) % STACK_SZ;
+end
+
 /* Solve key equation */
 bch_key #(M, T, OPTION) u_key(
 	.clk(clk),
@@ -126,16 +140,12 @@ bch_key #(M, T, OPTION) u_key(
 	.sigma(sigma),
 	.done(ch_start),
 	.accepted(ch_start && !ch_busy),
-	.errors_present(errors_present),
 	.err_count(err_count)
 );
 
-wire err_present_wrong = syn_done && !key_busy && (errors_present !== err_present_stack[err_present_rd_pos]);
 wire err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*log2(T+1)+:log2(T+1)]);
 
 always @(posedge clk) begin
-	if (syn_done && !key_busy)
-		err_present_rd_pos = (err_present_rd_pos + 1) % STACK_SZ;
 	if (ch_start)
 		err_count_rd_pos = (err_count_rd_pos + 1) % STACK_SZ;
 end
