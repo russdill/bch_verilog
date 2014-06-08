@@ -11,15 +11,53 @@ are:
 N - The size of the codeword
 K - The size of the data to be encoded
 T - The number of bits that can be corrected
+OPTION - The type of key equation solver
 
 The number of extra bits generated can be given by subtracting K from N.
 
 Used throughout the code is M, the degree of the polynomial used, "N =
 (1 << M) - 1".
 
-The code currently does not support pentanomials (eg, m=8). The Jamro paper
-supports m=8 but only through a special case, a more general solution
-is desired so that m=12 can also be supported.
+T == 1 - For T == 1, no key solving step is required.
+
+OPTION == POW3 - This option merges key solving and error finding for T == 2.
+This option does not require any extra key solving cycles.
+
+OPTION == SERIAL - Serial Berlekamp–Massey algorithm with inversion.
+This option is not supported for pentanomials yet (eg, m=8) as the inverter
+lacks pentanomial support. This option takes longer but requires less space
+than the parallel option. This option takes T * (M + 2) - 2 cycles to solve
+the key equation.
+
+OPTION == PARALLEL - Parallel Berlekamp–Massey algorithm without inversion.
+This option supports pentanomials and trinomials in less cycles than the
+serial option, but requires more gates. This option takes T * 2 - 1 cycles
+to solve the key equation.
+
+Modules:
+
+bch_encode - Performs encoding of input data via a large LFSR. It takes
+input for K cycles, and produces output for N cycles. The first K cycles
+of output are the input data repeated, the next N-K cycles are the
+additional ECC bits.
+
+bch_syndrome - Calculates the syndrome equations. Takes N cycles of input
+data and produces the equations on the next cycle.
+
+bch_errors_present - Determines based on syndromes if any errors are present
+(Not required for decoding). Currently does not have a clock, but it may
+required for large M values as it needs to or together M*(T+1) inputs. This
+module can be used to allow several bch_syndrome modules to share bch_key
+and bch_error modules or to determine that the error is data free before
+allowing bch_key to complete.
+
+bch_key - Key equation solver (sigma). Takes syndrome equations as input and
+produces the key equation, as well as the number of bit errors detected. See
+OPTION for number of cycles required.
+
+bch_error - Error locator. Takes key equation and generates error locations.
+After 2 cycles, it clocks out error bits for K cycles, each cycle representing
+an error location.
 
 The code currently compiles under Icarus Verilog and Xilinx Isim. Because
 the way the parameterization is handled, simulation is slow, especially
@@ -32,11 +70,8 @@ codewords).
 
 Support processing multiple databits per clock cycle, ideally 8 (one byte).
 
-Support pentanomials.
-
-Make code easier to integrate into designs, start/done signal?
+Support pentanomials for serial option.
 
 Improve simulation times.
-
 
 -- Russ Dill <russ.dill@asu.edu>
