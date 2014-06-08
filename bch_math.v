@@ -1,6 +1,5 @@
 `timescale 1ns / 1ps
 
-
 module matrix_vector_mult #(
 	parameter C = 4,
 	parameter R = C,

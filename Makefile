@@ -25,7 +25,6 @@ endif
 
 all: $(BINS)
 V=\
-bch_decode.v \
 bch_encode.v \
 bch_error.v \
 bch_key.v \

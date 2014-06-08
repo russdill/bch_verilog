@@ -61,7 +61,6 @@ endfunction
 reg encode_start = 0;
 wire encoded_penult;
 wire vdout;
-wire wrongNow;
 wire wrong;
 wire [K-1:0] dout;
 wire busy;
@@ -76,7 +75,6 @@ sim #(N, K, T, OPTION) u_sim(
 	.encode_start(active && !busy),
 	.encoded_penult(encoded_penult),
 	.output_valid(vdout),
-	.wrong_now(wrongNow),
 	.wrong(wrong),
 	.data_out(dout)
 );
