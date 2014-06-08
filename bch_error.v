@@ -4,7 +4,8 @@
 
 module chien_reg #(
 	parameter M = 4,
-	parameter P = 1
+	parameter P = 1,
+	parameter SKIP = 0
 ) (
 	input clk,
 	input err,		/* Error was found so correct it */
@@ -16,22 +17,22 @@ module chien_reg #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam LPOW = lpow(M, P);
+	localparam LPOW_P = lpow(M, P);
+	/* preperform the proper number of multiplications */
+	localparam LPOW_SKIP = lpow(M, P*SKIP);
 
 	wire [M-1:0] mul_out;
 
+	/* Multiply by alpha^P */
 	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(LPOW[M-1:0]),
-		.standard_in2(out ^ err),
+		.standard_in1(start ? LPOW_SKIP[M-1:0] : LPOW_P[M-1:0]),
+		/* Initialize with coefficients of the error location polynomial */
+		.standard_in2(start ? in : (out ^ err)),
 		.standard_out(mul_out)
 	);
 
 	always @(posedge clk)
-		if (start)
-			/* Initialize with coefficients of the error location polynomial */
-			out <= #TCQ in;
-		else if (ce)
-			/* Multiply by alpha^P */
+		if (start || ce)
 			out <= #TCQ mul_out;
 endmodule
 
@@ -150,7 +151,8 @@ module bch_error #(
 	parameter M = 4,
 	parameter K = 5,
 	parameter T = 3,
-	parameter OPTION = "POW3"
+	parameter OPTION = "POW3",
+	parameter B = K
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
@@ -164,7 +166,7 @@ module bch_error #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam DONE = lfsr_count(M, K-2);
+	localparam DONE = lfsr_count(M, B-2);
 
 	wire [M*(T+1)-1:0] z;
 	wire [M-1:0] count;
@@ -182,15 +184,15 @@ module bch_error #(
 	assign err = _err && valid;
 	always @(posedge clk) begin
 		first_cycle <= #TCQ start;
-		valid <= #TCQ busy;
 		ready <= #TCQ first_cycle;
+		valid <= #TCQ busy;
 		busy <= #TCQ start || (busy && count != DONE);
 	end
 
 	genvar i;
 	generate
 	for (i = 0; i <= T; i = i + 1) begin : DCH
-		chien_reg #(M, i + 1) u_ch(
+		chien_reg #(M, i + 1, K-B) u_ch(
 			.clk(clk),
 			.err(err_feedback),
 			.ce(valid || first_cycle),

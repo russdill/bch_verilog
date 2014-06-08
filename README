@@ -11,12 +11,12 @@ are:
 N - The size of the codeword
 K - The size of the data to be encoded
 T - The number of bits that can be corrected
+B - The actual data size (for B <= K)
 OPTION - The type of key equation solver
 
-The number of extra bits generated can be given by subtracting K from N.
-
-Used throughout the code is M, the degree of the polynomial used, "N =
-(1 << M) - 1".
+Also of note:
+E - The number of error correcting bits, N - K
+M - The degree of the polynomial used, N = 2^M - 1
 
 T == 1 - For T == 1, no key solving step is required.
 
@@ -37,8 +37,8 @@ to solve the key equation.
 Modules:
 
 bch_encode - Performs encoding of input data via a large LFSR. It takes
-input for K cycles, and produces output for N cycles. The first K cycles
-of output are the input data repeated, the next N-K cycles are the
+input for B cycles, and produces output for E+B cycles. The first B cycles
+of output are the input data repeated, the next E cycles are the
 additional ECC bits.
 
 bch_syndrome - Calculates the syndrome equations. Takes N cycles of input
@@ -56,7 +56,7 @@ produces the key equation, as well as the number of bit errors detected. See
 OPTION for number of cycles required.
 
 bch_error - Error locator. Takes key equation and generates error locations.
-After 2 cycles, it clocks out error bits for K cycles, each cycle representing
+After 2 cycles, it clocks out error bits for B cycles, each cycle representing
 an error location.
 
 The code currently compiles under Icarus Verilog and Xilinx Isim. Because
@@ -65,13 +65,12 @@ for larger values of M.
 
 TODO:
 
-Support encoding/decoding an abrirary value for K (padded data) and N (padded
-codewords).
-
 Support processing multiple databits per clock cycle, ideally 8 (one byte).
 
 Support pentanomials for serial option.
 
 Improve simulation times.
+
+Forney algorithm for error location?
 
 -- Russ Dill <russ.dill@asu.edu>

@@ -7,7 +7,7 @@
  * (1) S_j = b_j(alpha^j)
  * (2) b_j(x) = r(x) % f_j(x)
  * 
- * First divide r(x) by f_j(x) to obtain the remained, b_j(x). Then calculate
+ * First divide r(x) by f_j(x) to obtain the remainder, b_j(x). Then calculate
  * b_j(alpha^j).
  */
 module dsynN_method2 #(

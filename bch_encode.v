@@ -1,9 +1,10 @@
 `timescale 1ns / 1ps
 
 module bch_encode #(
-	parameter N = 15,	/* Code + Input (Output) */
-	parameter K = 5,	/* Input size */
-	parameter T = 3		/* Correctable errors */
+	parameter M = 4,
+	parameter K = 5,	/* Code data bits */
+	parameter T = 3,	/* Correctable errors */
+	parameter B = K		/* Actual data bits (may be less than K) */
 ) (
 	input clk,
 	input start,		/* First cycle */
@@ -12,14 +13,13 @@ module bch_encode #(
 	output reg data_out = 0,/* Encoded output */
 	output reg first = 0,	/* First output cycle */
 	output reg last = 0,	/* Last output cycle */
-	output reg penult = 0,	/* Next cycle is last output cycle */
 	output busy
 );
 
 `include "bch.vh"
 
 /* Calculate least common multiple which has x^2t .. x as its roots */
-function [N-K-1:0] encoder_poly;
+function [E-1:0] encoder_poly;
 	input dummy;
 	integer nk;
 	integer i;
@@ -27,7 +27,7 @@ function [N-K-1:0] encoder_poly;
 	integer a;
 	integer curr;
 	integer prev;
-	reg [(N-K+1)*M-1:0] poly;
+	reg [(E+1)*M-1:0] poly;
 	reg [N-1:0] roots;
 begin
 
@@ -64,20 +64,25 @@ end
 endfunction
 
 localparam TCQ = 1;
-localparam M = n2m(N);
+localparam N = m2n(M);
+localparam E = N - K; /* ECC bits */
 localparam ENC = encoder_poly(0);
-reg [N-K-1:0] lfsr = 0;
+localparam SWITCH = lfsr_count(M, B - 2);
+localparam DONE = lfsr_count(M, N - 3);
+
+reg [E-1:0] lfsr = 0;
 wire [M-1:0] count;
 reg load_lfsr = 0;
 reg busy_internal = 0;
 reg waiting = 0;
+reg penult = 0;
 
 /* Input XOR with highest LFSR bit */
-wire lfsr_in = load_lfsr && (lfsr[N-K-1] ^ data_in);
+wire lfsr_in = load_lfsr && (lfsr[E-1] ^ data_in);
 
 lfsr_counter #(M) u_counter(
 	.clk(clk),
-	.reset(start),
+	.reset(start && accepted),
 	.ce(accepted && busy_internal),
 	.count(count)
 );
@@ -85,44 +90,44 @@ lfsr_counter #(M) u_counter(
 assign busy = busy_internal || (waiting && !accepted);
 
 always @(posedge clk) begin
-	if (accepted)
+	if (accepted) begin
 		first <= #TCQ start;
-	if (start) begin
-		penult <= #TCQ 0;
-		last <= #TCQ 0;
-	end else if (accepted && busy_internal) begin
-		penult <= #TCQ count == lfsr_count(M, N - 3);
-		last <= #TCQ penult;
-	end
 
-	/*
-	 * Keep track of whether or not we are running so we don't send out
-	 * spurious last signals as the count wraps around.
-	 */
-	if (start)
-		busy_internal <= #TCQ 1;
-	else if (penult && accepted)
-		busy_internal <= #TCQ 0;
+		if (start) begin
+			penult <= #TCQ 0;
+			last <= #TCQ 0;
+		end else if (busy_internal) begin
+			penult <= #TCQ count == DONE;
+			last <= #TCQ penult;
+		end
+
+		/*
+		 * Keep track of whether or not we are running so we don't send out
+		 * spurious last signals as the count wraps around.
+		 */
+		if (start)
+			busy_internal <= #TCQ 1;
+		else if (penult && accepted)
+			busy_internal <= #TCQ 0;
+
+		if (start)
+			load_lfsr <= #TCQ 1'b1;
+		else if (count == SWITCH)
+			load_lfsr <= #TCQ 1'b0;
+
+		if (start)
+			lfsr <= #TCQ {N-K{data_in}} & ENC;
+		else if (busy_internal)
+			lfsr <= #TCQ {lfsr[E-2:0], 1'b0} ^ ({E{lfsr_in}} & ENC);
+
+		if (busy_internal || start)
+			data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[E-1];
+	end
 
 	if (penult && !accepted)
 		waiting <= #TCQ 1;
 	else if (accepted)
 		waiting <= #TCQ 0;
-
-	/* c1 ecount */
-	if (start)
-		load_lfsr <= #TCQ 1'b1;
-	else if (count == lfsr_count(M, K - 2) && accepted)
-		load_lfsr <= #TCQ 1'b0;
-
-	/* r1 ering */
-	if (start)
-		lfsr <= #TCQ {N-K{data_in}} & ENC;
-	else if (accepted && busy_internal)
-		lfsr <= #TCQ {lfsr[N-K-2:0], 1'b0} ^ ({N-K{lfsr_in}} & ENC);
-
-	if (accepted && (busy_internal || start))
-		data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[N-K-1];
 end
 
 endmodule

@@ -3,7 +3,8 @@
 /* Calculate syndromes for S_j for 1 .. 2t-1 */
 module bch_syndrome #(
 	parameter M = 4,
-	parameter T = 3		/* Correctable errors */
+	parameter T = 3,	/* Correctable errors */
+	parameter SZ = m2n(M)	/* Number of bits in error code + data */
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
@@ -21,7 +22,7 @@ module bch_syndrome #(
 	genvar dat;
 
 	localparam SYN_COUNT = syndrome_count(M, T);
-	localparam DONE = lfsr_count(M, m2n(M)-2);
+	localparam DONE = lfsr_count(M, SZ-2);
 	wire [SYN_COUNT*M-1:0] syndromes;
 	wire [M-1:0] count;
 	reg busy_internal = 0;
