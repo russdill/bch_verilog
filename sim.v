@@ -92,7 +92,7 @@ always @(posedge clk) begin
 end
 
 /* Generate code */
-bch_encode #(N, K, T, OPTION) u_bch_encode(
+bch_encode #(N, K, T) u_bch_encode(
 	.clk(clk),
 	.start(encode_start),
 	.data_in(encode_start ? data_in[0] : encode_buf[1]),

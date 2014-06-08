@@ -36,7 +36,7 @@ module bch_key #(
 	output busy,
 	output done
 );
-
+	`include "bch.vh"
 	localparam TCQ = 1;
 
 	if (T == 1) begin : SEC_DEC
@@ -79,7 +79,7 @@ module bch_key #(
 				waiting <= #TCQ 0;
 
 	end else if (OPTION == "SERIAL") begin : BMA_SERIAL
-		bch_key_bma_serial #(M, T, OPTION) u_bma (
+		bch_key_bma_serial #(M, T) u_bma (
 			.clk(clk),
 			.start(start),
 			.syndromes(syndromes),
@@ -90,7 +90,7 @@ module bch_key #(
 			.err_count(err_count)
 		);
 	end else if (OPTION == "PARALLEL") begin : BMA_PARALLEL
-		bch_key_bma_parallel #(M, T, OPTION) u_bma (
+		bch_key_bma_parallel #(M, T) u_bma (
 			.clk(clk),
 			.start(start),
 			.syndromes(syndromes),

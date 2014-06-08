@@ -161,8 +161,9 @@ module bch_error #(
 	output reg valid = 0,		/* Outputting data */
 	output err
 );
+	`include "bch.vh"
+
 	localparam TCQ = 1;
-	/* FIMXE: Maybe we care about errors in the N-K bits */
 	localparam DONE = lfsr_count(M, K-2);
 
 	wire [M*(T+1)-1:0] z;

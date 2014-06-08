@@ -52,6 +52,7 @@ module dsynN_method2 #(
 				done = 1;
 		end
 
+		syndrome_poly = 0;
 		for (i = 0; i < M; i = i + 1)
 			syndrome_poly[i] = poly[i*M+:M] ? 1 : 0;
 	end
