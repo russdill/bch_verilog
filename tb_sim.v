@@ -2,15 +2,14 @@
 
 module tb_sim();
 
-`include "bch.vh"
+`include "bch_params.vh"
 
-parameter N = 15;
-parameter K = 5;
 parameter T = 3;
 parameter OPTION = "SERIAL";
-parameter B = K - 1;
+parameter DATA_BITS = 5;
 parameter SEED = 0;
-localparam E = N - K;
+
+localparam BCH_PARAMS = bch_params(DATA_BITS, T);
 
 reg [31:0] seed = SEED;
 
@@ -23,18 +22,19 @@ localparam TCQ = 1;
 
 reg clk = 0;
 reg reset = 0;
-reg [B-1:0] din = 0;
+reg [DATA_BITS-1:0] din = 0;
 reg [$clog2(T+2)-1:0] nerr = 0;
-reg [E+B-1:0] error = 0;
+reg [`BCH_CODE_BITS(BCH_PARAMS)-1:0] error = 0;
 
-function [B-1:0] randk;
+function [DATA_BITS-1:0] randk;
 	input [31:0] useless;
 	integer i;
 begin
-	for (i = 0; i < (31 + B) / 32; i = i + 1)
-		if (i * 32 > B)
-			randk[i*32+:B%32] = $random(seed);
-		else
+	for (i = 0; i < (31 + DATA_BITS) / 32; i = i + 1)
+		if (i * 32 > DATA_BITS) begin
+			if (DATA_BITS % 32)
+				randk[i*32+:DATA_BITS%32] = $random(seed);
+		end else
 			randk[i*32+:32] = $random(seed);
 end
 endfunction
@@ -47,13 +47,13 @@ begin
 end
 endfunction
 
-function [E+B-1:0] rande;
+function [`BCH_CODE_BITS(BCH_PARAMS)-1:0] rande;
 	input [31:0] nerr;
 	integer i;
 begin
 	rande = 0;
 	while (nerr) begin
-		i = (32'h7fff_ffff & $random(seed)) % (E+B);
+		i = (32'h7fff_ffff & $random(seed)) % (`BCH_CODE_BITS(BCH_PARAMS));
 		if (!((1 << i) & rande)) begin
 			rande = rande | (1 << i);
 			nerr = nerr - 1;
@@ -67,7 +67,7 @@ wire wrong;
 wire busy;
 reg active = 0;
 
-sim #(n2m(N), K, T, OPTION, B) u_sim(
+sim #(BCH_PARAMS, OPTION) u_sim(
 	.clk(clk),
 	.reset(1'b0),
 	.data_in(din),
@@ -101,7 +101,9 @@ always @(posedge clk) begin
 end
 
 initial begin
-	$display("(%1d, %1d/%1d, %1d) %s", N, K, B, T, OPTION);
+	$display("GF(2^%1d) (%1d, %1d/%1d, %1d) %s",
+		`BCH_M(BCH_PARAMS), `BCH_N(BCH_PARAMS), `BCH_K(BCH_PARAMS),
+		DATA_BITS, `BCH_T(BCH_PARAMS), OPTION);
 	@(posedge clk);
 	@(posedge clk);
 	reset <= #1 1;

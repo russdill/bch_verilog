@@ -1,10 +1,12 @@
 `timescale 1ns / 1ps
 
+`include "bch_defs.vh"
+
 /* Chien search, determines roots of a polynomial defined over a finite field */
 
 module chien_reg #(
-	parameter M = 4,
-	parameter P = 1,
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter REG = 1,
 	parameter SKIP = 0
 ) (
 	input clk,
@@ -17,15 +19,16 @@ module chien_reg #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam LPOW_P = lpow(M, P);
+	localparam M = `BCH_M(P);
+	localparam LPOW_REG = lpow(M, REG);
 	/* preperform the proper number of multiplications */
-	localparam LPOW_SKIP = lpow(M, P*SKIP);
+	localparam LPOW_SKIP = lpow(M, REG * SKIP);
 
 	wire [M-1:0] mul_out;
 
 	/* Multiply by alpha^P */
 	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(start ? LPOW_SKIP[M-1:0] : LPOW_P[M-1:0]),
+		.standard_in1(start ? LPOW_SKIP[M-1:0] : LPOW_REG[M-1:0]),
 		/* Initialize with coefficients of the error location polynomial */
 		.standard_in2(start ? in : (out ^ err)),
 		.standard_out(mul_out)
@@ -41,17 +44,16 @@ endmodule
  * No error if S_1 = 0
  */
 module chien_sec #(
-	parameter M = 4,
-	parameter T = 3
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
 	input first_cycle,
-	input [M*(T+1)-1:0] z,
+	input [`BCH_SIGMA_SZ(P)-1:0] z,
 	output err,
 	output err_feedback
 );
-	assign err = z[0+:M] == 1;
+	assign err = z[0+:`BCH_M(P)] == 1;
 	assign err_feedback = err;
 endmodule
 
@@ -66,17 +68,18 @@ endmodule
  * sigma_1(x) = S_1 + S_1^2 * x + (S_1^3 + S_3) * x^2
  */
 module chien_pow3 #(
-	parameter M = 4,
-	parameter T = 3
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
 	input first_cycle,
-	input [M*(T+1)-1:0] z,
+	input [`BCH_SIGMA_SZ(P)-1:0] z,
 	output err,
 	output err_feedback
 );
 	localparam TCQ = 1;
+	localparam M = `BCH_M(P);
+	localparam T = `BCH_T(P);
 
 	wire [M-1:0] ch1_flipped;
 	wire [M-1:0] ch3_flipped;
@@ -123,20 +126,21 @@ endmodule
  * is a bit error.
  */
 module chien_tmec #(
-	parameter M = 4,
-	parameter T = 3
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
 	input first_cycle,
-	input [M*(T+1)-1:0] z,
+	input [`BCH_SIGMA_SZ(P)-1:0] z,
 	output err,
 	output err_feedback
 );
+	localparam M = `BCH_M(P);
+
 	wire [M-1:0] eq;
 
 	/* Candidate for pipelining */
-	finite_parallel_adder #(M, T+1) u_dcheq(z, eq);
+	finite_parallel_adder #(M, `BCH_T(P)+1) u_dcheq(z, eq);
 
 	assign err = !eq;
 	assign err_feedback = 0;
@@ -148,15 +152,12 @@ endmodule
  * and multiplied by alpha^i each cycle.
  */
 module bch_error #(
-	parameter M = 4,
-	parameter K = 5,
-	parameter T = 3,
-	parameter OPTION = "POW3",
-	parameter B = K
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter OPTION = "POW3"
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
-	input [M*(T+1)-1:0] sigma,
+	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
 	input accepted,
 	output reg busy = 0,
 	output reg ready = 0,		/* First valid output data */
@@ -166,9 +167,11 @@ module bch_error #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam DONE = lfsr_count(M, B-2);
+	localparam M = `BCH_M(P);
+	localparam T = `BCH_T(P);
+	localparam DONE = lfsr_count(M, `BCH_DATA_BITS(P) - 2);
 
-	wire [M*(T+1)-1:0] z;
+	wire [`BCH_SIGMA_SZ(P)-1:0] z;
 	wire [M-1:0] count;
 	reg first_cycle = 0;
 	wire err_feedback;
@@ -192,7 +195,7 @@ module bch_error #(
 	genvar i;
 	generate
 	for (i = 0; i <= T; i = i + 1) begin : DCH
-		chien_reg #(M, i + 1, K-B) u_ch(
+		chien_reg #(M, i + 1, `BCH_K(P) - `BCH_DATA_BITS(P)) u_ch(
 			.clk(clk),
 			.err(err_feedback),
 			.ce(valid || first_cycle),
@@ -204,7 +207,7 @@ module bch_error #(
 	endgenerate
 
 	if (T == 1) begin : SEC
-		chien_sec #(M, T) u_chien_sec(
+		chien_sec #(P) u_chien_sec(
 			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),
@@ -216,7 +219,7 @@ module bch_error #(
 		if (T != 2)
 			pow3_only_valid_for_t_2 u_povft2();
 
-		chien_pow3 #(M, T) u_chien_pow3(
+		chien_pow3 #(P) u_chien_pow3(
 			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),
@@ -225,7 +228,7 @@ module bch_error #(
 			.err_feedback(err_feedback)
 		);
 	end else begin : TMEC
-		chien_tmec #(M, T) u_chien_tmec(
+		chien_tmec #(P) u_chien_tmec(
 			.clk(clk),
 			.start(start),
 			.first_cycle(first_cycle),

@@ -1,38 +1,41 @@
 `timescale 1ns / 1ps
 
+`include "bch_defs.vh"
+
 /* parallel inversionless */
 module bch_key_bma_parallel #(
-	parameter M = 4,
-	parameter T = 3		/* Correctable errors */
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
-	input [2*T*M-1:M] syndromes,
+	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	input accepted,
 
 	output reg done = 0,
 	output busy,
-	output reg [M*(T+1)-1:0] sigma = 0,
-	output reg [log2(T+1)-1:0] err_count = 0
+	output reg [`BCH_SIGMA_SZ(P)-1:0] sigma = 0,
+	output reg [`BCH_ERR_SZ(P)-1:0] err_count = 0
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
+	localparam M = `BCH_M(P);
+	localparam T = `BCH_T(P);
 
 	reg [M-1:0] d_r = 0;	/* In !shuffle cycle d_r is d_p */
 	wire [M-1:0] d_r_next;
 	reg [M-1:0] d_p = 0;
-	wire [M*(T+1)-1:0] d_r_terms;
-	reg [M*(T+1)-1:0] d_r_beta;
-	reg [M*(T+1)-1:0] beta = 0;
-	wire [M-1:0] syn1 = syndromes[M+:M];
-	wire [M*(T+1)-1:0] product;
-	reg [M*(T+1)-1:0] in2;
+	wire [`BCH_SIGMA_SZ(P)-1:0] d_r_terms;
+	reg [`BCH_SIGMA_SZ(P)-1:0] d_r_beta;
+	reg [`BCH_SIGMA_SZ(P)-1:0] beta = 0;
+	wire [M-1:0] syn1 = syndromes[0+:M];
+	wire [`BCH_SIGMA_SZ(P)-1:0] product;
+	reg [`BCH_SIGMA_SZ(P)-1:0] in2;
 	reg syn_shuffle = 0;
 	reg busy_internal = 0;
 	reg waiting = 0;
 	wire bsel;
-	reg [log2(T+1)-1:0] l = 0;
+	reg [`BCH_ERR_SZ(P)-1:0] l = 0;
 	assign bsel = |d_r && bch_n >= err_count;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
@@ -43,16 +46,16 @@ module bch_key_bma_parallel #(
 	wire [M*2-1:0] sigma0;
 	assign sigma0 = {syn1, {M-1{1'b0}}, 1'b1};
 
-	wire [log2(T)-1:0] bch_n;
-	counter #(T) u_bch_n_counter(
+	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
+	counter #(T+1) u_bch_n_counter(
 		.clk(clk),
 		.reset(start),
 		.ce(!syn_shuffle),
 		.count(bch_n)
 	);
 
-	wire [M*(2*T-1)-1:0] syn_shuffled;
-	bch_syndrome_shuffle #(M, T) u_bch_syndrome_shuffle(
+	wire [`BCH_SYNDROMES_SZ(P)-1:0] syn_shuffled;
+	bch_syndrome_shuffle #(P) u_bch_syndrome_shuffle(
 		.clk(clk),
 		.start(start),
 		.ce(syn_shuffle),
@@ -87,7 +90,7 @@ module bch_key_bma_parallel #(
 			in2 <= #TCQ sigma0;
 			sigma <= #TCQ sigma0;
 			beta <= #TCQ beta0;
-			err_count <= #TCQ {{log2(T+1)-1{1'b0}}, |syn1};
+			err_count <= #TCQ {{`BCH_ERR_SZ(P)-1{1'b0}}, |syn1};
 		end else if (busy_internal && !syn_shuffle) begin
 			d_r <= #TCQ d_r_next;
 			d_r_beta <= #TCQ product;
@@ -105,7 +108,9 @@ module bch_key_bma_parallel #(
 			in2 <= #TCQ d_r_beta ^ product;
 
 			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
-			beta[2*M+:M*(T-1)] <= #TCQ bsel ? sigma[0*M+:M*(T-1)] : beta[0*M+:M*(T-1)];
+			beta[2*M+:`BCH_SIGMA_SZ(P)-2*M] <= #TCQ bsel ?
+				sigma[0*M+:`BCH_SIGMA_SZ(P)-2*M] :
+				beta[0*M+:`BCH_SIGMA_SZ(P)-2*M];
 		end
 	end
 

@@ -11,8 +11,7 @@
  * b_j(alpha^j).
  */
 module dsynN_method2 #(
-	parameter M = 4,
-	parameter T = 3,
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0
 ) (
 	input clk,
@@ -22,6 +21,8 @@ module dsynN_method2 #(
 	output reg [M-1:0] synN = 0
 );
 	`include "bch_syndrome.vh"
+
+	localparam M = `BCH_M(P);
 
 	function [M-1:0] syndrome_poly;
 		input dummy;
@@ -59,7 +60,6 @@ module dsynN_method2 #(
 	endfunction
 
 	localparam TCQ = 1;
-	localparam N = m2n(M);
 	localparam SYN = idx2syn(M, IDX);
 	localparam SYNDROME_POLY = syndrome_poly(0);
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
@@ -76,12 +76,14 @@ module dsynN_method2 #(
 endmodule
 
 module syndrome_expand_method2 #(
-	parameter M = 4,
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter DAT = 0
 ) (
 	input [M-1:0] in,
 	output [M-1:0] out
 );
+	localparam M = `BCH_M(P);
+
 	/* Perform b_j(alpha^j) */
 	parallel_standard_power #(M, DAT) u_power(
 		.standard_in(in),

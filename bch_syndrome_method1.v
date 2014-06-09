@@ -14,8 +14,7 @@
  * takes n cycles
  */
 module dsynN_method1 #(
-	parameter M = 4,
-	parameter T = 3,
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0
 ) (
 	input clk,
@@ -27,6 +26,7 @@ module dsynN_method1 #(
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
+	localparam M = `BCH_M(P);
 	localparam LPOW_S = lpow(M, idx2syn(M, IDX));
 
 	wire [M-1:0] mul_out;
@@ -47,10 +47,11 @@ module dsynN_method1 #(
 endmodule
 
 module syndrome_expand_method1 #(
-	parameter M = 4
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input [M-1:0] in,
 	output [M-1:0] out
 );
+	localparam M = `BCH_M(P);
 	assign out = in;
 endmodule

@@ -3,12 +3,8 @@ IVERILOG=iverilog
 BINS=tb_sim
 VFLAGS=-g2005-sv -Wall
 
-ifdef N
-ON = -Ptb_sim.N=$(N)
-endif
-
-ifdef K
-OK = -Ptb_sim.K=$(K)
+ifdef DATA_BITS
+ODATA_BITS = -Ptb_sim.DATA_BITS=$(DATA_BITS)
 endif
 
 ifdef T
@@ -38,7 +34,7 @@ sim.v \
 tb_sim.v
 
 tb_sim: $(V)
-	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ON) $(OK) $(OT) $(OSEED) $(OOPTION)
+	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ODATA_BITS) $(OT) $(OSEED) $(OOPTION)
 
 clean:
 	-rm -f $(BINS)

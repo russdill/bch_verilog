@@ -1,16 +1,15 @@
 `timescale 1ns / 1ps
 
+`include "bch_defs.vh"
+
 module sim #(
-	parameter M = 4,
-	parameter K = 5,
-	parameter T = 3,
-	parameter OPTION = "SERIAL",
-	parameter B = K
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter OPTION = "SERIAL"
 ) (
 	input clk,
 	input reset,
-	input [B-1:0] data_in,
-	input [E+B-1:0] error,
+	input [`BCH_DATA_BITS(P)-1:0] data_in,
+	input [`BCH_CODE_BITS(P)-1:0] error,
 	input encode_start,
 	output busy,
 	output reg wrong = 0
@@ -19,8 +18,12 @@ module sim #(
 `include "bch.vh"
 
 localparam TCQ = 1;
-localparam N = m2n(M);
-localparam E = N - K;
+localparam N = `BCH_N(P);
+localparam E = `BCH_ECC_BITS(P);
+localparam M = `BCH_M(P);
+localparam T = `BCH_T(P);
+localparam K = `BCH_K(P);
+localparam B = `BCH_DATA_BITS(P);
 
 reg [B-1:0] encode_buf = 0;
 reg [E+B-1:0] flip_buf = 0;
@@ -34,8 +37,8 @@ wire encoded_last;
 wire decoder_in;
 wire decode_busy;
 wire encode_busy;
-wire [2*T*M-1:M] syndromes;
-wire [M*(T+1)-1:0] sigma;
+wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
+wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 wire syn_done;
 wire err_start;
 wire err_valid;
@@ -44,15 +47,15 @@ wire ch_start;
 wire key_busy;
 wire ch_busy;
 wire errors_present;
-wire [log2(T+1)-1:0] err_count;
+wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
 assign busy = encode_busy;
 
 localparam STACK_SZ = 5;
 
-reg [STACK_SZ*log2(T+1)-1:0] err_count_stack = 0;
+reg [STACK_SZ*`BCH_ERR_SZ(P)-1:0] err_count_stack = 0;
 reg [STACK_SZ-1:0] err_present_stack = 0;
-reg [STACK_SZ*B-1:0] err_stack = 0;
+reg [STACK_SZ*`BCH_DATA_BITS(P)-1:0] err_stack = 0;
 
 reg [log2(STACK_SZ)-1:0] wr_pos = 0;
 reg [log2(STACK_SZ)-1:0] err_count_rd_pos = 0;
@@ -78,20 +81,20 @@ endfunction
 
 always @(posedge clk) begin
 	if (encode_start && !encode_busy && !decode_busy) begin
-		err_stack[B*wr_pos+:B] <= #TCQ error;
-		err_count_stack[log2(T+1)*wr_pos+:log2(T+1)] <= #TCQ bit_count(error);
+		err_stack[`BCH_DATA_BITS(P)*wr_pos+:`BCH_DATA_BITS(P)] <= #TCQ error;
+		err_count_stack[`BCH_ERR_SZ(P)*wr_pos+:`BCH_ERR_SZ(P)] <= #TCQ bit_count(error);
 		err_present_stack[wr_pos] <= #TCQ |error;
 		wr_pos <= #TCQ (wr_pos + 1) % STACK_SZ;
 	end
 
 	if (!decode_busy) begin
-		encode_buf <= #TCQ encode_start ? data_in : {1'b0, encode_buf[B-1:1]};
-		flip_buf <= #TCQ encode_start ? error : {1'b0, flip_buf[E+B-1:1]};
+		encode_buf <= #TCQ encode_start ? data_in : {1'b0, encode_buf[`BCH_DATA_BITS(P)-1:1]};
+		flip_buf <= #TCQ encode_start ? error : {1'b0, flip_buf[`BCH_CODE_BITS(P)-1:1]};
 	end
 end
 
 /* Generate code */
-bch_encode #(M, K, T, B) u_bch_encode(
+bch_encode #(P) u_bch_encode(
 	.clk(clk),
 	.start(encode_start),
 	.data_in(encode_start ? data_in[0] : encode_buf[1]),
@@ -105,7 +108,7 @@ bch_encode #(M, K, T, B) u_bch_encode(
 assign decoder_in = encoded_data ^ flip_buf[0];
 
 /* Process syndromes */
-bch_syndrome #(M, T, E+B) u_bch_syndrome(
+bch_syndrome #(P) u_bch_syndrome(
 	.clk(clk),
 	.start(encoded_first && !decode_busy),
 	.busy(decode_busy),
@@ -116,11 +119,12 @@ bch_syndrome #(M, T, E+B) u_bch_syndrome(
 );
 
 /* Test for errors */
-bch_errors_present #(M, T, OPTION) u_errors(
+bch_errors_present #(P, OPTION) u_errors(
 	.start(syn_done && !key_busy),
 	.syndromes(syndromes),
 	.errors_present(errors_present)
 );
+
 
 wire err_present_wrong = syn_done && !key_busy && (errors_present !== err_present_stack[err_present_rd_pos]);
 
@@ -130,7 +134,7 @@ always @(posedge clk) begin
 end
 
 /* Solve key equation */
-bch_key #(M, T, OPTION) u_key(
+bch_key #(P, OPTION) u_key(
 	.clk(clk),
 	.start(syn_done && !key_busy),
 	.busy(key_busy),
@@ -141,7 +145,7 @@ bch_key #(M, T, OPTION) u_key(
 	.err_count(err_count)
 );
 
-wire err_count_wrong = 0;//ch_start && (err_count !== err_count_stack[err_count_rd_pos*log2(T+1)+:log2(T+1)]);
+wire err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
 
 always @(posedge clk) begin
 	if (ch_start)
@@ -149,7 +153,7 @@ always @(posedge clk) begin
 end
 
 /* Locate errors */
-bch_error #(M, K, T, OPTION, B) u_error(
+bch_error #(P, OPTION) u_error(
 	.clk(clk),
 	.start(ch_start && !ch_busy),
 	.busy(ch_busy),
@@ -169,9 +173,9 @@ wire new_wrong = err_count_overflow || err_overflow || err_present_wrong || err_
 always @(posedge clk) begin
 	last_err_valid <= #TCQ err_valid;
 	if (err_start)
-		err_buf <= #TCQ {err, {B-1{1'b0}}};
+		err_buf <= #TCQ {err, {`BCH_DATA_BITS(P)-1{1'b0}}};
 	else if (err_valid)
-		err_buf <= #TCQ {err, err_buf[B-1:1]};
+		err_buf <= #TCQ {err, err_buf[`BCH_DATA_BITS(P)-1:1]};
 
 	if (err_done)
 		err_rd_pos <= #TCQ (err_rd_pos + 1) % STACK_SZ;

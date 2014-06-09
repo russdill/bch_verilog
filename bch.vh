@@ -8,16 +8,14 @@
 
 `include "log2.vh"
 
-localparam MAX_M = 16;
-
 /* Trinomial */
-function [MAX_M:0] P3;
+function [`MAX_M:0] P3;
 	input [31:0] p;
 	P3 = (1 << p) | 1;
 endfunction
 
 /* Pentanomial */
-function [MAX_M:0] P5;
+function [`MAX_M:0] P5;
 	input [31:0] p1;
 	input [31:0] p2;
 	input [31:0] p3;
@@ -28,7 +26,7 @@ endfunction
 /* VLSI Aspects on Inversion in Finite Fields, Mikael Olofsson */
 function integer bch_polynomial;
 	input [31:0] m;
-	reg [(MAX_M+1)*(MAX_M-1)-1:0] p;
+	reg [(`MAX_M+1)*(`MAX_M-1)-1:0] p;
 begin
 	p = {
 		P3(1),		/* m=2 */
@@ -47,7 +45,7 @@ begin
 		P3(1),		/* m=15 */
 		P5(12, 3, 1)
 	};
-	bch_polynomial = p[(MAX_M+1)*(MAX_M-m)+:MAX_M+1];
+	bch_polynomial = p[(`MAX_M+1)*(`MAX_M-m)+:`MAX_M+1];
 end
 endfunction
 
@@ -79,10 +77,10 @@ function integer polyi;
 endfunction
 
 /* Berlekamp dual-basis multiplier for fixed values, returns value in dual basis */
-function [MAX_M-1:0] fixed_mixed_multiplier;
+function [`MAX_M-1:0] fixed_mixed_multiplier;
 	input [31:0] m;
-	input [MAX_M-1:0] dual_in;
-	input [MAX_M-1:0] standard_in;
+	input [`MAX_M-1:0] dual_in;
+	input [`MAX_M-1:0] standard_in;
 	integer i;
 	integer poly;
 	integer aux;
@@ -133,26 +131,26 @@ end
 endfunction
 
 /* Multiply by alpha x*l^1 */
-function [MAX_M-1:0] mul1;
+function [`MAX_M-1:0] mul1;
 	input [31:0] m;
-	input [MAX_M-1:0] x;
+	input [`MAX_M-1:0] x;
 begin
-	mul1 = m2n(m) & ((x << 1) ^ (bch_polynomial(m) & {MAX_M{x[m-1]}}));
+	mul1 = m2n(m) & ((x << 1) ^ (bch_polynomial(m) & {`MAX_M{x[m-1]}}));
 end
 endfunction
 
 /* a * b for finite field */
 function integer finite_mult;
 	input [31:0] m;
-	input [MAX_M:0] a;
-	input [MAX_M:0] b;
+	input [`MAX_M:0] a;
+	input [`MAX_M:0] b;
 	integer i;
 	integer p;
 begin
 	p = 0;
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
-			p = p ^ (a & {MAX_M{b[i]}});
+			p = p ^ (a & {`MAX_M{b[i]}});
 			a = mul1(m, a);
 		end
 	end

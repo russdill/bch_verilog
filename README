@@ -8,60 +8,75 @@ codecs." by Ernest Jamro.
 The decoder/encoder is completely parameterizable. The three main parameters
 are:
 
-N - The size of the codeword
-K - The size of the data to be encoded
+DATA_BITS - The number of data bits
 T - The number of bits that can be corrected
-B - The actual data size (for B <= K)
-OPTION - The type of key equation solver
+OPTION - The type of key equation solver:
 
-Also of note:
-E - The number of error correcting bits, N - K
-M - The degree of the polynomial used, N = 2^M - 1
+`BCH_T(P) == 1 - No key solving step is required.
 
-T == 1 - For T == 1, no key solving step is required.
-
-OPTION == POW3 - This option merges key solving and error finding for T == 2.
-This option does not require any extra key solving cycles.
+OPTION == POW3 - This option merges key solving and error finding for
+`BCH_T(P) == 2. This option does not require any extra key solving cycles.
 
 OPTION == SERIAL - Serial Berlekamp–Massey algorithm with inversion.
-This option is not supported for pentanomials yet (eg, m=8) as the inverter
-lacks pentanomial support. This option takes longer but requires less space
-than the parallel option. This option takes T * (M + 2) - 2 cycles to solve
-the key equation.
+This option is not supported for pentanomials yet (eg, `BCH_M(P)=8) as the
+inverter lacks pentanomial support. This option takes longer but requires
+less space than the parallel option. This option takes
+`BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key equation.
 
 OPTION == PARALLEL - Parallel Berlekamp–Massey algorithm without inversion.
 This option supports pentanomials and trinomials in less cycles than the
-serial option, but requires more gates. This option takes T * 2 - 1 cycles
-to solve the key equation.
+serial option, but requires more gates. This option takes `BCH_T(P) * 2 - 1
+cycles to solve the key equation.
+
+Parameters:
+
+The module bch_param generates a BCH parameter set:
+
+local_param P = bch_params(DATA_BITS, T);
+
+The generated parameters are passed to the BCH modules and can be access
+with the following:
+
+`BCH_M(P)		- Degree of the field
+`BCH_N(P)		- Actual code size (padded)
+`BCH_K(P)		- Actual data size (padded)
+`BCH_T(P)		- Actual bits corrected (may be more than specified)
+`BCH_DATA_BITS(P)	- Data bits
+`BCH_ECC_BITS(P)	- Generate ECC bits
+`BCH_CODE_BITS(P)	- Data bits + ECC bits
+`BCH_SYNDROMES_SZ(P)	- Bits required for syndromes passed between modules
+`BCH_SIGMA_SZ(P)	- Bits required for sigmal equation passed between
+			  modules
+`BCH_ERR_SZ(P)		- Bits required for number of errors
 
 Modules:
 
 bch_encode - Performs encoding of input data via a large LFSR. It takes
-input for B cycles, and produces output for E+B cycles. The first B cycles
-of output are the input data repeated, the next E cycles are the
-additional ECC bits.
+input for DATA_BITS cycles, and produces output for `BCH_CODE_BITS(P) cycles.
+The first DATA_BITS cycles of output are the input data repeated, the next
+`BCH_ECC_BITS(P) cycles are the additional ECC bits.
 
-bch_syndrome - Calculates the syndrome equations. Takes N cycles of input
-data and produces the equations on the next cycle.
+bch_syndrome - Calculates the syndrome equations. Takes `BCH_CODE_BITS(P)
+cycles of input data and produces the equations on the next cycle.
 
 bch_errors_present - Determines based on syndromes if any errors are present
 (Not required for decoding). Currently does not have a clock, but it may
-required for large M values as it needs to or together M*(T+1) inputs. This
-module can be used to allow several bch_syndrome modules to share bch_key
-and bch_error modules or to determine that the error is data free before
-allowing bch_key to complete.
+required for large `BCH_M(P) values as it needs to or together
+`BCH_M(P)*(`BCH_T(P)+1) inputs. This module can be used to allow several
+bch_syndrome modules to share bch_key and bch_error modules or to determine
+that the error is data free before allowing bch_key to complete.
 
 bch_key - Key equation solver (sigma). Takes syndrome equations as input and
 produces the key equation, as well as the number of bit errors detected. See
 OPTION for number of cycles required.
 
 bch_error - Error locator. Takes key equation and generates error locations.
-After 2 cycles, it clocks out error bits for B cycles, each cycle representing
-an error location.
+After 2 cycles, it clocks out error bits for DATA_BITS cycles, each cycle
+representing an error location.
 
 The code currently compiles under Icarus Verilog and Xilinx Isim. Because
 the way the parameterization is handled, simulation is slow, especially
-for larger values of M.
+for larger values of `BCH_M(P)*`BCH_T(P).
 
 TODO:
 
