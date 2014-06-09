@@ -43,7 +43,7 @@ module bch_key #(
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 
-	if (`BCH_T(M) == 1) begin : SEC_DEC
+	if (`BCH_T(P) == 1) begin : SEC_DEC
 		reg waiting = 0;
 		assign sigma = {syndromes[0+:M]};
 		assign err_count = start && |syndromes[0+:M];
