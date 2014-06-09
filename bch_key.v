@@ -56,7 +56,7 @@ module bch_key #(
 				waiting <= #TCQ 0;
 
 	end else if (OPTION == "POW3") begin : POW3
-		if (`BCH_T(M) != 2)
+		if (`BCH_T(P) != 2)
 			pow3_only_valid_for_t_2 u_povft2();
 
 		reg waiting = 0;
