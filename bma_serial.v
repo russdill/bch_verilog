@@ -18,7 +18,7 @@ module bch_key_bma_serial #(
 ) (
 	input clk,
 	input start,
-	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
+	input [(2*T-1)*M-1:0] syndromes,
 	input accepted,
 
 	output reg done = 0,
@@ -51,7 +51,6 @@ module bch_key_bma_serial #(
 	reg final_calc = 0;	/* bch_n == T - 1 */
 	reg counting = 0;
 	reg busy_internal = 0;
-	reg waiting = 0;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;			/* Initial beta */
@@ -77,12 +76,12 @@ module bch_key_bma_serial #(
 		.count(count)
 	);
 
-	wire [`BCH_SYNDROMES_SZ(P)-1:0] syn_shuffled;
+	wire [(2*T-1)*M-1:0] syn_shuffled;
 	bch_syndrome_shuffle #(P) u_bch_syndrome_shuffle(
 		.clk(clk),
 		.start(start),
 		.ce(last_cycle),
-		.synN(syndromes),
+		.syndromes(syndromes),
 		.syn_shuffled(syn_shuffled)
 	);
 
@@ -91,7 +90,7 @@ module bch_key_bma_serial #(
 	assign bsel = d_r_nonzero && bch_n >= err_count;
 	reg bsel_last = 0;
 
-	assign busy = busy_internal || (waiting && !accepted);
+	assign busy = busy_internal || (done && !accepted);
 
 	always @(posedge clk) begin
 		if (start)
@@ -100,9 +99,9 @@ module bch_key_bma_serial #(
 			busy_internal <= #TCQ 0;
 
 		if (penult2_cycle && final_calc)
-			waiting <= #TCQ 1;
+			done <= #TCQ 1;
 		else if (accepted)
-			waiting <= #TCQ 0;
+			done <= #TCQ 0;
 
 		if (last_cycle || start)
 			final_calc <= #TCQ T == 2 ? first_calc : (bch_n == T - 2);
@@ -136,7 +135,6 @@ module bch_key_bma_serial #(
 		last_cycle <= #TCQ penult1_cycle;
 		first_cycle <= #TCQ last_cycle;
 		second_cycle <= #TCQ first_cycle || start;
-		done <= #TCQ penult2_cycle && final_calc;
 		if (second_cycle)
 			counting <= #TCQ 1;
 		else if (count == M - 4)

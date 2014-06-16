@@ -12,12 +12,13 @@
  */
 module dsynN_method2 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter IDX = 0
+	parameter IDX = 0,
+	parameter BITS = 1
 ) (
 	input clk,
 	input ce,			/* Accept additional bit */
 	input start,			/* Accept first bit of syndrome */
-	input data_in,
+	input [BITS-1:0] data_in,
 	output reg [M-1:0] synN = 0
 );
 	`include "bch_syndrome.vh"
@@ -63,15 +64,42 @@ module dsynN_method2 #(
 	localparam SYN = idx2syn(M, IDX);
 	localparam SYNDROME_POLY = syndrome_poly(0);
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
+	localparam REM = `BCH_CODE_BITS(P) % BITS;
+	localparam RUNT = BITS - REM;
 
-	genvar bit_pos;
+	wire [BITS-1:0] shifted_in;
+
+	wire [SYNDROME_SIZE-1:0] synN_enc;
+	lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, BITS) u_lfsr_term (
+		.in(synN[SYNDROME_SIZE-1:SYNDROME_SIZE-BITS]),
+		.out(synN_enc)
+	);
+
+	function [BITS-1:0] reverse;
+		input [BITS-1:0] in;
+		integer i;
+	begin
+		for (i = 0; i < BITS; i = i + 1)
+			reverse[i] = in[BITS - i - 1];
+	end
+	endfunction
+
+	generate
+		if (REM) begin
+			reg [RUNT-1:0] runt = 0;
+			assign shifted_in = {data_in[REM-1:0], (start ? {RUNT{1'b0}} : runt)};
+			always @(posedge clk)
+				runt <= #TCQ data_in[BITS-1:REM];
+		end else
+			assign shifted_in = data_in;
+	endgenerate
 
 	/* Calculate remainder */
 	always @(posedge clk) begin
 		if (start)
-			synN <= #TCQ {{M-1{1'b0}}, data_in};
+			synN <= #TCQ {reverse(shifted_in)};
 		else if (ce)
-			synN <= #TCQ {synN[M-2:0], data_in} ^ (SYNDROME_POLY & {M{synN[SYNDROME_SIZE-1]}});
+			synN <= #TCQ {synN[SYNDROME_SIZE-BITS-1:0], {BITS{1'b0}}} ^ synN_enc ^ reverse(shifted_in);
 	end
 endmodule
 

@@ -3,15 +3,16 @@
 `include "bch_defs.vh"
 
 module bch_encode #(
-	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter BITS = 1
 ) (
 	input clk,
-	input start,		/* First cycle */
-	input data_in,		/* Input data */
-	input accepted,		/* Output cycle accepted */
-	output reg data_out = 0,/* Encoded output */
-	output reg first = 0,	/* First output cycle */
-	output reg last = 0,	/* Last output cycle */
+	input start,				/* First cycle */
+	input [BITS-1:0] data_in,		/* Input data */
+	input accepted,				/* Output cycle accepted */
+	output reg [BITS-1:0] data_out = 0,	/* Encoded output */
+	output reg first = 0,			/* First output cycle */
+	output reg last = 0,			/* Last output cycle */
 	output busy
 );
 
@@ -66,18 +67,26 @@ endfunction
 
 localparam TCQ = 1;
 localparam ENC = encoder_poly(0);
-localparam SWITCH = lfsr_count(M, `BCH_DATA_BITS(P) - 2);
-localparam DONE = lfsr_count(M, `BCH_CODE_BITS(P) - 3);
+localparam SWITCH = lfsr_count(M, `BCH_DATA_BITS(P) / BITS - 2);
+localparam DONE = lfsr_count(M, (`BCH_CODE_BITS(P) + BITS - 1) / BITS - 3);
+localparam RUNT = ((`BCH_CODE_BITS(P) - 1) % BITS) + 1;
+
+if (`BCH_DATA_BITS(P) % BITS)
+	word_size_is_not_a_divisor_of_ecc_data_bits u_wsinadocdb();
+
+/* FIXME */
+if (BITS > `BCH_ECC_BITS(P))
+	unhandled_situation u_us();
 
 reg [`BCH_ECC_BITS(P)-1:0] lfsr = 0;
 wire [M-1:0] count;
+wire [`BCH_ECC_BITS(P)-1:0] in_enc;
+wire [`BCH_ECC_BITS(P)-1:0] lfsr_enc;
 reg load_lfsr = 0;
 reg busy_internal = 0;
 reg waiting = 0;
 reg penult = 0;
-
-/* Input XOR with highest LFSR bit */
-wire lfsr_in = load_lfsr && (lfsr[`BCH_ECC_BITS(P)-1] ^ data_in);
+wire [BITS-1:0] output_mask;
 
 lfsr_counter #(M) u_counter(
 	.clk(clk),
@@ -86,7 +95,28 @@ lfsr_counter #(M) u_counter(
 	.count(count)
 );
 
+	function [BITS-1:0] reverse;
+		input [BITS-1:0] in;
+		integer i;
+	begin
+		for (i = 0; i < BITS; i = i + 1)
+			reverse[i] = in[BITS - i - 1];
+	end
+	endfunction
+
+/*
+ * The below in equivalent to one instance with the vector input being
+ * data & lfsr. However, with this arrangement, its easy to pipeline
+ * the incoming data to reduce the number of gates/inputs between lfsr
+ * stages.
+ */
+lfsr_term #(`BCH_ECC_BITS(P), ENC, BITS) u_lfsr_terms [2] (
+	.in({{BITS{load_lfsr|start}} & reverse(data_in), lfsr[`BCH_ECC_BITS(P)-1:`BCH_ECC_BITS(P)-BITS]}),
+	.out({in_enc, lfsr_enc})
+);
+
 assign busy = busy_internal || (waiting && !accepted);
+assign output_mask = (penult) ? {RUNT{1'b1}} : {BITS{1'b1}};
 
 always @(posedge clk) begin
 	if (accepted) begin
@@ -115,12 +145,14 @@ always @(posedge clk) begin
 			load_lfsr <= #TCQ 1'b0;
 
 		if (start)
-			lfsr <= #TCQ {`BCH_ECC_BITS(P){data_in}} & ENC;
+			lfsr <= #TCQ in_enc;
+		else if (load_lfsr)
+			lfsr <= #TCQ {lfsr[`BCH_ECC_BITS(P)-BITS:0], {BITS{1'b0}}} ^ lfsr_enc ^ in_enc;
 		else if (busy_internal)
-			lfsr <= #TCQ {lfsr[`BCH_ECC_BITS(P)-2:0], 1'b0} ^ ({`BCH_ECC_BITS(P){lfsr_in}} & ENC);
+			lfsr <= #TCQ {lfsr[`BCH_ECC_BITS(P)-BITS:0], {BITS{1'b0}}};
 
 		if (busy_internal || start)
-			data_out <= #TCQ (load_lfsr || start) ? data_in : lfsr[`BCH_ECC_BITS(P)-1];
+			data_out <= #TCQ (load_lfsr || start) ? data_in : (reverse(lfsr[`BCH_ECC_BITS(P)-1:`BCH_ECC_BITS(P)-BITS]) & output_mask);
 	end
 
 	if (penult && !accepted)

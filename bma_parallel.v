@@ -8,7 +8,7 @@ module bch_key_bma_parallel #(
 ) (
 	input clk,
 	input start,
-	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
+	input [(2*T-1)*M-1:0] syndromes,
 	input accepted,
 
 	output reg done = 0,
@@ -33,7 +33,6 @@ module bch_key_bma_parallel #(
 	reg [`BCH_SIGMA_SZ(P)-1:0] in2;
 	reg syn_shuffle = 0;
 	reg busy_internal = 0;
-	reg waiting = 0;
 	wire bsel;
 	reg [`BCH_ERR_SZ(P)-1:0] l = 0;
 	assign bsel = |d_r && bch_n >= err_count;
@@ -54,16 +53,16 @@ module bch_key_bma_parallel #(
 		.count(bch_n)
 	);
 
-	wire [`BCH_SYNDROMES_SZ(P)-1:0] syn_shuffled;
+	wire [(2*T-1)*M-1:0] syn_shuffled;
 	bch_syndrome_shuffle #(P) u_bch_syndrome_shuffle(
 		.clk(clk),
 		.start(start),
 		.ce(syn_shuffle),
-		.synN(syndromes),
+		.syndromes(syndromes),
 		.syn_shuffled(syn_shuffled)
 	);
 
-	assign busy = busy_internal || (waiting && !accepted);
+	assign busy = busy_internal || (done && !accepted);
 
 	always @(posedge clk) begin
 
@@ -78,11 +77,9 @@ module bch_key_bma_parallel #(
 		end
 
 		if (busy_internal && syn_shuffle && bch_n == T-1)
-			waiting <= #TCQ 1;
+			done <= #TCQ 1;
 		else if (accepted)
-			waiting <= #TCQ 0;
-
-		done <= #TCQ busy_internal && syn_shuffle && bch_n == T-1;
+			done <= #TCQ 0;
 			
 		if (start) begin
 			d_r <= #TCQ syn1 ? syn1 : 1;

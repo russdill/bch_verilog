@@ -35,7 +35,7 @@ function integer syndrome_method;
 begin
 	s_size = syndrome_size(m, s);
 
-	/* We can only use the first way if syndrome size is full */
+	/* We must use the first method if syndrome size is full */
 	first_way = s_size == m;
 	done = !first_way;
 
@@ -43,14 +43,14 @@ begin
 	while (!done) begin
 		if (i <= 2 * t - 1) begin
 			if (i != s) begin
-				/* Cannot use first way */
+				/* yay, we can use the second method */
 				first_way = 0;
 				done = 1;
 			end
 		end
 		i = (i * 2) % m2n(m);
 		if (i == s)
-			/* yay, we can use the first way */
+			/* We must use the first method */
 			done = 1;
 	end
 

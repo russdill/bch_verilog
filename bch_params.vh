@@ -58,6 +58,6 @@ begin
 		k = 0;
 		t = 0;
 	end
-	bch_params = `BCH_PARAMS(m, m2n(m), k, t, data_bits);
+	bch_params = `BCH_PARAMS(m, k, t, data_bits, syndrome_count(m, t));
 end
 endfunction

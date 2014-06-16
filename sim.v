@@ -4,7 +4,8 @@
 
 module sim #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter OPTION = "SERIAL"
+	parameter OPTION = "SERIAL",
+	parameter BITS = 1
 ) (
 	input clk,
 	input reset,
@@ -30,11 +31,10 @@ reg [E+B-1:0] flip_buf = 0;
 reg [B-1:0] err_buf = 0;
 reg last_data_valid = 0;
 
-wire encoded_data;
-wire decoded_data;
+wire [BITS-1:0] encoded_data;
 wire encoded_first;
 wire encoded_last;
-wire decoder_in;
+wire [BITS-1:0] decoder_in;
 wire decode_busy;
 wire encode_busy;
 wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
@@ -51,7 +51,7 @@ wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
 assign busy = encode_busy;
 
-localparam STACK_SZ = 5;
+localparam STACK_SZ = 6;
 
 reg [STACK_SZ*`BCH_ERR_SZ(P)-1:0] err_count_stack = 0;
 reg [STACK_SZ-1:0] err_present_stack = 0;
@@ -88,16 +88,16 @@ always @(posedge clk) begin
 	end
 
 	if (!decode_busy) begin
-		encode_buf <= #TCQ encode_start ? data_in : {1'b0, encode_buf[`BCH_DATA_BITS(P)-1:1]};
-		flip_buf <= #TCQ encode_start ? error : {1'b0, flip_buf[`BCH_CODE_BITS(P)-1:1]};
+		encode_buf <= #TCQ encode_start ? data_in : {{BITS{1'b0}}, encode_buf[`BCH_DATA_BITS(P)-1:BITS]};
+		flip_buf   <= #TCQ encode_start ? error   : {{BITS{1'b0}}, flip_buf[`BCH_CODE_BITS(P)-1:BITS]};
 	end
 end
 
 /* Generate code */
-bch_encode #(P) u_bch_encode(
+bch_encode #(P, BITS) u_bch_encode(
 	.clk(clk),
 	.start(encode_start),
-	.data_in(encode_start ? data_in[0] : encode_buf[1]),
+	.data_in(encode_start ? data_in[BITS-1:0] : encode_buf[BITS*2-1:BITS]),
 	.data_out(encoded_data),
 	.first(encoded_first),
 	.last(encoded_last),
@@ -105,15 +105,15 @@ bch_encode #(P) u_bch_encode(
 	.busy(encode_busy)
 );
 
-assign decoder_in = encoded_data ^ flip_buf[0];
+assign decoder_in = encoded_data ^ flip_buf[BITS-1:0];
 
 /* Process syndromes */
-bch_syndrome #(P) u_bch_syndrome(
+bch_syndrome #(P, BITS) u_bch_syndrome(
 	.clk(clk),
 	.start(encoded_first && !decode_busy),
 	.busy(decode_busy),
 	.data_in(decoder_in),
-	.out(syndromes),
+	.syndromes(syndromes),
 	.done(syn_done),
 	.accepted(syn_done && !key_busy)
 );
@@ -136,19 +136,19 @@ end
 /* Solve key equation */
 bch_key #(P, OPTION) u_key(
 	.clk(clk),
-	.start(syn_done && !key_busy),
+	.start(syn_done),
 	.busy(key_busy),
 	.syndromes(syndromes),
 	.sigma(sigma),
 	.done(ch_start),
-	.accepted(ch_start && !ch_busy),
+	.accepted(!ch_busy),
 	.err_count(err_count)
 );
 
 wire err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
 
 always @(posedge clk) begin
-	if (ch_start)
+	if (ch_start && !ch_busy)
 		err_count_rd_pos = (err_count_rd_pos + 1) % STACK_SZ;
 end
 

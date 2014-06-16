@@ -7,6 +7,7 @@
  */
 
 `include "log2.vh"
+`include "bch_defs.vh"
 
 /* Trinomial */
 function [`MAX_M:0] P3;
