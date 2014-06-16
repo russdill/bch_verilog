@@ -5,28 +5,32 @@ This is a Verilog based BCH encoder and decoder for single bit, dual bit, and
 and decoders is taken from "The design of a vhdl based synthesis tool for bch
 codecs." by Ernest Jamro.
 
-The decoder/encoder is completely parameterizable. The three main parameters
+The decoder/encoder is completely parameterizable. The two main parameter
 are:
 
 DATA_BITS - The number of data bits
 T - The number of bits that can be corrected
-OPTION - The type of key equation solver:
 
-`BCH_T(P) == 1 - No key solving step is required.
+The module bch_param generates a BCH parameter set:
 
-OPTION == POW3 - This option merges key solving and error finding for
-`BCH_T(P) == 2. This option does not require any extra key solving cycles.
+	`include "bch_params.vh"
+	localparam [`BCH_PARAM_SZ-1:0] P = bch_params(DATA_BITS, T);
 
-OPTION == SERIAL - Serial Berlekamp–Massey algorithm with inversion.
-This option is not supported for pentanomials yet (eg, `BCH_M(P)=8) as the
-inverter lacks pentanomial support. This option takes longer but requires
-less space than the parallel option. This option takes
-`BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key equation.
+The generated parameters are passed to the BCH modules and can be access
+with the following:
 
-OPTION == PARALLEL - Parallel Berlekamp–Massey algorithm without inversion.
-This option supports pentanomials and trinomials in less cycles than the
-serial option, but requires more gates. This option takes `BCH_T(P) * 2 - 1
-cycles to solve the key equation.
+`BCH_M(P)		- Degree of the field
+`BCH_N(P)		- Actual code size (padded)
+`BCH_K(P)		- Actual data size (padded)
+`BCH_T(P)		- Actual bits corrected (may be more than specified)
+`BCH_DATA_BITS(P)	- Data bits
+`BCH_ECC_BITS(P)	- Generate ECC bits
+`BCH_CODE_BITS(P)	- Data bits + ECC bits
+`BCH_SYNDROMES_SZ(P)	- Bits required for syndromes passed between modules
+`BCH_SIGMA_SZ(P)	- Bits required for sigmal equation passed between
+			  modules
+`BCH_ERR_SZ(P)		- Bits required for number of errors
+`BCH_PARAM_SZ		- Bits required to hold parameters;
 
 Parameters:
 
@@ -63,16 +67,44 @@ bch_errors_present - Determines based on syndromes if any errors are present
 (Not required for decoding). Currently does not have a clock, but it may
 required for large `BCH_M(P) values as it needs to or together
 `BCH_M(P)*(`BCH_T(P)+1) inputs. This module can be used to allow several
-bch_syndrome modules to share bch_key and bch_error modules or to determine
-that the error is data free before allowing bch_key to complete.
+bch_syndrome modules to share bch_sigma_* and bch_error_* modules or to
+determine that the error is data free before allowing bch_sigma_* to complete.
 
-bch_key - Key equation solver (sigma). Takes syndrome equations as input and
-produces the key equation, as well as the number of bit errors detected. See
-OPTION for number of cycles required.
+bch_sigma_* - Key equation solvers (sigma). Takes syndrome equations as input
+and produces the key equation, as well as the number of bit errors detected.
+Solving the key equation is required for T > 2 and optional for T == 2, and
+not supported for T == 1.
 
-bch_error - Error locator. Takes key equation and generates error locations.
-After 2 cycles, it clocks out error bits for DATA_BITS cycles, each cycle
-representing an error location.
+bch_sigma_bma_serial - Serial Berlekamp–Massey algorithm with inversion.
+This option is not supported for pentanomials yet (eg, `BCH_M(P)=8) as the
+inverter lacks pentanomial support. This option takes longer but requires
+less space than the parallel option. This option takes
+`BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key equation.
+
+bch_sigma_bma_parallel - Parallel Berlekamp–Massey algorithm without
+inversion. This option supports pentanomials and trinomials in less cycles
+than the serial option, but requires more gates. This option takes
+`BCH_T(P) * 2 - 1 cycles to solve the key equation.
+
+bch_error_* - Error locator. After 2 cycles, it clocks out error bits for
+DATA_BITS cycles, each cycle representing an error location.
+
+bch_error_dec - Error location function for T < 3. Takes syndromes directly
+as input rather than a solved key equation. Same output as bch_error_*
+above, but also produces the error_count.
+
+bch_error_tmec - Error location function for T > 1. Requires the solved key
+equation as input. Same output as bch_error_* above.
+
+sim - Test bench core and example code for connecting together the different
+modules. Takes an additional parameter to specify the type of key equation
+solver:
+
+OPTION - The type of key equation solver:
+
+OPTION == NONE - For T < 3, skip the key solving process
+OPTION == PARALLEL - For T > 1, use bch_sigma_bma_parallel
+OPTION == SERIAL - For T > 1, use bch_sigma_bma_serial
 
 The code currently compiles under Icarus Verilog and Xilinx Isim. Because
 the way the parameterization is handled, simulation is slow, especially
@@ -87,5 +119,11 @@ Support pentanomials for serial option.
 Improve simulation times.
 
 Forney algorithm for error location?
+
+BTZ algorithm for error location?
+
+ecc = {K, {N{1'b0}} % gen_poly;
+K + ecc = {K, ecc}, {K, ecc} % gen_poly == 0
+
 
 -- Russ Dill <russ.dill@asu.edu>

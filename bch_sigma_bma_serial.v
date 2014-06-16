@@ -13,12 +13,12 @@
  * combine above equations:
  * d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t
  */
-module bch_key_bma_serial #(
+module bch_sigma_bma_serial #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
-	input [(2*T-1)*M-1:0] syndromes,
+	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	input accepted,
 
 	output reg done = 0,

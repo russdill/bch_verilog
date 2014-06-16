@@ -21,15 +21,16 @@ endif
 
 all: $(BINS)
 V=\
+bch_chien.v \
 bch_encode.v \
-bch_error.v \
-bch_key.v \
+bch_error_dec.v \
+bch_error_tmec.v \
 bch_math.v \
+bch_sigma_bma_parallel.v \
+bch_sigma_bma_serial.v \
 bch_syndrome_method1.v \
 bch_syndrome_method2.v \
 bch_syndrome.v \
-bma_parallel.v \
-bma_serial.v \
 sim.v \
 tb_sim.v
 

@@ -38,14 +38,11 @@ wire [BITS-1:0] decoder_in;
 wire decode_busy;
 wire encode_busy;
 wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
-wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 wire syn_done;
 wire err_start;
 wire err_valid;
 wire err;
-wire ch_start;
 wire key_busy;
-wire ch_busy;
 wire errors_present;
 wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
@@ -119,7 +116,7 @@ bch_syndrome #(P, BITS) u_bch_syndrome(
 );
 
 /* Test for errors */
-bch_errors_present #(P, OPTION) u_errors(
+bch_errors_present #(P) u_errors(
 	.start(syn_done && !key_busy),
 	.syndromes(syndromes),
 	.errors_present(errors_present)
@@ -133,36 +130,78 @@ always @(posedge clk) begin
 		err_present_rd_pos = (err_present_rd_pos + 1) % STACK_SZ;
 end
 
-/* Solve key equation */
-bch_key #(P, OPTION) u_key(
-	.clk(clk),
-	.start(syn_done),
-	.busy(key_busy),
-	.syndromes(syndromes),
-	.sigma(sigma),
-	.done(ch_start),
-	.accepted(!ch_busy),
-	.err_count(err_count)
-);
+wire err_count_wrong;
+if (OPTION == "SERIAL" || OPTION == "PARALLEL") begin : TMEC
 
-wire err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
+	wire ch_start;
+	wire ch_busy;
+	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 
-always @(posedge clk) begin
-	if (ch_start && !ch_busy)
-		err_count_rd_pos = (err_count_rd_pos + 1) % STACK_SZ;
+	/* Solve key equation */
+	if (OPTION == "SERIAL") begin : BMA_SERIAL
+		bch_sigma_bma_serial #(P) u_bma (
+			.clk(clk),
+			.start(syn_done),
+			.syndromes(syndromes),
+			.sigma(sigma),
+			.done(ch_start),
+			.busy(key_busy),
+			.accepted(!ch_busy),
+			.err_count(err_count)
+		);
+	end else if (OPTION == "PARALLEL") begin : BMA_PARALLEL
+		bch_sigma_bma_parallel #(P) u_bma (
+			.clk(clk),
+			.start(syn_done),
+			.syndromes(syndromes),
+			.sigma(sigma),
+			.done(ch_start),
+			.busy(key_busy),
+			.accepted(!ch_busy),
+			.err_count(err_count)
+		);
+	end
+
+	assign err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
+	always @(posedge clk) begin
+		if (ch_start && !ch_busy)
+			err_count_rd_pos <= #TCQ (err_count_rd_pos + 1) % STACK_SZ;
+	end
+
+	/* Locate errors */
+	bch_error_tmec #(P) u_error_tmec(
+		.clk(clk),
+		.start(ch_start && !ch_busy),
+		.busy(ch_busy),
+		.accepted(1'b1),
+		.sigma(sigma),
+		.ready(err_start),
+		.valid(err_valid),
+		.err(err)
+	);
+
+end else begin : DEC
+
+	/* Locate errors */
+	bch_error_dec #(P) u_error_dec(
+		.clk(clk),
+		.start(syn_done),
+		.busy(key_busy),
+		.accepted(1'b1),
+		.syndromes(syndromes),
+		.ready(err_start),
+		.valid(err_valid),
+		.err(err),
+		.err_count(err_count)
+	);
+
+	assign err_count_wrong = err_done && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
+	always @(posedge clk) begin
+		if (err_done)
+			err_count_rd_pos <= #TCQ (err_count_rd_pos + 1) % STACK_SZ;
+	end
+
 end
-
-/* Locate errors */
-bch_error #(P, OPTION) u_error(
-	.clk(clk),
-	.start(ch_start && !ch_busy),
-	.busy(ch_busy),
-	.accepted(1'b1),
-	.sigma(sigma),
-	.ready(err_start),
-	.valid(err_valid),
-	.err(err)
-);
 
 wire err_done = last_err_valid && !err_valid;
 reg last_err_valid = 0;

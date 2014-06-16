@@ -3,12 +3,12 @@
 `include "bch_defs.vh"
 
 /* parallel inversionless */
-module bch_key_bma_parallel #(
+module bch_sigma_bma_parallel #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
 	input clk,
 	input start,
-	input [(2*T-1)*M-1:0] syndromes,
+	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	input accepted,
 
 	output reg done = 0,

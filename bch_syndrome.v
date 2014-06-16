@@ -121,7 +121,7 @@ module bch_syndrome_shuffle #(
 	input clk,
 	input start,		/* Accept first syndrome bit */
 	input ce,		/* Shuffle cycle */
-	input [(2*T-1)*M-1:0] syndromes,
+	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	output reg [(2*T-1)*M-1:0] syn_shuffled = 0
 );
 
@@ -133,20 +133,38 @@ module bch_syndrome_shuffle #(
 	genvar i;
 	genvar dat;
 
+	wire [(2*`BCH_T(P)-1)*M-1:0] expanded;
+	bch_syndrome_expand #(P) u_expand(
+		.syndromes(syndromes),
+		.expanded(expanded)
+	);
+
 	/* Shuffle syndromes */
 	generate
 	for (i = 0; i < 2*T-1; i = i + 1) begin : s
 		if (i == T + 1 && T < 4) begin
 			always @(posedge clk)
 				if (start)
-					syn_shuffled[i*M+:M] <= #TCQ syndromes[(3*T-i-2)*M+:M];
+					syn_shuffled[i*M+:M] <= #TCQ expanded[(3*T-i-2)*M+:M];
 		end else begin
 			always @(posedge clk)
 				if (start)
-					syn_shuffled[i*M+:M] <= #TCQ syndromes[M*((2*T+1-i)%(2*T-1))+:M];
+					syn_shuffled[i*M+:M] <= #TCQ expanded[M*((2*T+1-i)%(2*T-1))+:M];
 				else if (ce)
 					syn_shuffled[i*M+:M] <= #TCQ syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
 		end
 	end
 	endgenerate
+endmodule
+
+/* Candidate for pipelining */
+module bch_errors_present #(
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter OPTION = "SERIAL"
+) (
+	input start,
+	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
+	output errors_present			/* Valid during start cycle */
+);
+	assign errors_present = start && |syndromes;
 endmodule
