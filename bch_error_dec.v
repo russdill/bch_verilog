@@ -22,10 +22,15 @@ module bch_error_dec #(
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
+	localparam _RUNT = `BCH_DATA_BITS(P) % BITS;
+	localparam RUNT = _RUNT ? _RUNT : BITS;
 
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 	wire [`BCH_SIGMA_SZ(P)*BITS-1:0] chien;
+	wire [BITS-1:0] _err;
+
+	assign err = last ? (_err & {RUNT{1'b1}}) : _err;
 
 	bch_syndrome_expand #(P) u_expand(
 		.syndromes(syndromes),
@@ -52,7 +57,7 @@ module bch_error_dec #(
 		 * No error if S_1 = 0
 		 */
 		for (i = 0; i < BITS; i = i + 1)
-			assign err[i] = chien[i*(T+1)*M+:M] == 1;
+			assign _err[i] = chien[i*(T+1)*M+:M] == 1;
 
 		always @(posedge clk)
 			if (start)
@@ -95,7 +100,7 @@ module bch_error_dec #(
 			 * If flipping reduced the number of errors,
 			 * then we found an error
 			 */
-			assign err[i] = err_count > errors;
+			assign _err[i] = err_count > errors;
 		end
 
 		always @(posedge clk) begin

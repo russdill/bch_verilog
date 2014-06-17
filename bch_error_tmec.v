@@ -24,6 +24,7 @@ module bch_error_tmec #(
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
+	localparam RUNT = `BCH_DATA_BITS(P) % BITS;
 
 	wire [BITS*`BCH_SIGMA_SZ(P)-1:0] chien;
 	wire [BITS*M-1:0] eq;
@@ -46,5 +47,5 @@ module bch_error_tmec #(
 	/* Candidate for pipelining */
 	finite_parallel_adder #(M, `BCH_T(P)+1) u_adder [BITS-1:0] (chien, eq);
 	for (i = 0; i < BITS; i = i + 1)
-		assign err[i] = !eq[i*M+:M];
+		assign err[i] = !eq[i*M+:M] && (!RUNT || i < RUNT || !last);
 endmodule
