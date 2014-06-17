@@ -15,7 +15,8 @@ module bch_error_tmec #(
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
 	input accepted,
 	output busy,
-	output ready,			/* First valid output data */
+	output first,			/* First valid output data */
+	output last,
 	output valid,			/* Outputting data */
 	output err
 );
@@ -38,7 +39,8 @@ module bch_error_tmec #(
 		.chien(chien),
 		.accepted(accepted),
 		.busy(busy),
-		.ready(ready),
+		.first(first),
+		.last(last),
 		.valid(valid)
 	);
 

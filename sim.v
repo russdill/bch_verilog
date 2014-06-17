@@ -39,7 +39,8 @@ wire decode_busy;
 wire encode_busy;
 wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
 wire syn_done;
-wire err_start;
+wire err_first;
+wire err_last;
 wire err_valid;
 wire err;
 wire key_busy;
@@ -131,7 +132,7 @@ always @(posedge clk) begin
 end
 
 wire err_count_wrong;
-if (OPTION == "SERIAL" || OPTION == "PARALLEL") begin : TMEC
+if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 
 	wire ch_start;
 	wire ch_busy;
@@ -175,7 +176,8 @@ if (OPTION == "SERIAL" || OPTION == "PARALLEL") begin : TMEC
 		.busy(ch_busy),
 		.accepted(1'b1),
 		.sigma(sigma),
-		.ready(err_start),
+		.first(err_first),
+		.last(err_last),
 		.valid(err_valid),
 		.err(err)
 	);
@@ -189,33 +191,33 @@ end else begin : DEC
 		.busy(key_busy),
 		.accepted(1'b1),
 		.syndromes(syndromes),
-		.ready(err_start),
+		.first(err_first),
+		.last(err_last),
 		.valid(err_valid),
 		.err(err),
 		.err_count(err_count)
 	);
 
-	assign err_count_wrong = err_done && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
+	assign err_count_wrong = err_first && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
 	always @(posedge clk) begin
-		if (err_done)
+		if (err_first)
 			err_count_rd_pos <= #TCQ (err_count_rd_pos + 1) % STACK_SZ;
 	end
 
 end
 
-wire err_done = last_err_valid && !err_valid;
-reg last_err_valid = 0;
+reg err_done = 0;
 
 wire err_wrong = err_done && (err_buf !== err_stack[err_rd_pos*B+:B]);
 wire new_wrong = err_count_overflow || err_overflow || err_present_wrong || err_count_wrong || err_wrong;
 
 always @(posedge clk) begin
-	last_err_valid <= #TCQ err_valid;
-	if (err_start)
+	if (err_first)
 		err_buf <= #TCQ {err, {`BCH_DATA_BITS(P)-1{1'b0}}};
 	else if (err_valid)
 		err_buf <= #TCQ {err, err_buf[`BCH_DATA_BITS(P)-1:1]};
 
+	err_done <= #TCQ err_last;
 	if (err_done)
 		err_rd_pos <= #TCQ (err_rd_pos + 1) % STACK_SZ;
 

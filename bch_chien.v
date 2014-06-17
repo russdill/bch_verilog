@@ -52,7 +52,8 @@ module bch_chien #(
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
 	input err_feedback,
 	output reg busy = 0,
-	output reg ready = 0,		/* First valid output data */
+	output reg first = 0,		/* First valid output data */
+	output reg last = 0,		/* Last valid output cycle */
 	output reg valid = 0,		/* Outputting data */
 	output [`BCH_SIGMA_SZ(P)-1:0] chien
 );
@@ -74,10 +75,14 @@ module bch_chien #(
 	);
 
 	always @(posedge clk) begin
-		first_cycle <= #TCQ start;
-		ready <= #TCQ first_cycle;
+		first_cycle <= #TCQ start && !busy;
+		first <= #TCQ first_cycle;
 		valid <= #TCQ busy;
-		busy <= #TCQ start || (busy && count != DONE);
+		last <= #TCQ count == DONE;
+		if (start && !busy)
+			busy <= #TCQ 1;
+		else if (count == DONE)
+			busy <= #TCQ 0;
 	end
 
 	genvar i;

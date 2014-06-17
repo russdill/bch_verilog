@@ -12,7 +12,8 @@ module bch_error_dec #(
 	input accepted,
 	output reg [`BCH_ERR_SZ(P)-1:0] err_count = 0,	/* Valid during valid cycles */
 	output busy,
-	output ready,					/* First valid output data */
+	output first,					/* First valid output data */
+	output last,					/* Last valid output cycle */
 	output valid,					/* Outputting data */
 	output err
 );
@@ -41,7 +42,8 @@ module bch_error_dec #(
 		.chien(chien),
 		.accepted(accepted),
 		.busy(busy),
-		.ready(ready),
+		.first(first),
+		.last(last),
 		.valid(valid)
 	);
 
@@ -52,7 +54,7 @@ module bch_error_dec #(
 		 */
 		assign err = chien[0+:`BCH_M(P)] == 1;
 		always @(posedge clk)
-			if (start)
+			if (start && !busy)
 				err_count <= #TCQ |syndromes;
 
 	end else if (T == 2) begin : POW3
@@ -98,7 +100,7 @@ module bch_error_dec #(
 			 * Load the new error count on cycle zero or when
 			 * we find an error
 			 */
-			if (start)
+			if (start && !busy)
 				errors_last <= #TCQ 0;
 			else if (first_cycle || err)
 				errors_last <= #TCQ errors;
