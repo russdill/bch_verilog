@@ -51,6 +51,7 @@ module bch_sigma_bma_serial #(
 	reg final_calc = 0;	/* bch_n == T - 1 */
 	reg counting = 0;
 	reg busy_internal = 0;
+	wire start_internal;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
 	wire [M*4-1:0] beta0;			/* Initial beta */
@@ -63,7 +64,7 @@ module bch_sigma_bma_serial #(
 	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
 	counter #(T+1) u_bch_n_counter(
 		.clk(clk),
-		.reset(start),
+		.reset(start_internal),
 		.ce(last_cycle),
 		.count(bch_n)
 	);
@@ -79,7 +80,7 @@ module bch_sigma_bma_serial #(
 	wire [(2*T-1)*M-1:0] syn_shuffled;
 	bch_syndrome_shuffle #(P) u_bch_syndrome_shuffle(
 		.clk(clk),
-		.start(start),
+		.start(start_internal),
 		.ce(last_cycle),
 		.syndromes(syndromes),
 		.syn_shuffled(syn_shuffled)
@@ -91,9 +92,10 @@ module bch_sigma_bma_serial #(
 	reg bsel_last = 0;
 
 	assign busy = busy_internal || (done && !accepted);
+	assign start_internal = start && !busy;
 
 	always @(posedge clk) begin
-		if (start)
+		if (start_internal)
 			busy_internal <= #TCQ 1;
 		else if (penult2_cycle && final_calc)
 			busy_internal <= #TCQ 0;
@@ -103,15 +105,15 @@ module bch_sigma_bma_serial #(
 		else if (accepted)
 			done <= #TCQ 0;
 
-		if (last_cycle || start)
+		if (last_cycle || start_internal)
 			final_calc <= #TCQ T == 2 ? first_calc : (bch_n == T - 2);
 
-		if (start)
+		if (start_internal)
 			first_calc <= #TCQ 1;
 		else if (last_cycle)
 			first_calc <= #TCQ 0;
 
-		if (start) begin
+		if (start_internal) begin
 			beta <= #TCQ beta0;
 			sigma_last <= #TCQ beta0[2*M+:2*M];	/* beta(1) */
 			err_count <= #TCQ {{`BCH_ERR_SZ(P)-1{1'b0}}, |syn1};
@@ -134,7 +136,7 @@ module bch_sigma_bma_serial #(
 		penult1_cycle <= #TCQ penult2_cycle && !final_calc;
 		last_cycle <= #TCQ penult1_cycle;
 		first_cycle <= #TCQ last_cycle;
-		second_cycle <= #TCQ first_cycle || start;
+		second_cycle <= #TCQ first_cycle || start_internal;
 		if (second_cycle)
 			counting <= #TCQ 1;
 		else if (count == M - 4)
@@ -146,10 +148,10 @@ module bch_sigma_bma_serial #(
 	/* d_rp = d_p^-1 * d_r */
 	finite_divider #(M) u_dinv(
 		.clk(clk),
-		.start(start || (first_cycle && bsel && !final_calc)),
+		.start(start_internal || (first_cycle && bsel && !final_calc)),
 		.standard_numer(d_r),
 		/* d_p = S_1 ? S_1 : 1 */
-		.standard_denom(start ? d_p0 : d_r),	/* syn1 is d_p initial value */
+		.standard_denom(start_internal ? d_p0 : d_r),	/* syn1 is d_p initial value */
 		.dual_out(d_rp_dual)
 	);
 
@@ -166,7 +168,7 @@ module bch_sigma_bma_serial #(
 	/* simga_i^(r-1) + d_rp * beta_i^(r) */
 	finite_serial_adder #(M) u_cN [T:0] (
 		.clk(clk),
-		.start(start),
+		.start(start_internal),
 		.ce(!last_cycle && !penult1_cycle),
 		.parallel_in(d_r0),
 		.serial_in({(T+1){!first_calc}} & cin),	/* First time through, we just shift out d_r0 */
@@ -177,7 +179,7 @@ module bch_sigma_bma_serial #(
 	/* d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t */
 	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier(
 		.clk(clk), 
-		.run(!last_cycle && !first_cycle && !second_cycle && !start),
+		.run(!last_cycle && !first_cycle && !second_cycle && !start_internal),
 		.start(second_cycle && !final_calc),
 		.parallel_in(syn_shuffled[0+:M*(T+1)]),
 		.serial_in(sigma_serial),
