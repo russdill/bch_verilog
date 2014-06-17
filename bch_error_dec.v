@@ -25,6 +25,7 @@ module bch_error_dec #(
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 	wire [`BCH_SIGMA_SZ(P)-1:0] chien;
+	wire err_feedback;
 
 	bch_syndrome_expand #(P) u_expand(
 		.syndromes(syndromes),
@@ -38,7 +39,7 @@ module bch_error_dec #(
 		.start(start),
 		.ready(ready),
 		.sigma(sigma),
-		.err_feedback(err),
+		.err_feedback(err_feedback),
 		.chien(chien),
 		.first(first),
 		.last(last),
@@ -51,6 +52,7 @@ module bch_error_dec #(
 		 * No error if S_1 = 0
 		 */
 		assign err = chien[0+:`BCH_M(P)] == 1;
+		assign err_feedback = 0;
 		always @(posedge clk)
 			if (start)
 				err_count <= #TCQ |syndromes[0+:M];
@@ -91,6 +93,7 @@ module bch_error_dec #(
 		 * then we found an error
 		 */
 		assign err = errors_last > errors;
+		assign err_feedback = err;
 
 		always @(posedge clk) begin
 			/*

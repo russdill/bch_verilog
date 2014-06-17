@@ -35,7 +35,7 @@ module bch_chien_reg #(
 	);
 
 	always @(posedge clk)
-		if (start || ce)
+		if (ce)
 			out <= #TCQ mul_out;
 endmodule
 
@@ -90,8 +90,8 @@ module bch_chien #(
 		bch_chien_reg #(M, i + 1, `BCH_K(P) - `BCH_DATA_BITS(P)) u_ch(
 			.clk(clk),
 			.err(err_feedback),
-			.ce(valid || first_cycle),
 			.start(start),
+			.ce(valid || first_cycle || start),
 			.in(sigma[i*M+:M]),
 			.out(chien[i*M+:M])
 		);
