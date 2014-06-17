@@ -38,7 +38,7 @@ wire [BITS-1:0] encoded_data;
 wire encoded_first;
 wire encoded_last;
 wire [BITS-1:0] decoder_in;
-wire decode_busy;
+wire decode_ready;
 wire encode_ready;
 wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
 wire syn_done;
@@ -52,7 +52,7 @@ wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
 assign busy = !encode_ready;
 
-localparam STACK_SZ = 6;
+localparam STACK_SZ = 16;//6;
 
 reg [STACK_SZ*`BCH_ERR_SZ(P)-1:0] err_count_stack = 0;
 reg [STACK_SZ-1:0] err_present_stack = 0;
@@ -81,16 +81,19 @@ end
 endfunction
 
 always @(posedge clk) begin
-	if (encode_start && encode_ready) begin
+	if (encode_start && encode_ready && (!syn_done || !key_busy)) begin
 		err_stack[`BCH_DATA_BITS(P)*wr_pos+:`BCH_DATA_BITS(P)] <= #TCQ error;
 		err_count_stack[`BCH_ERR_SZ(P)*wr_pos+:`BCH_ERR_SZ(P)] <= #TCQ bit_count(error);
 		err_present_stack[wr_pos] <= #TCQ |error;
 		wr_pos <= #TCQ (wr_pos + 1) % STACK_SZ;
 	end
 
-	if (!decode_busy) begin
-		encode_buf <= #TCQ encode_start ? data_in : (encode_buf >> BITS);
-		flip_buf   <= #TCQ encode_start ? error   : (flip_buf >> BITS);
+	if (encode_start && encode_ready && (!syn_done || !key_busy)) begin
+		encode_buf <= #TCQ data_in;
+		flip_buf   <= #TCQ error;
+	end else if (!encode_ready) begin
+		encode_buf <= #TCQ encode_buf >> BITS;
+		flip_buf   <= #TCQ flip_buf >> BITS;
 	end
 end
 
@@ -99,13 +102,18 @@ wire [BITS-1:0] encoder_in = encode_start ? data_in : (encode_buf >> BITS);
 /* Generate code */
 bch_encode #(P, BITS) u_bch_encode(
 	.clk(clk),
-	.start(encode_start),
-	.ce(!decode_busy),	/* Keep adding data until the decoder is busy */
+
+	/* Don't assert start until we get the ready signal*/
+	.start(encode_start && encode_ready),
+	.ready(encode_ready),
+
+	/* Keep adding data until the decoder is busy */
+	.ce(!syn_done || !key_busy),
+
 	.data_in(encoder_in),
 	.data_out(encoded_data),
 	.first(encoded_first),
-	.last(encoded_last),
-	.ready(encode_ready)
+	.last(encoded_last)
 );
 
 assign decoder_in = encoded_data ^ (encoded_first ? error : (flip_buf >> BITS));
@@ -113,12 +121,17 @@ assign decoder_in = encoded_data ^ (encoded_first ? error : (flip_buf >> BITS));
 /* Process syndromes */
 bch_syndrome #(P, BITS) u_bch_syndrome(
 	.clk(clk),
-	.start(encoded_first && !decode_busy),
-	.busy(decode_busy),
+
+	/* Don't assert start until we get the ready signal */
+	.start(encoded_first && decode_ready),
+	.ready(decode_ready),
+
+	/* Keep adding data until the next stage is busy */
+	.ce(!syn_done || !key_busy),
+
 	.data_in(decoder_in),
 	.syndromes(syndromes),
-	.done(syn_done),
-	.accepted(syn_done && !key_busy)
+	.done(syn_done)
 );
 
 /* Test for errors */

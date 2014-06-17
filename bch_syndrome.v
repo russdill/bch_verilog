@@ -9,11 +9,11 @@ module bch_syndrome #(
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
+	input ce,
 	input [BITS-1:0] data_in,
-	input accepted,
-	output busy,
+	output ready,
 	output [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
-	output done
+	output reg done = 0
 );
 	`include "bch_syndrome.vh"
 
@@ -27,37 +27,31 @@ module bch_syndrome #(
 	localparam DONE = lfsr_count(M, CYCLES - 2);
 
 	wire [M-1:0] count;
-	reg busy_internal = 0;
-	reg done_internal = 0;
-	reg waiting = 0;
+	reg busy = 0;
 
 	if (CYCLES > 2)	begin : COUNTER
 		lfsr_counter #(M) u_counter(
 			.clk(clk),
-			.reset(start),
-			.ce(count != DONE),
+			.reset(start && ce),
+			.ce(busy && ce),
 			.count(count)
 		);
 	end else
 		assign count = DONE;
 
-	assign busy = waiting && !accepted;
-	assign done = done_internal || waiting;
+	assign ready = !busy;
 
 	always @(posedge clk) begin
-		if (start) begin
-			done_internal <= #TCQ CYCLES == 1;
-			busy_internal <= #TCQ CYCLES > 1;
-		end else if (busy_internal && count == DONE) begin
-			done_internal <= #TCQ 1;
-			busy_internal <= #TCQ 0;
-		end else
-			done_internal <= #TCQ 0;
-
-		if ((busy_internal && count == DONE) || (start && CYCLES == 1))
-			waiting <= #TCQ 1;
-		else if (accepted)
-			waiting <= #TCQ 0;
+		if (ce) begin
+			if (start) begin
+				done <= #TCQ CYCLES == 1;
+				busy <= #TCQ CYCLES > 1;
+			end else if (busy && count == DONE) begin
+				done <= #TCQ 1;
+				busy <= #TCQ 0;
+			end else
+				done <= #TCQ 0;
+		end
 	end
 
 	/* LFSR registers */
@@ -66,16 +60,16 @@ module bch_syndrome #(
 		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin : METHOD1
 			dsynN_method1 #(P, idx, BITS) u_syn1a(
 				.clk(clk),
-				.ce(busy_internal),
 				.start(start),
+				.ce((busy || start) && ce),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
 			);
 		end else begin : METHOD2
 			dsynN_method2 #(P, idx, BITS) u_syn2a(
 				.clk(clk),
-				.ce(busy_internal),
 				.start(start),
+				.ce((busy || start) && ce),
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
 			);

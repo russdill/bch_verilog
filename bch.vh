@@ -108,7 +108,7 @@ function integer conversion_term;
 begin
 	pos = polyi(m);
 	if (bch_is_pentanomial(m)) begin
-		/* FIXME */
+		/* FIXME: Support pentanomials */
 	end else begin
 		conversion_term = 1 << ((pos - bit_pos - 1) % m);
 	end

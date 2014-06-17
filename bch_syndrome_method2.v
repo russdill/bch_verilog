@@ -122,10 +122,12 @@ module dsynN_method2 #(
 
 	/* Calculate remainder */
 	always @(posedge clk)
-		if (start)
-			lfsr <= #TCQ in_enc;
-		else if (ce)
-			lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
+		if (ce) begin
+			if (start)
+				lfsr <= #TCQ in_enc;
+			else
+				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
+		end
 
 	assign synN = lfsr;
 endmodule

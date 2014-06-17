@@ -151,6 +151,7 @@ module bch_encode #(
 	assign ecc_bits = busy && !data_bits;
 	assign output_mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
 	assign data_out = data_bits ? data_in : (reverse(lfsr_input) & output_mask);
+	assign ready = !busy;
 
 	always @(posedge clk) begin
 		if (ce) begin
@@ -178,14 +179,4 @@ module bch_encode #(
 		end
 
 	end
-
-	reg waiting = 0;
-	assign ready = !busy && (!waiting || ce);
-	always @(posedge clk) begin
-		if (last && !ce)
-			waiting <= #TCQ 1;
-		else if (ce)
-			waiting <= #TCQ 0;
-	end
-
 endmodule

@@ -19,8 +19,8 @@ module dsynN_method1 #(
 	parameter BITS = 1
 ) (
 	input clk,
-	input ce,			/* Accept additional bit */
 	input start,			/* Accept first bit of syndrome */
+	input ce,
 	input [BITS-1:0] data_in,
 	output reg [M-1:0] synN = 0
 );
@@ -68,7 +68,7 @@ module dsynN_method1 #(
 	);
 
 	always @(posedge clk) begin
-		if (start || ce) begin
+		if (ce) begin
 			pow <= #TCQ pow_next;
 			synN <= #TCQ syn_next;
 		end

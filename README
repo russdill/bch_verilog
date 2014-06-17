@@ -114,7 +114,7 @@ for larger values of `BCH_M(P)*`BCH_T(P).
 
 TODO:
 
-Support processing multiple databits per clock cycle, ideally 8 (one byte).
+Module info print at compile time.
 
 Support pentanomials for serial option.
 
@@ -123,9 +123,5 @@ Improve simulation times.
 Forney algorithm for error location?
 
 BTZ algorithm for error location?
-
-ecc = {K, {N{1'b0}} % gen_poly;
-K + ecc = {K, ecc}, {K, ecc} % gen_poly == 0
-
 
 -- Russ Dill <russ.dill@asu.edu>
