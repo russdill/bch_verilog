@@ -96,13 +96,13 @@ module bch_chien #(
 	genvar i, b;
 	generate
 	/* FIXME: Support async register expansion */
-	for (i = 0; i <= T; i = i + 1) begin : REG
-		for (b = 0; b < BITS; b = b + 1) begin : BITS
+	for (b = 0; b < BITS; b = b + 1) begin : BIT
+		for (i = 0; i <= T; i = i + 1) begin : REG
 			bch_chien_reg #(M, i + 1, SKIP + b - BITS + 1 + `BCH_N(P), BITS) u_chien_reg(
 				.clk(clk),
 				.start(start),
 				.in(sigma[i*M+:M]),
-				.out(chien[(i*BITS+b)*M+:M])
+				.out(chien[(b*(T+1)+i)*M+:M])
 			);
 		end
 	end

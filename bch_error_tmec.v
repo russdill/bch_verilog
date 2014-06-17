@@ -8,7 +8,8 @@
  * is a bit error.
  */
 module bch_error_tmec #(
-	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter BITS = 1
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
@@ -17,20 +18,21 @@ module bch_error_tmec #(
 	output first,			/* First valid output data */
 	output last,
 	output valid,			/* Outputting data */
-	output err
+	output [BITS-1:0] err
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 
-	wire [`BCH_SIGMA_SZ(P)-1:0] chien;
-	wire [M-1:0] eq;
+	wire [BITS*`BCH_SIGMA_SZ(P)-1:0] chien;
+	wire [BITS*M-1:0] eq;
+	genvar i;
 
 	if (`BCH_T(P) == 1)
 		tmec_does_not_support_sec u_tdnss();
 
-	bch_chien #(P) u_chien(
+	bch_chien #(P, BITS) u_chien(
 		.clk(clk),
 		.start(start),
 		.ready(ready),
@@ -42,6 +44,7 @@ module bch_error_tmec #(
 	);
 
 	/* Candidate for pipelining */
-	finite_parallel_adder #(M, `BCH_T(P)+1) u_dcheq(chien, eq);
-	assign err = valid && !eq;
+	finite_parallel_adder #(M, `BCH_T(P)+1) u_adder [BITS-1:0] (chien, eq);
+	for (i = 0; i < BITS; i = i + 1)
+		assign err[i] = !eq[i*M+:M];
 endmodule

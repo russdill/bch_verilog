@@ -188,7 +188,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 	end
 
 	/* Locate errors */
-	bch_error_tmec #(P) u_error_tmec(
+	bch_error_tmec #(P, BITS) u_error_tmec(
 		.clk(clk),
 		.start(ch_start && ch_ready),
 		.ready(ch_ready),

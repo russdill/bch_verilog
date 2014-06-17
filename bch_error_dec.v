@@ -52,7 +52,7 @@ module bch_error_dec #(
 		 * No error if S_1 = 0
 		 */
 		for (i = 0; i < BITS; i = i + 1)
-			assign err[i] = chien[i*M+:M] == 1;
+			assign err[i] = chien[i*(T+1)*M+:M] == 1;
 
 		always @(posedge clk)
 			if (start)
@@ -79,8 +79,8 @@ module bch_error_dec #(
 			wire [1:0] errors;
 
 			/* For each cycle, try flipping the bit */
-			assign ch1_flipped = chien[(0*BITS+i)*M+:M] ^ !(first_cycle && !i);
-			assign ch3_flipped = chien[(2*BITS+i)*M+:M] ^ !(first_cycle && !i);
+			assign ch1_flipped = chien[(i*(T+1)+0)*M+:M] ^ !(first_cycle && !i);
+			assign ch3_flipped = chien[(i*(T+1)+2)*M+:M] ^ !(first_cycle && !i);
 
 			pow3 #(M) u_pow3(
 				.in(ch1_flipped),
