@@ -68,7 +68,7 @@ module dsynN_method2 #(
 	localparam RUNT = BITS - REM;
 	localparam signed EARLY = BITS - SYNDROME_SIZE;
 
-	reg [M-1:0] lfsr = 0;
+	reg [SYNDROME_SIZE-1:0] lfsr = 0;
 	wire [BITS-1:0] shifted_in;
 	wire [SYNDROME_SIZE-1:0] in_enc_early;
 	wire [SYNDROME_SIZE-1:0] in_enc;
