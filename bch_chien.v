@@ -10,7 +10,6 @@ module bch_chien_reg #(
 	parameter SKIP = 0
 ) (
 	input clk,
-	input err,		/* Error was found so correct it */
 	input ce,
 	input start,
 	input [M-1:0] in,
@@ -30,7 +29,7 @@ module bch_chien_reg #(
 	parallel_standard_multiplier #(M) u_mult(
 		.standard_in1(start ? LPOW_SKIP[M-1:0] : LPOW_REG[M-1:0]),
 		/* Initialize with coefficients of the error location polynomial */
-		.standard_in2(start ? in : (out ^ err)),
+		.standard_in2(start ? in : out),
 		.standard_out(mul_out)
 	);
 
@@ -49,7 +48,6 @@ module bch_chien #(
 	input clk,
 	input start,
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
-	input err_feedback,
 	output reg ready = 1,
 	output reg first = 0,		/* First valid output data */
 	output reg last = 0,		/* Last valid output cycle */
@@ -89,7 +87,6 @@ module bch_chien #(
 	for (i = 0; i <= T; i = i + 1) begin : DCH
 		bch_chien_reg #(M, i + 1, `BCH_K(P) - `BCH_DATA_BITS(P)) u_ch(
 			.clk(clk),
-			.err(err_feedback),
 			.start(start),
 			.ce(valid || first_cycle || start),
 			.in(sigma[i*M+:M]),

@@ -25,7 +25,6 @@ module bch_error_dec #(
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 	wire [`BCH_SIGMA_SZ(P)-1:0] chien;
-	wire err_feedback;
 
 	bch_syndrome_expand #(P) u_expand(
 		.syndromes(syndromes),
@@ -39,7 +38,6 @@ module bch_error_dec #(
 		.start(start),
 		.ready(ready),
 		.sigma(sigma),
-		.err_feedback(err_feedback),
 		.chien(chien),
 		.first(first),
 		.last(last),
@@ -52,7 +50,6 @@ module bch_error_dec #(
 		 * No error if S_1 = 0
 		 */
 		assign err = chien[0+:`BCH_M(P)] == 1;
-		assign err_feedback = 0;
 		always @(posedge clk)
 			if (start)
 				err_count <= #TCQ |syndromes[0+:M];
@@ -74,10 +71,11 @@ module bch_error_dec #(
 		wire [M-1:0] power;
 		reg [1:0] errors_last = 0;
 		wire [1:0] errors;
+		reg first_cycle = 0;
 
 		/* For each cycle, try flipping the bit */
-		assign ch1_flipped = z[M*0+:M] ^ !first_cycle;
-		assign ch3_flipped = z[M*2+:M] ^ !first_cycle;
+		assign ch1_flipped = chien[M*0+:M] ^ !first_cycle;
+		assign ch3_flipped = chien[M*2+:M] ^ !first_cycle;
 
 		pow3 #(M) u_pow3(
 			.in(ch1_flipped),
@@ -92,19 +90,9 @@ module bch_error_dec #(
 		 * If flipping reduced the number of errors,
 		 * then we found an error
 		 */
-		assign err = errors_last > errors;
-		assign err_feedback = err;
+		assign err = err_count > errors;
 
 		always @(posedge clk) begin
-			/*
-			 * Load the new error count on cycle zero or when
-			 * we find an error
-			 */
-			if (start)
-				errors_last <= #TCQ 0;
-			else if (first_cycle || err)
-				errors_last <= #TCQ errors;
-
 			first_cycle <= #TCQ start;
 			if (first_cycle)
 				err_count <= #TCQ errors;

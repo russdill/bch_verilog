@@ -114,8 +114,6 @@ for larger values of `BCH_M(P)*`BCH_T(P).
 
 TODO:
 
-Module info print at compile time.
-
 Support pentanomials for serial option.
 
 Improve simulation times.

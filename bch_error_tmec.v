@@ -35,7 +35,6 @@ module bch_error_tmec #(
 		.start(start),
 		.ready(ready),
 		.sigma(sigma),
-		.err_feedback(1'b0),
 		.chien(chien),
 		.first(first),
 		.last(last),
