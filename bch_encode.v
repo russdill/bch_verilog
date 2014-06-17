@@ -2,6 +2,7 @@
 
 `include "bch_defs.vh"
 
+/* FIXME: accepted->ce */
 module bch_encode #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter BITS = 1
@@ -10,9 +11,11 @@ module bch_encode #(
 	input start,				/* First cycle */
 	input [BITS-1:0] data_in,		/* Input data */
 	input accepted,				/* Output cycle accepted */
-	output reg [BITS-1:0] data_out = 0,	/* Encoded output */
-	output reg first = 0,			/* First output cycle */
+	output [BITS-1:0] data_out,		/* Encoded output */
+	output first,				/* First output cycle */
 	output reg last = 0,			/* Last output cycle */
+	output data_bits,
+	output ecc_bits,
 	output busy
 );
 
@@ -94,7 +97,6 @@ module bch_encode #(
 	reg load_lfsr = 0;
 	reg busy_internal = 0;
 	reg waiting = 0;
-	reg penult = 0;
 
 	function [BITS-1:0] reverse;
 		input [BITS-1:0] in;
@@ -148,29 +150,28 @@ module bch_encode #(
 	);
 
 	assign busy = busy_internal || (waiting && !accepted);
-	assign output_mask = penult ? {RUNT{1'b1}} : {BITS{1'b1}};
+	assign first = start && !busy_internal;
+	assign data_bits = start || load_lfsr;
+	assign ecc_bits = busy_internal && !data_bits;
+	assign output_mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
+	assign data_out = data_bits ? data_in : (reverse(lfsr_input) & output_mask);
 
 	always @(posedge clk) begin
 		if (accepted) begin
-			first <= #TCQ start;
-
 			if (start) begin
-				penult <= #TCQ CODE_CYCLES < 3; /* First cycle is penult cycle */
+				last <= #TCQ CODE_CYCLES < 3; /* First cycle is last cycle */
+				busy_internal <= #TCQ 1;
+			end else if (count == DONE) begin
+				last <= #TCQ busy_internal;
+			end else if (last) begin
+				busy_internal <= #TCQ 0;
 				last <= #TCQ 0;
-			end else if (busy_internal) begin
-				penult <= #TCQ CODE_CYCLES == 3 ? first : (count == DONE);
-				last <= #TCQ penult;
-			end else
-				last <= #TCQ 0;
+			end
 
 			/*
 			 * Keep track of whether or not we are running so we don't send out
 			 * spurious last signals as the count wraps around.
 			 */
-			if (start)
-				busy_internal <= #TCQ 1;
-			else if (penult)
-				busy_internal <= #TCQ 0;
 
 			if (start)
 				load_lfsr <= #TCQ DATA_CYCLES > 1;
@@ -183,13 +184,9 @@ module bch_encode #(
 				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
 			else if (busy_internal)
 				lfsr <= #TCQ lfsr << BITS;
-
-			/* FIXME: Leave it up to the user to add a pipeline register */
-			if (busy_internal || start)
-				data_out <= #TCQ (load_lfsr || start) ? data_in : (reverse(lfsr_input) & output_mask);
 		end
 
-		if (penult && !accepted)
+		if (last && !accepted)
 			waiting <= #TCQ 1;
 		else if (accepted)
 			waiting <= #TCQ 0;

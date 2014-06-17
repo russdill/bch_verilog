@@ -94,11 +94,13 @@ always @(posedge clk) begin
 	end
 end
 
+wire [BITS-1:0] encoder_in = encode_start ? data_in : (encode_buf >> BITS);
+
 /* Generate code */
 bch_encode #(P, BITS) u_bch_encode(
 	.clk(clk),
 	.start(encode_start),
-	.data_in(encode_start ? data_in : (encode_buf >> BITS)),
+	.data_in(encoder_in),
 	.data_out(encoded_data),
 	.first(encoded_first),
 	.last(encoded_last),
@@ -106,7 +108,7 @@ bch_encode #(P, BITS) u_bch_encode(
 	.busy(encode_busy)
 );
 
-assign decoder_in = encoded_data ^ flip_buf[BITS-1:0];
+assign decoder_in = encoded_data ^ (encoded_first ? error : (flip_buf >> BITS));
 
 /* Process syndromes */
 bch_syndrome #(P, BITS) u_bch_syndrome(
