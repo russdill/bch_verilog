@@ -5,7 +5,8 @@
 module sim #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter OPTION = "SERIAL",
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1
 ) (
 	input clk,
 	input reset,
@@ -121,7 +122,7 @@ bch_encode #(P, BITS) u_bch_encode(
 assign decoder_in = encoded_data ^ (encoded_first ? error : (flip_buf >> BITS));
 
 /* Process syndromes */
-bch_syndrome #(P, BITS) u_bch_syndrome(
+bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
 	.clk(clk),
 
 	/* Don't assert start until we get the ready signal */
@@ -190,7 +191,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 	end
 
 	/* Locate errors */
-	bch_error_tmec #(P, BITS) u_error_tmec(
+	bch_error_tmec #(P, BITS, REG_RATIO) u_error_tmec(
 		.clk(clk),
 		.start(ch_start && ch_ready),
 		.ready(ch_ready),
@@ -204,7 +205,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 end else begin : DEC
 
 	/* Locate errors */
-	bch_error_dec #(P, BITS) u_error_dec(
+	bch_error_dec #(P, BITS, REG_RATIO) u_error_dec(
 		.clk(clk),
 		.start(syn_done && key_ready),
 		.ready(key_ready),

@@ -9,7 +9,8 @@
  */
 module bch_error_tmec #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
@@ -33,7 +34,7 @@ module bch_error_tmec #(
 	if (`BCH_T(P) == 1)
 		tmec_does_not_support_sec u_tdnss();
 
-	bch_chien #(P, BITS) u_chien(
+	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
 		.ready(ready),

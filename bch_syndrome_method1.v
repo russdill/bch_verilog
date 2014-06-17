@@ -16,7 +16,8 @@
 module dsynN_method1 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1
 ) (
 	input clk,
 	input start,			/* Accept first bit of syndrome */
@@ -34,28 +35,41 @@ module dsynN_method1 #(
 	localparam LPOW_S_BITS = lpow(SB, m2n(SB) - (SYN * BITS) % m2n(SB));
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 	localparam SB = SYNDROME_SIZE;
+	localparam REGS = (BITS + REG_RATIO - 1) / REG_RATIO;
 
 	/*
-	 * FIXME: Reduce pow reg size by only having a reg for every other,
+	 * Reduce pow reg size by only having a reg for every other,
 	 * or every 4th, etc register, filling in the others with async logic
 	 */
-	reg [BITS*SB-1:0] pow = 0;
-	wire [BITS*SB-1:0] pow_next;
-	wire [BITS*SB-1:0] pow_curr;
-	wire [BITS*SB-1:0] pow_initial;
+	reg [REGS*SB-1:0] pow = 0;
+	wire [REGS*SB-1:0] pow_next;
+	wire [REGS*SB-1:0] pow_initial;
+	wire [REGS*SB-1:0] pow_curr;
+	wire [BITS*SB-1:0] pow_all;
 	wire [BITS*SB-1:0] terms;
 	wire [SB-1:0] syn_next;
 	genvar i;
 
 	/* Probably needs a load cycle */
-	assign pow_curr = start ? pow_initial : pow;
-
 	for (i = 0; i < BITS; i = i + 1) begin : GEN_TERMS
-		assign pow_initial[i*SB+:SB] = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
-		assign terms[i*SB+:SB] = {SB{data_in[i]}} & pow_curr[i*SB+:SB];
+		if (!(i % REG_RATIO)) begin
+			localparam LPOW = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
+			assign pow_initial[(i/REG_RATIO)*SB+:SB] = LPOW;
+			assign pow_curr[(i/REG_RATIO)*SB+:SB] = start ?
+						pow_initial[(i/REG_RATIO)*SB+:SB] : pow[(i/REG_RATIO)*SB+:SB];
+			assign pow_all[i*SB+:SB] = pow_curr[(i/REG_RATIO)*SB+:SB];
+		end else begin
+			localparam [SB-1:0] LPOW = lpow(SB, m2n(SB) - (SYN * (i % REG_RATIO)) % m2n(SB));
+			parallel_standard_multiplier #(SB) u_mult(
+				.standard_in1(LPOW),
+				.standard_in2(pow_curr[(i/REG_RATIO)*SB+:SB]),
+				.standard_out(pow_all[i*SB+:SB])
+			);
+		end
+		assign terms[i*SB+:SB] = {SB{data_in[i]}} & pow_all[i*SB+:SB];
 	end
 
-	parallel_standard_multiplier #(SB, BITS) u_mult(
+	parallel_standard_multiplier #(SB, REGS) u_mult(
 		.standard_in1(LPOW_S_BITS[SB-1:0]),
 		.standard_in2(pow_curr),
 		.standard_out(pow_next)

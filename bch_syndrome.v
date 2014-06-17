@@ -5,7 +5,8 @@
 /* Calculate syndromes for S_j for 1 .. 2t-1 */
 module bch_syndrome #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
@@ -58,7 +59,7 @@ module bch_syndrome #(
 	generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : SYNDROMES
 		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin : METHOD1
-			dsynN_method1 #(P, idx, BITS) u_syn1a(
+			dsynN_method1 #(P, idx, BITS, REG_RATIO) u_syn1a(
 				.clk(clk),
 				.start(start),
 				.ce((busy || start) && ce),

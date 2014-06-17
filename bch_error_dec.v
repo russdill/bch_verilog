@@ -5,7 +5,8 @@
 /* Supports double and single bit errors */
 module bch_error_dec #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1
 ) (
 	input clk,
 	input start,					/* Latch inputs, start calculating */
@@ -39,7 +40,7 @@ module bch_error_dec #(
 
 	assign sigma = expanded;
 
-	bch_chien #(P, BITS) u_chien(
+	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
 		.ready(ready),

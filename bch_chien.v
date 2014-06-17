@@ -37,13 +37,39 @@ module bch_chien_reg #(
 		out <= #TCQ mul_out;
 endmodule
 
+module bch_chien_expand #(
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter REG = 1,
+	parameter SKIP = 1
+) (
+	input [M-1:0] in,
+	output [M-1:0] out
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+	localparam M = `BCH_M(P);
+	localparam [M-1:0] LPOW = lpow(M, REG * SKIP);
+
+	parallel_standard_multiplier #(M) u_mult(
+		.standard_in1(LPOW),
+		.standard_in2(in),
+		.standard_out(out)
+	);
+endmodule
+
 /*
  * Each register is loaded with the associated syndrome
  * and multiplied by alpha^i each cycle.
  */
 module bch_chien #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter REG_RATIO = 1	/*
+				 * For multi-bit output, Only implement every
+				 * Nth register. Use async logic to fill
+				 * in the remaining values.
+				 */
 ) (
 	input clk,
 	input start,
@@ -95,15 +121,21 @@ module bch_chien #(
 
 	genvar i, b;
 	generate
-	/* FIXME: Support async register expansion */
 	for (b = 0; b < BITS; b = b + 1) begin : BIT
 		for (i = 0; i <= T; i = i + 1) begin : REG
-			bch_chien_reg #(M, i + 1, SKIP + b - BITS + 1 + `BCH_N(P), BITS) u_chien_reg(
-				.clk(clk),
-				.start(start),
-				.in(sigma[i*M+:M]),
-				.out(chien[(b*(T+1)+i)*M+:M])
-			);
+			if (!(b % REG_RATIO)) begin : ORIG
+				bch_chien_reg #(M, i + 1, SKIP + b - BITS + 1 + `BCH_N(P), BITS) u_chien_reg(
+					.clk(clk),
+					.start(start),
+					.in(sigma[i*M+:M]),
+					.out(chien[(b*(T+1)+i)*M+:M])
+				);
+			end else begin : EXPAND
+				bch_chien_expand #(M, i + 1, b % REG_RATIO) u_chien_expand(
+					.in(chien[((b-(b%REG_RATIO))*(T+1)+i)*M+:M]),
+					.out(chien[(b*(T+1)+i)*M+:M])
+				);
+			end
 		end
 	end
 	endgenerate
