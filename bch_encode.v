@@ -2,23 +2,21 @@
 
 `include "bch_defs.vh"
 
-/* FIXME: accepted->ce */
 module bch_encode #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter BITS = 1
 ) (
 	input clk,
 	input start,				/* First cycle */
+	input ce,				/* Accept input word/cycle output word */
 	input [BITS-1:0] data_in,		/* Input data */
-	input accepted,				/* Output cycle accepted */
 	output [BITS-1:0] data_out,		/* Encoded output */
 	output first,				/* First output cycle */
 	output reg last = 0,			/* Last output cycle */
-	output data_bits,
-	output ecc_bits,
-	output busy
+	output data_bits,			/* Current cycle is data */
+	output ecc_bits,			/* Current cycle is ecc */
+	output ready				/* Can accept data */
 );
-
 	`include "bch.vh"
 	localparam M = `BCH_M(P);
 
@@ -68,6 +66,15 @@ module bch_encode #(
 	end
 	endfunction
 
+	function [BITS-1:0] reverse;
+		input [BITS-1:0] in;
+		integer i;
+	begin
+		for (i = 0; i < BITS; i = i + 1)
+			reverse[i] = in[BITS - i - 1];
+	end
+	endfunction
+
 	localparam TCQ = 1;
 	localparam ENC = encoder_poly(0);
 
@@ -95,25 +102,15 @@ module bch_encode #(
 	wire [BITS-1:0] shifted_in;
 	wire [M-1:0] count;
 	reg load_lfsr = 0;
-	reg busy_internal = 0;
-	reg waiting = 0;
-
-	function [BITS-1:0] reverse;
-		input [BITS-1:0] in;
-		integer i;
-	begin
-		for (i = 0; i < BITS; i = i + 1)
-			reverse[i] = in[BITS - i - 1];
-	end
-	endfunction
+	reg busy = 0;
 
 	if (CODE_CYCLES < 3)
 		assign count = 0;
 	else
 		lfsr_counter #(M) u_counter(
 			.clk(clk),
-			.reset(start && accepted),
-			.ce(accepted && busy_internal),
+			.reset(ce && start),
+			.ce(ce && busy),
 			.count(count)
 		);
 
@@ -149,29 +146,23 @@ module bch_encode #(
 		.out(lfsr_enc)
 	);
 
-	assign busy = busy_internal || (waiting && !accepted);
-	assign first = start && !busy_internal;
+	assign first = start && !busy;
 	assign data_bits = start || load_lfsr;
-	assign ecc_bits = busy_internal && !data_bits;
+	assign ecc_bits = busy && !data_bits;
 	assign output_mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
 	assign data_out = data_bits ? data_in : (reverse(lfsr_input) & output_mask);
 
 	always @(posedge clk) begin
-		if (accepted) begin
+		if (ce) begin
 			if (start) begin
 				last <= #TCQ CODE_CYCLES < 3; /* First cycle is last cycle */
-				busy_internal <= #TCQ 1;
+				busy <= #TCQ 1;
 			end else if (count == DONE) begin
-				last <= #TCQ busy_internal;
+				last <= #TCQ busy;
 			end else if (last) begin
-				busy_internal <= #TCQ 0;
+				busy <= #TCQ 0;
 				last <= #TCQ 0;
 			end
-
-			/*
-			 * Keep track of whether or not we are running so we don't send out
-			 * spurious last signals as the count wraps around.
-			 */
 
 			if (start)
 				load_lfsr <= #TCQ DATA_CYCLES > 1;
@@ -182,13 +173,19 @@ module bch_encode #(
 				lfsr <= #TCQ in_enc;
 			else if (load_lfsr)
 				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
-			else if (busy_internal)
+			else if (busy)
 				lfsr <= #TCQ lfsr << BITS;
 		end
 
-		if (last && !accepted)
+	end
+
+	reg waiting = 0;
+	assign ready = !busy && (!waiting || ce);
+	always @(posedge clk) begin
+		if (last && !ce)
 			waiting <= #TCQ 1;
-		else if (accepted)
+		else if (ce)
 			waiting <= #TCQ 0;
 	end
+
 endmodule
