@@ -10,7 +10,6 @@ module bch_chien_reg #(
 	parameter SKIP = 0
 ) (
 	input clk,
-	input ce,
 	input start,
 	input [M-1:0] in,
 	output reg [M-1:0] out = 0
@@ -34,8 +33,7 @@ module bch_chien_reg #(
 	);
 
 	always @(posedge clk)
-		if (ce)
-			out <= #TCQ mul_out;
+		out <= #TCQ mul_out;
 endmodule
 
 /*
@@ -88,7 +86,6 @@ module bch_chien #(
 		bch_chien_reg #(M, i + 1, `BCH_K(P) - `BCH_DATA_BITS(P)) u_ch(
 			.clk(clk),
 			.start(start),
-			.ce(valid || first_cycle || start),
 			.in(sigma[i*M+:M]),
 			.out(chien[i*M+:M])
 		);
