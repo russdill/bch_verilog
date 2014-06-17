@@ -53,17 +53,28 @@ with the following:
 			  modules
 `BCH_ERR_SZ(P)		- Bits required for number of errors
 
+Note that the number of errors correctable for a given polynomial is sparse.
+The search function will choose the next highest number of correctable
+errors rather than trying to move to the next polynomial. For instance, if
+DATA_BITS=64, T=8 is seleceted, (127, 71, 9) is chosen rather than
+(255, 191, 8).
+
 Modules:
 
-bch_encode - Performs encoding of input data via a large LFSR. It takes
-input for DATA_BITS cycles, and produces output for `BCH_CODE_BITS(P) cycles.
-The first DATA_BITS cycles of output are the input data repeated, the next
-`BCH_ECC_BITS(P) cycles are the additional ECC bits.
+bch_encode - Performs encoding of input data via a large LFSR. Takes a BITS
+wide input. For the first ceil(`BCH_DATA_BITS / BITS) cycles (including
+cycle 0) the output mirrors the input. Then, for ceil(`BCH_ECC_BITS / BITS)
+cycles the output contains the ECC bits. In the case that `BCH_DATA_BITS %
+BITS is non-zero, the high bits of the last data word will be ignored.
 
-bch_syndrome - Calculates the syndrome equations. Takes `BCH_CODE_BITS(P)
-cycles of input data and produces the equations on the next cycle.
-
-NB: about removing padding from input cycles
+bch_syndrome - Calculates the syndrome equations. Takes a BITS wide input.
+Operates for ceil(`BCH_CODE_BITS / BITS) cycles to produce the compact
+syndrome equations. Note that bch_syndrome expects the data and ecc input
+to be merged together without pad bits in the case of `BCH_DATA_BITS %
+BITS being non-zero, which is not what bch_encode produces. It is
+recommended to make BITS divisible by `BCH_DATA_BITS. In the event that
+`BCH_CODE_BITS % BITS is non-zero, the upper bits of the final word are
+ignored.
 
 bch_errors_present - Determines based on syndromes if any errors are present
 (Not required for decoding). Currently does not have a clock, but it may
@@ -88,8 +99,10 @@ inversion. This option supports pentanomials and trinomials in less cycles
 than the serial option, but requires more gates. This option takes
 `BCH_T(P) * 2 - 1 cycles to solve the key equation.
 
-bch_error_* - Error locator. After 2 cycles, it clocks out error bits for
-DATA_BITS cycles, each cycle representing an error location.
+bch_error_* - Error locator. After 2 cycles, it clocks out a BITS wide error
+bits word ceil(`BCH_DATA_BITS / BITS) cycles, each cycle representing a set
+of error locations. If `BCH_DATA_BITS % BITS is non-zero, the high bits
+of the last word in the output are masked.
 
 bch_error_dec - Error location function for T < 3. Takes syndromes directly
 as input rather than a solved key equation. Same output as bch_error_*
@@ -107,6 +120,8 @@ OPTION - The type of key equation solver:
 OPTION == NONE - For T < 3, skip the key solving process
 OPTION == PARALLEL - For T > 1, use bch_sigma_bma_parallel
 OPTION == SERIAL - For T > 1, use bch_sigma_bma_serial
+
+BITS - The word width for bch_encode, bch_syndrome, and bch_error_*.
 
 The code currently compiles under Icarus Verilog and Xilinx Isim. Because
 the way the parameterization is handled, simulation is slow, especially
