@@ -45,12 +45,12 @@ wire syn_done;
 wire err_first;
 wire err_last;
 wire err_valid;
-wire err;
+wire [BITS-1:0] err;
 wire key_ready;
 wire errors_present;
 wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
-assign busy = !encode_ready;
+assign busy = !encode_ready && (!syn_done || key_ready);
 
 localparam STACK_SZ = 16;//6;
 
@@ -82,7 +82,7 @@ endfunction
 
 always @(posedge clk) begin
 	if (encode_start && encode_ready && (!syn_done || key_ready)) begin
-		err_stack[`BCH_DATA_BITS(P)*wr_pos+:`BCH_DATA_BITS(P)] <= #TCQ error;
+		err_stack[B*wr_pos+:B] <= #TCQ error;
 		err_count_stack[`BCH_ERR_SZ(P)*wr_pos+:`BCH_ERR_SZ(P)] <= #TCQ bit_count(error);
 		err_present_stack[wr_pos] <= #TCQ |error;
 		wr_pos <= #TCQ (wr_pos + 1) % STACK_SZ;
@@ -202,7 +202,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 end else begin : DEC
 
 	/* Locate errors */
-	bch_error_dec #(P) u_error_dec(
+	bch_error_dec #(P, BITS) u_error_dec(
 		.clk(clk),
 		.start(syn_done && key_ready),
 		.ready(key_ready),
@@ -229,9 +229,9 @@ wire new_wrong = err_count_overflow || err_overflow || err_present_wrong || err_
 
 always @(posedge clk) begin
 	if (err_first)
-		err_buf <= #TCQ {err, {`BCH_DATA_BITS(P)-1{1'b0}}};
+		err_buf <= #TCQ err << (`BCH_DATA_BITS(P) - BITS);
 	else if (err_valid)
-		err_buf <= #TCQ {err, err_buf[`BCH_DATA_BITS(P)-1:1]};
+		err_buf <= #TCQ (err << (`BCH_DATA_BITS(P) - BITS)) | (err_buf >> BITS);
 
 	err_done <= #TCQ err_last;
 	if (err_done)

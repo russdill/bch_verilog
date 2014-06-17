@@ -7,7 +7,8 @@
 module bch_chien_reg #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter REG = 1,
-	parameter SKIP = 0
+	parameter SKIP = 0,
+	parameter STRIDE = 1
 ) (
 	input clk,
 	input start,
@@ -18,7 +19,7 @@ module bch_chien_reg #(
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
-	localparam LPOW_REG = lpow(M, REG);
+	localparam LPOW_REG = lpow(M, REG * STRIDE);
 	/* preperform the proper number of multiplications */
 	localparam LPOW_SKIP = lpow(M, REG * SKIP);
 
@@ -41,7 +42,8 @@ endmodule
  * and multiplied by alpha^i each cycle.
  */
 module bch_chien #(
-	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter BITS = 1
 ) (
 	input clk,
 	input start,
@@ -50,45 +52,59 @@ module bch_chien #(
 	output reg first = 0,		/* First valid output data */
 	output reg last = 0,		/* Last valid output cycle */
 	output reg valid = 0,		/* Outputting data */
-	output [`BCH_SIGMA_SZ(P)-1:0] chien
+	output [`BCH_SIGMA_SZ(P)*BITS-1:0] chien
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
-	localparam DONE = lfsr_count(M, `BCH_DATA_BITS(P) - 2);
+	localparam CYCLES = (`BCH_DATA_BITS(P) + BITS - 1) / BITS;
+	localparam DONE = lfsr_count(M, CYCLES - 2);
+	localparam SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
 
-	wire [M-1:0] count;
 	reg first_cycle = 0;
-	
-	lfsr_counter #(M) u_counter(
-		.clk(clk),
-		.reset(first_cycle),
-		.ce(valid),
-		.count(count)
-	);
+	wire penult;
+
+	if (CYCLES == 1)
+		assign penult = first_cycle;
+	else if (CYCLES == 2)
+		assign penult = first;
+	else begin
+		wire [M-1:0] count;
+		lfsr_counter #(M) u_counter(
+			.clk(clk),
+			.reset(first_cycle),
+			.ce(valid),
+			.count(count)
+		);
+		assign penult = count == DONE;
+	end
 
 	always @(posedge clk) begin
 		first_cycle <= #TCQ start;
 		first <= #TCQ first_cycle;
 		valid <= #TCQ !ready;
-		last <= #TCQ count == DONE;
+		last <= #TCQ penult;
+
 		if (start)
 			ready <= #TCQ 0;
-		else if (count == DONE)
+		else if (penult)
 			ready <= #TCQ 1;
 	end
 
-	genvar i;
+	genvar i, b;
 	generate
-	for (i = 0; i <= T; i = i + 1) begin : DCH
-		bch_chien_reg #(M, i + 1, `BCH_K(P) - `BCH_DATA_BITS(P)) u_ch(
-			.clk(clk),
-			.start(start),
-			.in(sigma[i*M+:M]),
-			.out(chien[i*M+:M])
-		);
+	/* FIXME: Support async register expansion */
+	for (i = 0; i <= T; i = i + 1) begin : REG
+		for (b = 0; b < BITS; b = b + 1) begin : BITS
+			bch_chien_reg #(M, i + 1, SKIP + b - BITS + 1 + `BCH_N(P), BITS) u_chien_reg(
+				.clk(clk),
+				.start(start),
+				.in(sigma[i*M+:M]),
+				.out(chien[(i*BITS+b)*M+:M])
+			);
+		end
 	end
 	endgenerate
 endmodule

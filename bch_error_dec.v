@@ -4,7 +4,8 @@
 
 /* Supports double and single bit errors */
 module bch_error_dec #(
-	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter BITS = 1
 ) (
 	input clk,
 	input start,					/* Latch inputs, start calculating */
@@ -14,7 +15,7 @@ module bch_error_dec #(
 	output first,					/* First valid output data */
 	output last,					/* Last valid output cycle */
 	output valid,					/* Outputting data */
-	output err
+	output [BITS-1:0] err
 );
 	`include "bch.vh"
 
@@ -24,7 +25,7 @@ module bch_error_dec #(
 
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
-	wire [`BCH_SIGMA_SZ(P)-1:0] chien;
+	wire [`BCH_SIGMA_SZ(P)*BITS-1:0] chien;
 
 	bch_syndrome_expand #(P) u_expand(
 		.syndromes(syndromes),
@@ -33,7 +34,7 @@ module bch_error_dec #(
 
 	assign sigma = expanded;
 
-	bch_chien #(P) u_chien(
+	bch_chien #(P, BITS) u_chien(
 		.clk(clk),
 		.start(start),
 		.ready(ready),
@@ -49,7 +50,10 @@ module bch_error_dec #(
 		 * SEC sigma(x) = 1 + S_1 * x
 		 * No error if S_1 = 0
 		 */
-		assign err = chien[0+:`BCH_M(P)] == 1;
+		genvar i;
+		for (i = 0; i < BITS; i = i + 1)
+			assign err[i] = chien[i*M+:M] == 1;
+
 		always @(posedge clk)
 			if (start)
 				err_count <= #TCQ |syndromes[0+:M];
