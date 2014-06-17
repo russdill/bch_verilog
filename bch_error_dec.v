@@ -45,12 +45,12 @@ module bch_error_dec #(
 		.valid(valid)
 	);
 
+	genvar i;
 	if (T == 1) begin : SEC
 		/*
 		 * SEC sigma(x) = 1 + S_1 * x
 		 * No error if S_1 = 0
 		 */
-		genvar i;
 		for (i = 0; i < BITS; i = i + 1)
 			assign err[i] = chien[i*M+:M] == 1;
 
@@ -69,37 +69,39 @@ module bch_error_dec #(
 		 * The below may be a better choice for large circuits (cycles tradeoff)
 		 * sigma_1(x) = S_1 + S_1^2 * x + (S_1^3 + S_3) * x^2
 		 */
-		wire [M-1:0] ch1_flipped;
-		wire [M-1:0] ch3_flipped;
-
-		wire [M-1:0] power;
-		reg [1:0] errors_last = 0;
-		wire [1:0] errors;
 		reg first_cycle = 0;
 
-		/* For each cycle, try flipping the bit */
-		assign ch1_flipped = chien[M*0+:M] ^ !first_cycle;
-		assign ch3_flipped = chien[M*2+:M] ^ !first_cycle;
+		for (i = 0; i < BITS; i = i + 1) begin : BIT
+			wire [M-1:0] ch1_flipped;
+			wire [M-1:0] ch3_flipped;
 
-		pow3 #(M) u_pow3(
-			.in(ch1_flipped),
-			.out(power)
-		);
+			wire [M-1:0] power;
+			wire [1:0] errors;
 
-		/* Calculate the number of erros */
-		assign errors = |ch1_flipped ?
-			(power == ch3_flipped ? 1 : 2) :
-			(|ch3_flipped ? 3 : 0);
-		/*
-		 * If flipping reduced the number of errors,
-		 * then we found an error
-		 */
-		assign err = err_count > errors;
+			/* For each cycle, try flipping the bit */
+			assign ch1_flipped = chien[(0*BITS+i)*M+:M] ^ !(first_cycle && !i);
+			assign ch3_flipped = chien[(2*BITS+i)*M+:M] ^ !(first_cycle && !i);
+
+			pow3 #(M) u_pow3(
+				.in(ch1_flipped),
+				.out(power)
+			);
+
+			/* Calculate the number of erros */
+			assign errors = |ch1_flipped ?
+				(power == ch3_flipped ? 1 : 2) :
+				(|ch3_flipped ? 3 : 0);
+			/*
+			 * If flipping reduced the number of errors,
+			 * then we found an error
+			 */
+			assign err[i] = err_count > errors;
+		end
 
 		always @(posedge clk) begin
 			first_cycle <= #TCQ start;
 			if (first_cycle)
-				err_count <= #TCQ errors;
+				err_count <= #TCQ BIT[0].errors;
 		end
 
 	end else
