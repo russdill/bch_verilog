@@ -70,11 +70,11 @@ wire err_overflow = ((wr_pos + 1) % STACK_SZ) === err_rd_pos;
 function integer bit_count;
 	input [N-1:0] bits;
 	integer count;
+	integer i;
 begin
 	count = 0;
-	while (bits) begin
-		count = count + (bits[0] ? 1'b1 : 1'b0);
-		bits = bits >> 1;
+	for (i = 0; i < N; i = i + 1) begin
+		count = count + bits[i];
 	end
 	bit_count = count;
 end
@@ -112,6 +112,8 @@ bch_encode #(P, BITS) u_bch_encode(
 
 	.data_in(encoder_in),
 	.data_out(encoded_data),
+	.data_bits(),
+	.ecc_bits(),
 	.first(encoded_first),
 	.last(encoded_last)
 );

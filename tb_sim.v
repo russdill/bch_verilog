@@ -34,7 +34,8 @@ begin
 	for (i = 0; i < (31 + DATA_BITS) / 32; i = i + 1)
 		if (i * 32 > DATA_BITS) begin
 			if (DATA_BITS % 32)
-				randk[i*32+:DATA_BITS%32] = $random(seed);
+				/* Placate isim */
+				randk[i*32+:(DATA_BITS%32) ? (DATA_BITS%32) : 1] = $random(seed);
 		end else
 			randk[i*32+:32] = $random(seed);
 end

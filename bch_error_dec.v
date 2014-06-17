@@ -56,8 +56,9 @@ module bch_error_dec #(
 		 * SEC sigma(x) = 1 + S_1 * x
 		 * No error if S_1 = 0
 		 */
-		for (i = 0; i < BITS; i = i + 1)
+		for (i = 0; i < BITS; i = i + 1) begin : BIT
 			assign _err[i] = chien[i*(T+1)*M+:M] == 1;
+		end
 
 		always @(posedge clk)
 			if (start)

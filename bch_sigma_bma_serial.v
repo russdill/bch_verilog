@@ -147,6 +147,7 @@ module bch_sigma_bma_serial #(
 	finite_divider #(M) u_dinv(
 		.clk(clk),
 		.start(start || (first_cycle && bsel && !final_calc)),
+		.busy(),
 		.standard_numer(d_r),
 		/* d_p = S_1 ? S_1 : 1 */
 		.standard_denom(start ? d_p0 : d_r),	/* syn1 is d_p initial value */
@@ -164,12 +165,13 @@ module bch_sigma_bma_serial #(
 
 	/* Add Beta * drp to sigma (Summation) */
 	/* simga_i^(r-1) + d_rp * beta_i^(r) */
+	wire [T:0] _cin = first_calc ? {T+1{1'b0}} : cin;
 	finite_serial_adder #(M) u_cN [T:0] (
 		.clk(clk),
 		.start(start),
 		.ce(!last_cycle && !penult1_cycle),
 		.parallel_in(d_r0),
-		.serial_in({(T+1){!first_calc}} & cin),	/* First time through, we just shift out d_r0 */
+		.serial_in(_cin),	/* First time through, we just shift out d_r0 */
 		.parallel_out(sigma),
 		.serial_out(sigma_serial)
 	);

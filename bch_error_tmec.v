@@ -46,6 +46,7 @@ module bch_error_tmec #(
 
 	/* Candidate for pipelining */
 	finite_parallel_adder #(M, `BCH_T(P)+1) u_adder [BITS-1:0] (chien, eq);
-	for (i = 0; i < BITS; i = i + 1)
+	for (i = 0; i < BITS; i = i + 1) begin : BIT
 		assign err[i] = !eq[i*M+:M] && (!RUNT || i < RUNT || !last);
+	end
 endmodule

@@ -408,7 +408,7 @@ module lfsr_term #(
 	genvar j;
 	for (j = 0; j < BITS; j = j + 1) begin : lfsr_build
 		wire [M-1:0] poly;
-		assign poly = j ? lfsr(lfsr_build[j-1].poly) : POLY;
+		assign poly = j ? lfsr(lfsr_build[j > 0 ? j-1 : 0].poly) : POLY;
 		assign in_terms[j*M+:M] = poly & {M{in[j]}};
 	end
 
