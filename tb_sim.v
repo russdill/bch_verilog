@@ -7,6 +7,7 @@ module tb_sim();
 parameter T = 3;
 parameter OPTION = "SERIAL";
 parameter DATA_BITS = 5;
+parameter BITS = 1;
 parameter SEED = 0;
 
 localparam BCH_PARAMS = bch_params(DATA_BITS, T);
@@ -67,7 +68,7 @@ wire wrong;
 wire busy;
 reg active = 0;
 
-sim #(BCH_PARAMS, OPTION) u_sim(
+sim #(BCH_PARAMS, OPTION, BITS) u_sim(
 	.clk(clk),
 	.reset(1'b0),
 	.data_in(din),

@@ -19,7 +19,7 @@ module dsynN_method2 #(
 	input ce,			/* Accept additional bit */
 	input start,			/* Accept first bit of syndrome */
 	input [BITS-1:0] data_in,
-	output reg [M-1:0] synN = 0
+	output [M-1:0] synN
 );
 	`include "bch_syndrome.vh"
 
@@ -66,14 +66,13 @@ module dsynN_method2 #(
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 	localparam REM = `BCH_CODE_BITS(P) % BITS;
 	localparam RUNT = BITS - REM;
+	localparam signed EARLY = BITS - SYNDROME_SIZE;
 
+	reg [M-1:0] lfsr = 0;
 	wire [BITS-1:0] shifted_in;
-
-	wire [SYNDROME_SIZE-1:0] synN_enc;
-	lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, BITS) u_lfsr_term (
-		.in(synN[SYNDROME_SIZE-1:SYNDROME_SIZE-BITS]),
-		.out(synN_enc)
-	);
+	wire [SYNDROME_SIZE-1:0] in_enc_early;
+	wire [SYNDROME_SIZE-1:0] in_enc;
+	wire [SYNDROME_SIZE-1:0] lfsr_enc;
 
 	function [BITS-1:0] reverse;
 		input [BITS-1:0] in;
@@ -84,23 +83,51 @@ module dsynN_method2 #(
 	end
 	endfunction
 
+	/*
+	 * Shift input so that pad the start with 0's, and finish on the final
+	 * bit.
+	 */
 	generate
 		if (REM) begin
 			reg [RUNT-1:0] runt = 0;
-			assign shifted_in = {data_in[REM-1:0], (start ? {RUNT{1'b0}} : runt)};
+			assign shifted_in = reverse((data_in << RUNT) | (start ? 0 : runt));
 			always @(posedge clk)
-				runt <= #TCQ data_in[BITS-1:REM];
+				runt <= #TCQ data_in >> REM;
 		end else
-			assign shifted_in = data_in;
+			assign shifted_in = reverse(data_in);
 	endgenerate
 
+	/*
+	 * If the input size fills the LFSR reg, we need to calculate those
+	 * additional lfsr terms.
+	 */
+	if (EARLY > 0) begin : INPUT_LFSR
+		lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, EARLY) u_in_terms(
+			.in(shifted_in[BITS-1:SYNDROME_SIZE]),
+			.out(in_enc_early)
+		);
+	end else
+		assign in_enc_early = 0;
+
+	/* This can be pipelined */
+	assign in_enc = in_enc_early ^ shifted_in;
+
+	/* Calculate the next lfsr state (without input) */
+	wire [BITS-1:0] lfsr_input;
+	assign lfsr_input = EARLY > 0 ? (lfsr << EARLY) : (lfsr >> -EARLY);
+	lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, BITS) u_lfsr_term (
+		.in(lfsr_input),
+		.out(lfsr_enc)
+	);
+
 	/* Calculate remainder */
-	always @(posedge clk) begin
+	always @(posedge clk)
 		if (start)
-			synN <= #TCQ {reverse(shifted_in)};
+			lfsr <= #TCQ in_enc;
 		else if (ce)
-			synN <= #TCQ {synN[SYNDROME_SIZE-BITS-1:0], {BITS{1'b0}}} ^ synN_enc ^ reverse(shifted_in);
-	end
+			lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
+
+	assign synN = lfsr;
 endmodule
 
 module syndrome_expand_method2 #(

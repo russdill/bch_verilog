@@ -63,6 +63,8 @@ The first DATA_BITS cycles of output are the input data repeated, the next
 bch_syndrome - Calculates the syndrome equations. Takes `BCH_CODE_BITS(P)
 cycles of input data and produces the equations on the next cycle.
 
+NB: about removing padding from input cycles
+
 bch_errors_present - Determines based on syndromes if any errors are present
 (Not required for decoding). Currently does not have a clock, but it may
 required for large `BCH_M(P) values as it needs to or together

@@ -26,6 +26,9 @@ localparam T = `BCH_T(P);
 localparam K = `BCH_K(P);
 localparam B = `BCH_DATA_BITS(P);
 
+if (`BCH_DATA_BITS(P) % BITS)
+	sim_only_supports_factors_of_BCH_DATA_BITS_for_BITS u_sosfobdbfb();
+
 reg [B-1:0] encode_buf = 0;
 reg [E+B-1:0] flip_buf = 0;
 reg [B-1:0] err_buf = 0;
@@ -86,8 +89,8 @@ always @(posedge clk) begin
 	end
 
 	if (!decode_busy) begin
-		encode_buf <= #TCQ encode_start ? data_in : {{BITS{1'b0}}, encode_buf[`BCH_DATA_BITS(P)-1:BITS]};
-		flip_buf   <= #TCQ encode_start ? error   : {{BITS{1'b0}}, flip_buf[`BCH_CODE_BITS(P)-1:BITS]};
+		encode_buf <= #TCQ encode_start ? data_in : (encode_buf >> BITS);
+		flip_buf   <= #TCQ encode_start ? error   : (flip_buf >> BITS);
 	end
 end
 
@@ -95,7 +98,7 @@ end
 bch_encode #(P, BITS) u_bch_encode(
 	.clk(clk),
 	.start(encode_start),
-	.data_in(encode_start ? data_in[BITS-1:0] : encode_buf[BITS*2-1:BITS]),
+	.data_in(encode_start ? data_in : (encode_buf >> BITS)),
 	.data_out(encoded_data),
 	.first(encoded_first),
 	.last(encoded_last),

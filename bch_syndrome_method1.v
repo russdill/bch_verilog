@@ -28,13 +28,17 @@ module dsynN_method1 #(
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
-	localparam SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
+	localparam signed SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
 	localparam SYN = idx2syn(M, IDX);
 	/* Our current syndrome processing is reversed */
 	localparam LPOW_S_BITS = lpow(SB, m2n(SB) - (SYN * BITS) % m2n(SB));
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 	localparam SB = SYNDROME_SIZE;
 
+	/*
+	 * FIXME: Reduce pow reg size by only having a reg for every other,
+	 * or every 4th, etc register, filling in the others with async logic
+	 */
 	reg [BITS*SB-1:0] pow = 0;
 	wire [BITS*SB-1:0] pow_next;
 	wire [BITS*SB-1:0] pow_curr;
@@ -46,7 +50,7 @@ module dsynN_method1 #(
 	/* Probably needs a load cycle */
 	assign pow_curr = start ? pow_initial : pow;
 
-	for (i = 0; i < BITS; i = i + 1) begin
+	for (i = 0; i < BITS; i = i + 1) begin : GEN_TERMS
 		assign pow_initial[i*SB+:SB] = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
 		assign terms[i*SB+:SB] = {SB{data_in[i]}} & pow_curr[i*SB+:SB];
 	end

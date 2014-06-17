@@ -7,6 +7,10 @@ ifdef DATA_BITS
 ODATA_BITS = -Ptb_sim.DATA_BITS=$(DATA_BITS)
 endif
 
+ifdef BITS
+OBITS = -Ptb_sim.BITS=$(BITS)
+endif
+
 ifdef T
 OT = -Ptb_sim.T=$(T)
 endif
@@ -35,7 +39,7 @@ sim.v \
 tb_sim.v
 
 tb_sim: $(V)
-	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ODATA_BITS) $(OT) $(OSEED) $(OOPTION)
+	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ODATA_BITS) $(OBITS) $(OT) $(OSEED) $(OOPTION)
 
 clean:
 	-rm -f $(BINS)

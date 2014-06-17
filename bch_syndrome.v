@@ -23,38 +23,38 @@ module bch_syndrome #(
 	genvar idx;
 
 	localparam SYN_COUNT = syndrome_count(M, `BCH_T(P));
-	localparam DONE = lfsr_count(M, (`BCH_CODE_BITS(P)+BITS-1) / BITS - 2);
-
-	/* FIXME */
-	if (BITS > `BCH_ECC_BITS(P))
-		unhandled_situation u_us();
+	localparam CYCLES = (`BCH_CODE_BITS(P)+BITS-1) / BITS;
+	localparam DONE = lfsr_count(M, CYCLES - 2);
 
 	wire [M-1:0] count;
 	reg busy_internal = 0;
 	reg done_internal = 0;
 	reg waiting = 0;
 
-	lfsr_counter #(M) u_counter(
-		.clk(clk),
-		.reset(start),
-		.ce(count != DONE),
-		.count(count)
-	);
+	if (CYCLES > 2)	begin : COUNTER
+		lfsr_counter #(M) u_counter(
+			.clk(clk),
+			.reset(start),
+			.ce(count != DONE),
+			.count(count)
+		);
+	end else
+		assign count = DONE;
 
 	assign busy = waiting && !accepted;
 	assign done = done_internal || waiting;
 
 	always @(posedge clk) begin
 		if (start) begin
-			done_internal <= #TCQ 0;
-			busy_internal <= #TCQ 1;
+			done_internal <= #TCQ CYCLES == 1;
+			busy_internal <= #TCQ CYCLES > 1;
 		end else if (busy_internal && count == DONE) begin
 			done_internal <= #TCQ 1;
 			busy_internal <= #TCQ 0;
 		end else
 			done_internal <= #TCQ 0;
 
-		if (busy_internal && count == DONE)
+		if ((busy_internal && count == DONE) || (start && CYCLES == 1))
 			waiting <= #TCQ 1;
 		else if (accepted)
 			waiting <= #TCQ 0;
@@ -62,8 +62,8 @@ module bch_syndrome #(
 
 	/* LFSR registers */
 	generate
-	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : syndrome_gen
-		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin
+	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : SYNDROMES
+		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin : METHOD1
 			dsynN_method1 #(P, idx, BITS) u_syn1a(
 				.clk(clk),
 				.ce(busy_internal),
@@ -71,7 +71,7 @@ module bch_syndrome #(
 				.data_in(data_in),
 				.synN(syndromes[idx*M+:M])
 			);
-		end else begin
+		end else begin : METHOD2
 			dsynN_method2 #(P, idx, BITS) u_syn2a(
 				.clk(clk),
 				.ce(busy_internal),
@@ -99,17 +99,18 @@ module bch_syndrome_expand #(
 	genvar dat;
 
 	generate
-	for (dat = 1; dat < 2 * T; dat = dat + 1) begin : assign_dat
-		if (syndrome_method(M, T, dat2syn(M, dat)) == 0)
+	for (dat = 1; dat < 2 * T; dat = dat + 1) begin : ASSIGN
+		if (syndrome_method(M, T, dat2syn(M, dat)) == 0) begin : METHOD1
 			syndrome_expand_method1 #(P) u_expand(
 				.in(syndromes[dat2idx(M, dat)*M+:M]),
 				.out(expanded[(dat-1)*M+:M])
 			);
-		else
+		end else begin : METHOD2
 			syndrome_expand_method2 #(P, dat) u_expand(
 				.in(syndromes[dat2idx(M, dat)*M+:M]),
 				.out(expanded[(dat-1)*M+:M])
 			);
+		end
 	end
 	endgenerate
 endmodule
