@@ -38,7 +38,7 @@ module bch_error_dec #(
 		.clk(clk),
 		.sigma(sigma),
 		.err_feedback(err),
-		.start(start),
+		.start(start && !busy),
 		.chien(chien),
 		.accepted(accepted),
 		.busy(busy),
@@ -55,7 +55,7 @@ module bch_error_dec #(
 		assign err = chien[0+:`BCH_M(P)] == 1;
 		always @(posedge clk)
 			if (start && !busy)
-				err_count <= #TCQ |syndromes;
+				err_count <= #TCQ |syndromes[0+:M];
 
 	end else if (T == 2) begin : POW3
 		/*
