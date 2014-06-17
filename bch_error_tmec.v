@@ -13,8 +13,7 @@ module bch_error_tmec #(
 	input clk,
 	input start,			/* Latch inputs, start calculating */
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
-	input accepted,
-	output busy,
+	output ready,
 	output first,			/* First valid output data */
 	output last,
 	output valid,			/* Outputting data */
@@ -33,12 +32,11 @@ module bch_error_tmec #(
 
 	bch_chien #(P) u_chien(
 		.clk(clk),
+		.start(start),
+		.ready(ready),
 		.sigma(sigma),
 		.err_feedback(1'b0),
-		.start(start),
 		.chien(chien),
-		.accepted(accepted),
-		.busy(busy),
 		.first(first),
 		.last(last),
 		.valid(valid)

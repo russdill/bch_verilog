@@ -9,10 +9,10 @@ module bch_sigma_bma_parallel #(
 	input clk,
 	input start,
 	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
-	input accepted,
+	input ack_done,
 
 	output reg done = 0,
-	output busy,
+	output ready,
 	output reg [`BCH_SIGMA_SZ(P)-1:0] sigma = 0,
 	output reg [`BCH_ERR_SZ(P)-1:0] err_count = 0
 );
@@ -32,8 +32,7 @@ module bch_sigma_bma_parallel #(
 	wire [`BCH_SIGMA_SZ(P)-1:0] product;
 	reg [`BCH_SIGMA_SZ(P)-1:0] in2;
 	reg syn_shuffle = 0;
-	reg busy_internal = 0;
-	wire start_internal;
+	reg busy = 0;
 	wire bsel;
 	reg [`BCH_ERR_SZ(P)-1:0] l = 0;
 	assign bsel = |d_r && bch_n >= err_count;
@@ -49,7 +48,7 @@ module bch_sigma_bma_parallel #(
 	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
 	counter #(T+1) u_bch_n_counter(
 		.clk(clk),
-		.reset(start_internal),
+		.reset(start),
 		.ce(!syn_shuffle),
 		.count(bch_n)
 	);
@@ -57,44 +56,43 @@ module bch_sigma_bma_parallel #(
 	wire [(2*T-1)*M-1:0] syn_shuffled;
 	bch_syndrome_shuffle #(P) u_bch_syndrome_shuffle(
 		.clk(clk),
-		.start(start_internal),
+		.start(start),
 		.ce(syn_shuffle),
 		.syndromes(syndromes),
 		.syn_shuffled(syn_shuffled)
 	);
 
-	assign busy = busy_internal || (done && !accepted);
-	assign start_internal = start && !busy;
+	assign ready = !busy && (!done || ack_done);
 
 	always @(posedge clk) begin
 
-		if (start_internal) begin
-			busy_internal <= #TCQ 1;
+		if (start) begin
+			busy <= #TCQ 1;
 			syn_shuffle <= #TCQ 0;
-		end else if (busy_internal && !done)
+		end else if (busy && !done)
 			syn_shuffle <= #TCQ ~syn_shuffle;
 		else begin
-			busy_internal <= #TCQ 0;
+			busy <= #TCQ 0;
 			syn_shuffle <= #TCQ 0;
 		end
 
-		if (busy_internal && syn_shuffle && bch_n == T-1)
+		if (busy && syn_shuffle && bch_n == T-1)
 			done <= #TCQ 1;
-		else if (accepted)
+		else if (ack_done)
 			done <= #TCQ 0;
 			
-		if (start_internal) begin
+		if (start) begin
 			d_r <= #TCQ syn1 ? syn1 : 1;
 			d_p <= #TCQ syn1 ? syn1 : 1;
 			in2 <= #TCQ sigma0;
 			sigma <= #TCQ sigma0;
 			beta <= #TCQ beta0;
 			err_count <= #TCQ {{`BCH_ERR_SZ(P)-1{1'b0}}, |syn1};
-		end else if (busy_internal && !syn_shuffle) begin
+		end else if (busy && !syn_shuffle) begin
 			d_r <= #TCQ d_r_next;
 			d_r_beta <= #TCQ product;
 			in2 <= #TCQ beta;
-		end else if (busy_internal) begin
+		end else if (busy) begin
 			/* d_p = bsel ? d_r : d_p */
 			if (bsel) begin
 				d_p <= #TCQ d_r;

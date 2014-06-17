@@ -48,10 +48,9 @@ module bch_chien #(
 ) (
 	input clk,
 	input start,
-	input accepted,
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
 	input err_feedback,
-	output reg busy = 0,
+	output reg ready = 1,
 	output reg first = 0,		/* First valid output data */
 	output reg last = 0,		/* Last valid output cycle */
 	output reg valid = 0,		/* Outputting data */
@@ -70,19 +69,19 @@ module bch_chien #(
 	lfsr_counter #(M) u_counter(
 		.clk(clk),
 		.reset(first_cycle),
-		.ce(valid && accepted),
+		.ce(valid),
 		.count(count)
 	);
 
 	always @(posedge clk) begin
-		first_cycle <= #TCQ start && !busy;
+		first_cycle <= #TCQ start;
 		first <= #TCQ first_cycle;
-		valid <= #TCQ busy;
+		valid <= #TCQ !ready;
 		last <= #TCQ count == DONE;
-		if (start && !busy)
-			busy <= #TCQ 1;
+		if (start)
+			ready <= #TCQ 0;
 		else if (count == DONE)
-			busy <= #TCQ 0;
+			ready <= #TCQ 1;
 	end
 
 	genvar i;

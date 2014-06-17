@@ -9,9 +9,8 @@ module bch_error_dec #(
 	input clk,
 	input start,					/* Latch inputs, start calculating */
 	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
-	input accepted,
 	output reg [`BCH_ERR_SZ(P)-1:0] err_count = 0,	/* Valid during valid cycles */
-	output busy,
+	output ready,
 	output first,					/* First valid output data */
 	output last,					/* Last valid output cycle */
 	output valid,					/* Outputting data */
@@ -36,12 +35,11 @@ module bch_error_dec #(
 
 	bch_chien #(P) u_chien(
 		.clk(clk),
+		.start(start),
+		.ready(ready),
 		.sigma(sigma),
 		.err_feedback(err),
-		.start(start && !busy),
 		.chien(chien),
-		.accepted(accepted),
-		.busy(busy),
 		.first(first),
 		.last(last),
 		.valid(valid)
@@ -54,7 +52,7 @@ module bch_error_dec #(
 		 */
 		assign err = chien[0+:`BCH_M(P)] == 1;
 		always @(posedge clk)
-			if (start && !busy)
+			if (start)
 				err_count <= #TCQ |syndromes[0+:M];
 
 	end else if (T == 2) begin : POW3
@@ -95,18 +93,16 @@ module bch_error_dec #(
 		assign err = errors_last > errors;
 
 		always @(posedge clk) begin
-
 			/*
 			 * Load the new error count on cycle zero or when
 			 * we find an error
 			 */
-			if (start && !busy)
+			if (start)
 				errors_last <= #TCQ 0;
 			else if (first_cycle || err)
 				errors_last <= #TCQ errors;
 
-			if (accepted)
-				first_cycle <= #TCQ start;
+			first_cycle <= #TCQ start;
 			if (first_cycle)
 				err_count <= #TCQ errors;
 		end
