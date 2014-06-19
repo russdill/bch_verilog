@@ -147,12 +147,16 @@ function integer finite_mult;
 	input [`MAX_M:0] b;
 	integer i;
 	integer p;
+	reg [`MAX_M-1:0] poly;
+	reg [`MAX_M-1:0] mask;
 begin
 	p = 0;
+	poly = bch_polynomial(m);
+	mask = m2n(m);
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
 			p = p ^ (a & {`MAX_M{b[i]}});
-			a = mul1(m, a);
+			a = mask & ((a << 1) ^ (poly & {`MAX_M{a[m-1]}}));	/* mul1(m, a) */
 		end
 	end
 	finite_mult = p;
