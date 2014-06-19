@@ -35,7 +35,7 @@ module serial_mixed_multiplier #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY_I = polyi(M);
+	localparam POLY_I = `BCH_POLYI(M);
 	localparam LPOW_P = lpow(M, POLY_I);
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
 	localparam END = lfsr_count(log2(M), M - 1);
@@ -238,7 +238,7 @@ module finite_divider #(
 	assign dual_out = dual_d;
 
 	/* Since standard_to_dual doesn't support pentanomials */
-	if (bch_is_pentanomial(M))
+	if (`BCH_IS_PENTANOMIAL(M))
 		inverter_cannot_handle_pentanomials_yet u_ichp();
 
 	/* Square the input each cycle */

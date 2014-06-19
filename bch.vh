@@ -9,33 +9,6 @@
 `include "log2.vh"
 `include "bch_defs.vh"
 
-/*
- * Non-zero if irreducible polynomial is of the form x^m + x^P1 + x^P2 + x^P3 + 1
- * zero for x^m + x^P + 1
- */
-function integer bch_is_pentanomial;
-	input [31:0] m;
-	integer p;
-	integer bits;
-	integer i;
-begin
-	p = `BCH_POLYNOMIAL(m);
-	bits = 1;
-	for (i = 0; i < m; i = i + 1) begin
-		if (p & 1)
-			bits = bits + 1;
-		p = p >> 1;
-	end
-	bch_is_pentanomial = bits == 5 ? 1 : 0;
-end
-endfunction
-
-/* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
-function integer polyi;
-	input [31:0] m;
-	polyi = log2(`BCH_POLYNOMIAL(m) >> 1);
-endfunction
-
 /* Berlekamp dual-basis multiplier for fixed values, returns value in dual basis */
 function [`MAX_M-1:0] fixed_mixed_multiplier;
 	input [31:0] m;
@@ -65,8 +38,8 @@ function integer conversion_term;
 	input [31:0] bit_pos;
 	integer pos;
 begin
-	pos = polyi(m);
-	if (bch_is_pentanomial(m)) begin
+	pos = `BCH_POLYI(m);
+	if (`BCH_IS_PENTANOMIAL(m)) begin
 		/* FIXME: Support pentanomials */
 	end else begin
 		conversion_term = 1 << ((pos - bit_pos - 1) % m);
@@ -97,12 +70,8 @@ function integer finite_mult;
 	input [`MAX_M:0] b;
 	integer i;
 	integer p;
-	reg [`MAX_M-1:0] poly;
-	reg [`MAX_M-1:0] mask;
 begin
 	p = 0;
-	poly = `BCH_POLYNOMIAL(m);
-	mask = `BCH_M2N(m);
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
 			p = p ^ (a & {`MAX_M{b[i]}});
@@ -125,13 +94,6 @@ begin
 	repeat (x)
 		ret = `BCH_MUL1(m, ret);
 	lpow = ret;
-end
-endfunction
-
-function integer n2m;
-	input [31:0] n;
-begin
-	n2m = log2(n+1) - 1;
 end
 endfunction
 

@@ -2,6 +2,7 @@
 `define _BCH_DEFS_VH_
 
 `define MAX_M			16
+
 `define BCH_PARAM_MASK		((1 << `MAX_M) - 1)
 `define BCH_PARAM(P, IDX)	(((P) >> (`MAX_M*IDX)) & `BCH_PARAM_MASK)
 `define BCH_PARAM_SZ		(`MAX_M*6)
@@ -50,5 +51,24 @@
 /* Multiply by alpha x*l^1 */
 `define BCH_MUL1(M, X)		(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? `BCH_POLYNOMIAL(M) : 1'b0)))
 
+`define BCH_BIT_SEL(N, D)	(((D) >> (N)) & 1)
+`define BCH_EACH_BIT(FN, OP, D)	(FN(15,(D)) OP FN(14,(D)) OP	\
+				FN(13,(D)) OP FN(12,(D)) OP	\
+				FN(11,(D)) OP FN(10,(D)) OP	\
+				FN(9,(D)) OP FN(8,(D)) OP	\
+				FN(7,(D)) OP FN(6,(D)) OP	\
+				FN(5,(D)) OP FN(4,(D)) OP	\
+				FN(3,(D)) OP FN(2,(D)) OP	\
+				FN(1,(D)) OP FN(0,(D)))
+`define BCH_NBITS(D)	`BCH_EACH_BIT(`BCH_BIT_SEL, +, D)
+
+/*
+ * Non-zero if irreducible polynomial is of the form x^m + x^P1 + x^P2 + x^P3 + 1
+ * zero for x^m + x^P + 1
+ */
+`define BCH_IS_PENTANOMIAL(M)	(`BCH_NBITS(`BCH_POLYNOMIAL(M)) == 4)
+
+/* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
+`define BCH_POLYI(M)		$clog2((`BCH_POLYNOMIAL(m) >> 1) + 1)
 
 `endif
