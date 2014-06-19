@@ -9,16 +9,22 @@
  * 
  * First divide r(x) by f_j(x) to obtain the remainder, b_j(x). Then calculate
  * b_j(alpha^j).
+ *
+ * Pipelining can only help when BITS > SYNDROME_SIZE
  */
 module dsynN_method2 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
-	input ce,			/* Accept additional bit */
-	input start,			/* Accept first bit of syndrome */
-	input [BITS-1:0] data_in,
+	input ce,				/* Accept additional bit */
+	input start,				/* Accept first bit of syndrome */
+	input start_pipelined,			/* Start delayed by one if there are
+						 * two pipeline stages */
+	input [BITS-1:0] data_in,	
+	input [BITS-1:0] data_pipelined,	/* One stage delay (if necessary) */
 	output [M-1:0] synN
 );
 	`include "bch_syndrome.vh"
@@ -64,14 +70,18 @@ module dsynN_method2 #(
 	localparam SYN = idx2syn(M, IDX);
 	localparam SYNDROME_POLY = syndrome_poly(0);
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
-	localparam REM = `BCH_CODE_BITS(P) % BITS;
-	localparam RUNT = BITS - REM;
 	localparam signed EARLY = BITS - SYNDROME_SIZE;
 
+	if (PIPELINE_STAGES > 2)
+		dsynN_method2_only_supports_2_pipeline_stage u_dm2os2ps();
+
 	reg [SYNDROME_SIZE-1:0] lfsr = 0;
-	wire [BITS-1:0] shifted_in;
+	wire [BITS-1:0] reverse_in;
+	wire [BITS-1:0] reverse_pipelined;
 	wire [SYNDROME_SIZE-1:0] in_enc_early;
+	wire [SYNDROME_SIZE-1:0] in_enc_early_pipelined;
 	wire [SYNDROME_SIZE-1:0] in_enc;
+	wire [SYNDROME_SIZE-1:0] in_enc_pipelined;
 	wire [SYNDROME_SIZE-1:0] lfsr_enc;
 
 	function [BITS-1:0] reverse;
@@ -83,19 +93,8 @@ module dsynN_method2 #(
 	end
 	endfunction
 
-	/*
-	 * Shift input so that pad the start with 0's, and finish on the final
-	 * bit.
-	 */
-	generate
-		if (REM) begin
-			reg [RUNT-1:0] runt = 0;
-			assign shifted_in = reverse((data_in << RUNT) | (start ? 0 : runt));
-			always @(posedge clk)
-				runt <= #TCQ data_in >> REM;
-		end else
-			assign shifted_in = reverse(data_in);
-	endgenerate
+	assign reverse_in = reverse(data_in);
+	assign reverse_pipelined = reverse(data_pipelined);
 
 	/*
 	 * If the input size fills the LFSR reg, we need to calculate those
@@ -103,14 +102,26 @@ module dsynN_method2 #(
 	 */
 	if (EARLY > 0) begin : INPUT_LFSR
 		lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, EARLY) u_in_terms(
-			.in(shifted_in[BITS-1:SYNDROME_SIZE]),
+			.in(reverse_in[BITS-1:SYNDROME_SIZE]),
 			.out(in_enc_early)
 		);
 	end else
 		assign in_enc_early = 0;
 
-	/* This can be pipelined */
-	assign in_enc = in_enc_early ^ shifted_in;
+	pipeline_ce #(PIPELINE_STAGES > 0) u_in_pipeline [SYNDROME_SIZE] (
+		.clk(clk),
+		.ce(ce),
+		.i(in_enc_early),
+		.o(in_enc_early_pipelined)
+	);
+
+	assign in_enc = in_enc_early_pipelined ^ reverse_pipelined;
+	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [SYNDROME_SIZE] (
+		.clk(clk),
+		.ce(ce),
+		.i(in_enc),
+		.o(in_enc_pipelined)
+	);
 
 	/* Calculate the next lfsr state (without input) */
 	wire [BITS-1:0] lfsr_input;
@@ -123,10 +134,11 @@ module dsynN_method2 #(
 	/* Calculate remainder */
 	always @(posedge clk)
 		if (ce) begin
-			if (start)
-				lfsr <= #TCQ in_enc;
+			if (start_pipelined)
+				/* Use start as set/reset if possible */
+				lfsr <= #TCQ PIPELINE_STAGES ? 0 : in_enc_pipelined;
 			else
-				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
+				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc_pipelined;
 		end
 
 	assign synN = lfsr;

@@ -437,10 +437,11 @@ module counter #(
 			count <= #TCQ count + 1'b1;
 endmodule
 
-module pipeline #(
+module pipeline_ce #(
 	parameter STAGES = 0
 ) (
 	input clk,
+	input ce,
 	input i,
 	output o
 );
@@ -451,6 +452,17 @@ module pipeline #(
 		reg [STAGES-1:0] pipeline = 0;
 		assign o = pipeline[STAGES-1];
 		always @(posedge clk)
-			pipeline <= #TCQ (pipeline << 1) | i;
+			if (ce)
+				pipeline <= #TCQ (pipeline << 1) | i;
 	end
+endmodule
+
+module pipeline #(
+	parameter STAGES = 0
+) (
+	input clk,
+	input i,
+	output o
+);
+	pipeline_ce #(STAGES) u_ce(clk, 1'b1, i, o);
 endmodule

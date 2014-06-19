@@ -17,12 +17,15 @@ module dsynN_method1 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0,
 	parameter BITS = 1,
-	parameter REG_RATIO = 1
+	parameter REG_RATIO = 1,
+	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
-	input start,			/* Accept first bit of syndrome */
+	input start,				/* Accept first bit of syndrome */
+	input start_pipelined,			/* Start delayed by one if there are
+						 * two pipeline stages */
 	input ce,
-	input [BITS-1:0] data_in,
+	input [BITS-1:0] data_pipelined,	/* One stage delay (if necessary) */
 	output reg [M-1:0] synN = 0
 );
 	`include "bch_syndrome.vh"
@@ -37,36 +40,50 @@ module dsynN_method1 #(
 	localparam SB = SYNDROME_SIZE;
 	localparam REGS = (BITS + REG_RATIO - 1) / REG_RATIO;
 
+	if (PIPELINE_STAGES > 2)
+		dsynN_method1_only_supports_2_pipeline_stage u_dm1os2ps();
+
+	function [REGS*SB-1:0] pow_initial;
+		input dummy;
+		integer i;
+	begin
+		for (i = 0; i < REGS; i = i + 1)
+			pow_initial[i*SB+:SB] = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
+	end
+	endfunction
+
+	localparam [REGS*SB-1:0] POW_INITIAL = pow_initial(0);
+
 	/*
 	 * Reduce pow reg size by only having a reg for every other,
 	 * or every 4th, etc register, filling in the others with async logic
 	 */
-	reg [REGS*SB-1:0] pow = 0;
+	reg [REGS*SB-1:0] pow = POW_INITIAL;
 	wire [REGS*SB-1:0] pow_next;
-	wire [REGS*SB-1:0] pow_initial;
 	wire [REGS*SB-1:0] pow_curr;
 	wire [BITS*SB-1:0] pow_all;
 	wire [BITS*SB-1:0] terms;
-	wire [SB-1:0] syn_next;
+	wire [SB-1:0] terms_summed;
+	wire [SB-1:0] terms_summed_pipelined;
+	wire start_pipelined;
 	genvar i;
 
-	/* Probably needs a load cycle */
+	/* Not enough pipeline stages for set/reset, must use mux */
+	assign pow_curr = (PIPELINE_STAGES < 2 && start) ? POW_INITIAL : pow;
+
 	for (i = 0; i < BITS; i = i + 1) begin : GEN_TERMS
-		if (!(i % REG_RATIO)) begin
-			localparam LPOW = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
-			assign pow_initial[(i/REG_RATIO)*SB+:SB] = LPOW;
-			assign pow_curr[(i/REG_RATIO)*SB+:SB] = start ?
-						pow_initial[(i/REG_RATIO)*SB+:SB] : pow[(i/REG_RATIO)*SB+:SB];
-			assign pow_all[i*SB+:SB] = pow_curr[(i/REG_RATIO)*SB+:SB];
-		end else begin
+		wire [SB-1:0] curr = pow_curr[(i/REG_RATIO)*SB+:SB];
+		if (!(i % REG_RATIO))
+			assign pow_all[i*SB+:SB] = curr;
+		else begin
 			localparam [SB-1:0] LPOW = lpow(SB, m2n(SB) - (SYN * (i % REG_RATIO)) % m2n(SB));
 			parallel_standard_multiplier #(SB) u_mult(
 				.standard_in1(LPOW),
-				.standard_in2(pow_curr[(i/REG_RATIO)*SB+:SB]),
+				.standard_in2(curr),
 				.standard_out(pow_all[i*SB+:SB])
 			);
 		end
-		assign terms[i*SB+:SB] = {SB{data_in[i]}} & pow_all[i*SB+:SB];
+		assign terms[i*SB+:SB] = data_pipelined[i] ? pow_all[i*SB+:SB] : 0;
 	end
 
 	parallel_standard_multiplier #(SB, REGS) u_mult(
@@ -75,16 +92,26 @@ module dsynN_method1 #(
 		.standard_out(pow_next)
 	);
 
-	/* This can be pipelined */
-	finite_parallel_adder #(SB, BITS + 1) u_adder(
-		.in({start ? {SB{1'b0}} : synN, terms}),
-		.out(syn_next)
+	finite_parallel_adder #(SB, BITS) u_adder(
+		.in(terms),
+		.out(terms_summed)
+	);
+
+	pipeline_ce #(PIPELINE_STAGES > 0) u_summed_pipeline [SB] (
+		.clk(clk),
+		.ce(ce),
+		.i(terms_summed),
+		.o(terms_summed_pipelined)
 	);
 
 	always @(posedge clk) begin
 		if (ce) begin
-			pow <= #TCQ pow_next;
-			synN <= #TCQ syn_next;
+			/* Utilize set/reset signal if possible */
+			pow <= #TCQ (PIPELINE_STAGES > 1 && start) ? POW_INITIAL : pow_next;
+			if (start_pipelined)
+				synN <= #TCQ PIPELINE_STAGES ? 0 : terms_summed_pipelined;
+			else
+				synN <= #TCQ synN ^ terms_summed_pipelined;
 		end
 	end
 endmodule

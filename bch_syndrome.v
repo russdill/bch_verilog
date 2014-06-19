@@ -6,7 +6,8 @@
 module bch_syndrome #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter BITS = 1,
-	parameter REG_RATIO = 1
+	parameter REG_RATIO = 1,
+	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
 	input start,		/* Accept first syndrome bit (assumes ce) */
@@ -24,13 +25,19 @@ module bch_syndrome #(
 	genvar idx;
 
 	localparam SYN_COUNT = syndrome_count(M, `BCH_T(P));
-	localparam CYCLES = (`BCH_CODE_BITS(P)+BITS-1) / BITS;
+	localparam CYCLES = PIPELINE_STAGES + (`BCH_CODE_BITS(P)+BITS-1) / BITS;
 	localparam DONE = lfsr_count(M, CYCLES - 2);
+	localparam REM = `BCH_CODE_BITS(P) % BITS;
+	localparam RUNT = BITS - REM;
 
 	wire [M-1:0] count;
+	wire [BITS-1:0] data_pipelined;
+	wire [BITS-1:0] shifted_in;
+	wire [BITS-1:0] shifted_pipelined;
+	wire start_pipelined;
 	reg busy = 0;
 
-	if (CYCLES > 2)	begin : COUNTER
+	if (CYCLES > 2) begin : COUNTER
 		lfsr_counter #(M) u_counter(
 			.clk(clk),
 			.reset(start && ce),
@@ -55,23 +62,66 @@ module bch_syndrome #(
 		end
 	end
 
+	 /*
+	  * Method 1 requires data to be aligned to the first transmitted bit,
+	  * which is how input is received. Method 2 requires data to be
+	  * aligned to the last received bit, so we may need to insert some
+	  * zeros in the first word, and shift the remaining bits
+	  */
+	generate
+		if (REM) begin
+			reg [RUNT-1:0] runt = 0;
+			assign shifted_in = (data_in << RUNT) | (start ? 0 : runt);
+			always @(posedge clk)
+				if (ce)
+					runt <= #TCQ data_in >> REM;
+		end else
+			assign shifted_in = data_in;
+	endgenerate
+
+	/* Pipelined data for method1 */
+	pipeline_ce #(PIPELINE_STAGES > 1) u_data_pipeline [BITS] (
+		.clk(clk),
+		.ce(ce),
+		.i(data_in),
+		.o(data_pipelined)
+	);
+
+	/* Pipelined data for method2 */
+	pipeline_ce #(PIPELINE_STAGES > 0) u_shifted_pipeline [BITS] (
+		.clk(clk),
+		.ce(ce),
+		.i(shifted_in),
+		.o(shifted_pipelined)
+	);
+
+	pipeline_ce #(PIPELINE_STAGES > 1) u_start_pipeline (
+		.clk(clk),
+		.ce(ce),
+		.i(start),
+		.o(start_pipelined)
+	);
+
 	/* LFSR registers */
 	generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : SYNDROMES
 		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin : METHOD1
-			dsynN_method1 #(P, idx, BITS, REG_RATIO) u_syn1a(
+			dsynN_method1 #(P, idx, BITS, REG_RATIO, PIPELINE_STAGES) u_syn1a(
 				.clk(clk),
 				.start(start),
+				.start_pipelined(start_pipelined),
 				.ce((busy || start) && ce),
-				.data_in(data_in),
+				.data_pipelined(data_pipelined),
 				.synN(syndromes[idx*M+:M])
 			);
 		end else begin : METHOD2
-			dsynN_method2 #(P, idx, BITS) u_syn2a(
+			dsynN_method2 #(P, idx, BITS, PIPELINE_STAGES) u_syn2a(
 				.clk(clk),
 				.start(start),
+				.start_pipelined(start_pipelined),
 				.ce((busy || start) && ce),
-				.data_in(data_in),
+				.data_in(shifted_in),
+				.data_pipelined(shifted_pipelined),
 				.synN(syndromes[idx*M+:M])
 			);
 		end

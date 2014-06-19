@@ -49,9 +49,10 @@ wire err_valid;
 wire [BITS-1:0] err;
 wire key_ready;
 wire errors_present;
+wire errors_present_done;
 wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
-assign busy = !encode_ready && (!syn_done || key_ready);
+assign busy = !encode_ready || !decode_ready;
 
 localparam STACK_SZ = 16;//6;
 
@@ -82,23 +83,23 @@ end
 endfunction
 
 always @(posedge clk) begin
-	if (encode_start && encode_ready && (!syn_done || key_ready)) begin
+	if (encode_start && encode_ready && (!encoded_first || decode_ready)) begin
 		err_stack[B*wr_pos+:B] <= #TCQ error;
 		err_count_stack[`BCH_ERR_SZ(P)*wr_pos+:`BCH_ERR_SZ(P)] <= #TCQ bit_count(error);
 		err_present_stack[wr_pos] <= #TCQ |error;
 		wr_pos <= #TCQ (wr_pos + 1) % STACK_SZ;
 	end
 
-	if (encode_start && encode_ready && (!syn_done || key_ready)) begin
-		encode_buf <= #TCQ data_in;
-		flip_buf   <= #TCQ error;
+	if (encode_start && encode_ready && (!encoded_first || decode_ready)) begin
+		encode_buf <= #TCQ data_in >> BITS;
+		flip_buf   <= #TCQ error >> BITS;
 	end else if (!encode_ready) begin
 		encode_buf <= #TCQ encode_buf >> BITS;
 		flip_buf   <= #TCQ flip_buf >> BITS;
 	end
 end
 
-wire [BITS-1:0] encoder_in = encode_start ? data_in : (encode_buf >> BITS);
+wire [BITS-1:0] encoder_in = encode_start ? data_in : encode_buf;
 
 /* Generate code */
 bch_encode #(P, BITS) u_bch_encode(
@@ -109,7 +110,7 @@ bch_encode #(P, BITS) u_bch_encode(
 	.ready(encode_ready),
 
 	/* Keep adding data until the decoder is busy */
-	.ce(!syn_done || key_ready),
+	.ce(!encoded_first || decode_ready),
 
 	.data_in(encoder_in),
 	.data_out(encoded_data),
@@ -119,7 +120,7 @@ bch_encode #(P, BITS) u_bch_encode(
 	.last(encoded_last)
 );
 
-assign decoder_in = encoded_data ^ (encoded_first ? error : (flip_buf >> BITS));
+assign decoder_in = encoded_data ^ (encoded_first ? error : flip_buf);
 
 /* Process syndromes */
 bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
