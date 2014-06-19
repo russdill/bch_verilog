@@ -94,7 +94,7 @@ module parallel_mixed_multiplier #(
 	assign all = {aux, dual_in};
 
 	/* Generate additional terms via an LFSR */
-	matrix_vector_mult #(M, M-1, 1) u_lfsr(all[M*2-3:0], POLY[M-1:0], all[M*2-2:M]);
+	matrix_vector_mult #(M, M-1, 1) u_lfsr(all[M*2-3:0], POLY[M-1:0], aux);
 
 	/* Perform matrix multiplication of terms */
 	matrix_vector_mult #(M, M, 1) u_mult(all, standard_in, dual_out);
