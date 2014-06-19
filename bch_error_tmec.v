@@ -40,6 +40,9 @@ module bch_error_tmec #(
 	if (`BCH_T(P) == 1)
 		tmec_does_not_support_sec u_tdnss();
 
+	if (PIPELINE_STAGES > 2)
+		tmec_only_supports_2_pipeline_stages u_tos2ps();
+
 	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
@@ -51,7 +54,7 @@ module bch_error_tmec #(
 		.valid(valid_raw)
 	);
 
-	pipeline #(PIPELINE_STAGES > 2 ? 2 : PIPELINE_STAGES) u_out_pipeline [3] (
+	pipeline #(PIPELINE_STAGES) u_out_pipeline [3] (
 		.clk(clk),
 		.i({first_raw, last_raw, valid_raw}),
 		.o({first, last, valid})
