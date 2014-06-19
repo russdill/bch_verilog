@@ -95,7 +95,7 @@ function [`MAX_M-1:0] mul1;
 	input [31:0] m;
 	input [`MAX_M-1:0] x;
 begin
-	mul1 = m2n(m) & ((x << 1) ^ (`BCH_POLYNOMIAL(m) & {`MAX_M{x[m-1]}}));
+	mul1 = `BCH_M2N(m) & ((x << 1) ^ (`BCH_POLYNOMIAL(m) & {`MAX_M{x[m-1]}}));
 end
 endfunction
 
@@ -111,7 +111,7 @@ function integer finite_mult;
 begin
 	p = 0;
 	poly = `BCH_POLYNOMIAL(m);
-	mask = m2n(m);
+	mask = `BCH_M2N(m);
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
 			p = p ^ (a & {`MAX_M{b[i]}});
@@ -130,7 +130,7 @@ function integer lpow;
 	integer ret;
 begin
 	ret = 1;
-	x = x % m2n(m);	/* Answer would wrap around */
+	x = x % `BCH_M2N(m);	/* Answer would wrap around */
 	repeat (x)
 		ret = mul1(m, ret);
 	lpow = ret;
@@ -141,13 +141,6 @@ function integer n2m;
 	input [31:0] n;
 begin
 	n2m = log2(n+1) - 1;
-end
-endfunction
-
-function integer m2n;
-	input [31:0] m;
-begin
-	m2n = (1 << m) - 1;
 end
 endfunction
 

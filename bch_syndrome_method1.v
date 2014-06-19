@@ -35,7 +35,7 @@ module dsynN_method1 #(
 	localparam signed SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
 	localparam SYN = idx2syn(M, IDX);
 	/* Our current syndrome processing is reversed */
-	localparam LPOW_S_BITS = lpow(SB, m2n(SB) - (SYN * BITS) % m2n(SB));
+	localparam LPOW_S_BITS = lpow(SB, `BCH_M2N(SB) - (SYN * BITS) % `BCH_M2N(SB));
 	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
 	localparam SB = SYNDROME_SIZE;
 	localparam REGS = (BITS + REG_RATIO - 1) / REG_RATIO;
@@ -48,7 +48,7 @@ module dsynN_method1 #(
 		integer i;
 	begin
 		for (i = 0; i < REGS; i = i + 1)
-			pow_initial[i*SB+:SB] = lpow(SB, m2n(SB) - (SYN * (i + SKIP + 1)) % m2n(SB));
+			pow_initial[i*SB+:SB] = lpow(SB, `BCH_M2N(SB) - (SYN * (i + SKIP + 1)) % `BCH_M2N(SB));
 	end
 	endfunction
 
@@ -75,7 +75,7 @@ module dsynN_method1 #(
 		if (!(i % REG_RATIO))
 			assign pow_all[i*SB+:SB] = curr;
 		else begin
-			localparam [SB-1:0] LPOW = lpow(SB, m2n(SB) - (SYN * (i % REG_RATIO)) % m2n(SB));
+			localparam [SB-1:0] LPOW = lpow(SB, `BCH_M2N(SB) - (SYN * (i % REG_RATIO)) % `BCH_M2N(SB));
 			parallel_standard_multiplier #(SB) u_mult(
 				.standard_in1(LPOW),
 				.standard_in2(curr),

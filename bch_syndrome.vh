@@ -48,7 +48,7 @@ begin
 				done = 1;
 			end
 		end
-		i = (i * 2) % m2n(m);
+		i = (i * 2) % `BCH_M2N(m);
 		if (i == s)
 			/* We must use the first method */
 			done = 1;
@@ -67,7 +67,7 @@ function integer next_syndrome;
 	integer ret;
 begin
 
-	n = m2n(m);
+	n = `BCH_M2N(m);
 	ret = s + 2;
 	tmp = ret;
 	done = 0;
@@ -157,7 +157,7 @@ begin
 		while (!done && !ret) begin
 			if (i == dat)
 				ret = s;
-			i = (i * 2) % m2n(m);
+			i = (i * 2) % `BCH_M2N(m);
 			if (i == s)
 				done = 1;
 		end
@@ -187,7 +187,7 @@ begin
 		while (!done1 && !done2) begin
 			if (i == dat)
 				done1 = 1;
-			i = (i * 2) % m2n(m);
+			i = (i * 2) % `BCH_M2N(m);
 			if (i == s)
 				done2 = 1;
 		end

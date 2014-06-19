@@ -47,7 +47,7 @@ begin
 				done2 = 1;
 			end
 		end
-		k = m2n(m) - nk;
+		k = `BCH_M2N(m) - nk;
 		if (k >= data_bits)
 			done3 = 1;
 		else
