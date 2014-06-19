@@ -27,7 +27,7 @@ with the following:
 `BCH_ECC_BITS(P)	- Generate ECC bits
 `BCH_CODE_BITS(P)	- Data bits + ECC bits
 `BCH_SYNDROMES_SZ(P)	- Bits required for syndromes passed between modules
-`BCH_SIGMA_SZ(P)	- Bits required for sigmal equation passed between
+`BCH_SIGMA_SZ(P)	- Bits required for sigma equation passed between
 			  modules
 `BCH_ERR_SZ(P)		- Bits required for number of errors
 `BCH_PARAM_SZ		- Bits required to hold parameters;

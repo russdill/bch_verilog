@@ -437,3 +437,20 @@ module counter #(
 			count <= #TCQ count + 1'b1;
 endmodule
 
+module pipeline #(
+	parameter STAGES = 0
+) (
+	input clk,
+	input i,
+	output o
+);
+	localparam TCQ = 1;
+	if (!STAGES)
+		assign o = i;
+	else begin
+		reg [STAGES-1:0] pipeline = 0;
+		assign o = pipeline[STAGES-1];
+		always @(posedge clk)
+			pipeline <= #TCQ (pipeline << 1) | i;
+	end
+endmodule
