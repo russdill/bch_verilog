@@ -66,6 +66,7 @@ wide input. For the first ceil(`BCH_DATA_BITS / BITS) cycles (including
 cycle 0) the output mirrors the input. Then, for ceil(`BCH_ECC_BITS / BITS)
 cycles the output contains the ECC bits. In the case that `BCH_DATA_BITS %
 BITS is non-zero, the high bits of the last data word will be ignored.
+A pipeline stage can be added by setting the PIPELINE_STAGES = 1 parameter.
 
 bch_syndrome - Calculates the syndrome equations. Takes a BITS wide input.
 Operates for ceil(`BCH_CODE_BITS / BITS) cycles to produce the compact
@@ -74,7 +75,8 @@ to be merged together without pad bits in the case of `BCH_DATA_BITS %
 BITS being non-zero, which is not what bch_encode produces. It is
 recommended to make BITS divisible by `BCH_DATA_BITS. In the event that
 `BCH_CODE_BITS % BITS is non-zero, the upper bits of the final word are
-ignored.
+ignored. Up to two pipeline stages can be added by setting the
+PIPELINE_STAGES parameter.
 
 bch_errors_present - Determines based on syndromes if any errors are present
 (Not required for decoding). Currently does not have a clock, but it may
@@ -82,6 +84,8 @@ required for large `BCH_M(P) values as it needs to or together
 `BCH_M(P)*(`BCH_T(P)+1) inputs. This module can be used to allow several
 bch_syndrome modules to share bch_sigma_* and bch_error_* modules or to
 determine that the error is data free before allowing bch_sigma_* to complete.
+Up to two pipeline stages can be added by setting the PIPELINE_STAGES
+parameter.
 
 bch_sigma_* - Key equation solvers (sigma). Takes syndrome equations as input
 and produces the key equation, as well as the number of bit errors detected.
@@ -106,10 +110,12 @@ of the last word in the output are masked.
 
 bch_error_dec - Error location function for T < 3. Takes syndromes directly
 as input rather than a solved key equation. Same output as bch_error_*
-above, but also produces the error_count.
+above, but also produces the error_count. Up to two pipeline stages for
+T==2 or one for T==1 can be added by setting the PIPELINE_STAGES parameter.
 
 bch_error_tmec - Error location function for T > 1. Requires the solved key
-equation as input. Same output as bch_error_* above.
+equation as input. Same output as bch_error_* above. Up to two pipeline
+stages can be added by setting the PIPELINE_STAGES parameter.
 
 sim - Test bench core and example code for connecting together the different
 modules. Takes an additional parameter to specify the type of key equation

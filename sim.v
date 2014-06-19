@@ -13,7 +13,7 @@ module sim #(
 	input [`BCH_DATA_BITS(P)-1:0] data_in,
 	input [`BCH_CODE_BITS(P)-1:0] error,
 	input encode_start,
-	output busy,
+	output ready,
 	output reg wrong = 0
 );
 
@@ -39,7 +39,7 @@ wire [BITS-1:0] encoded_data;
 wire encoded_first;
 wire encoded_last;
 wire [BITS-1:0] decoder_in;
-wire decode_ready;
+wire syndrome_ready;
 wire encode_ready;
 wire [`BCH_SYNDROMES_SZ(P)-1:0] syndromes;
 wire syn_done;
@@ -52,9 +52,9 @@ wire errors_present;
 wire errors_present_done;
 wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
-assign busy = !encode_ready || !decode_ready;
+assign ready = encode_ready && encode_ce;
 
-localparam STACK_SZ = 16;//6;
+localparam STACK_SZ = 16;
 
 reg [STACK_SZ*`BCH_ERR_SZ(P)-1:0] err_count_stack = 0;
 reg [STACK_SZ-1:0] err_present_stack = 0;
@@ -82,21 +82,23 @@ begin
 end
 endfunction
 
+/* Don't assert start until we get the ready signal*/
+wire encode_ce = (!encoded_first || syndrome_ready) && syndrome_ce;
+/* Keep adding data until the decoder is busy */
+wire encode_accepted = encode_start && encode_ready && encode_ce;
+
 always @(posedge clk) begin
-	if (encode_start && encode_ready && (!encoded_first || decode_ready)) begin
+	if (encode_accepted) begin
 		err_stack[B*wr_pos+:B] <= #TCQ error;
 		err_count_stack[`BCH_ERR_SZ(P)*wr_pos+:`BCH_ERR_SZ(P)] <= #TCQ bit_count(error);
 		err_present_stack[wr_pos] <= #TCQ |error;
 		wr_pos <= #TCQ (wr_pos + 1) % STACK_SZ;
 	end
 
-	if (encode_start && encode_ready && (!encoded_first || decode_ready)) begin
+	if (encode_accepted) begin
 		encode_buf <= #TCQ data_in >> BITS;
-		flip_buf   <= #TCQ error >> BITS;
-	end else if (!encode_ready) begin
+	end else if (!encode_ready && encode_ce)
 		encode_buf <= #TCQ encode_buf >> BITS;
-		flip_buf   <= #TCQ flip_buf >> BITS;
-	end
 end
 
 wire [BITS-1:0] encoder_in = encode_start ? data_in : encode_buf;
@@ -104,14 +106,9 @@ wire [BITS-1:0] encoder_in = encode_start ? data_in : encode_buf;
 /* Generate code */
 bch_encode #(P, BITS) u_bch_encode(
 	.clk(clk),
-
-	/* Don't assert start until we get the ready signal*/
 	.start(encode_start && encode_ready),
 	.ready(encode_ready),
-
-	/* Keep adding data until the decoder is busy */
-	.ce(!encoded_first || decode_ready),
-
+	.ce(encode_ce),
 	.data_in(encoder_in),
 	.data_out(encoded_data),
 	.data_bits(),
@@ -120,19 +117,32 @@ bch_encode #(P, BITS) u_bch_encode(
 	.last(encoded_last)
 );
 
-assign decoder_in = encoded_data ^ (encoded_first ? error : flip_buf);
+/* Don't assert start until we get the ready signal */
+wire syndrome_start = encoded_first && syndrome_ready;
+/* Keep adding data until the next stage is busy */
+wire syndrome_ce = !syn_done || key_ready;
+wire syndrome_accepted = syndrome_start && syndrome_ce;
+
+wire [BITS-1:0] flip_err = (syndrome_start && encode_accepted) ? error : flip_buf;
+
+assign decoder_in = encoded_data ^ flip_err;
+
+always @(posedge clk) begin
+	if (encode_accepted) begin
+		if (syndrome_start)
+			flip_buf <= #TCQ error >> BITS;
+		else
+			flip_buf <= #TCQ error;
+	end else if (syndrome_ce && encode_ce)
+		flip_buf <= #TCQ flip_buf >> BITS;
+end
 
 /* Process syndromes */
 bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
 	.clk(clk),
-
-	/* Don't assert start until we get the ready signal */
-	.start(encoded_first && decode_ready),
-	.ready(decode_ready),
-
-	/* Keep adding data until the next stage is busy */
-	.ce(!syn_done || key_ready),
-
+	.start(syndrome_start),
+	.ready(syndrome_ready),
+	.ce(syndrome_ce),
 	.data_in(decoder_in),
 	.syndromes(syndromes),
 	.done(syn_done)

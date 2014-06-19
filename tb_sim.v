@@ -67,7 +67,7 @@ endfunction
 
 reg encode_start = 0;
 wire wrong;
-wire busy;
+wire ready;
 reg active = 0;
 
 sim #(BCH_PARAMS, OPTION, BITS, REG_RATIO) u_sim(
@@ -75,8 +75,8 @@ sim #(BCH_PARAMS, OPTION, BITS, REG_RATIO) u_sim(
 	.reset(1'b0),
 	.data_in(din),
 	.error(error),
-	.busy(busy),
-	.encode_start(active && !busy),
+	.ready(ready),
+	.encode_start(active),
 	.wrong(wrong)
 );
 
@@ -89,7 +89,7 @@ always @(posedge wrong)
 reg [31:0] s;
 
 always @(posedge clk) begin
-	if (!busy) begin
+	if (ready) begin
 		s = seed;
 		#1;
 		din <= randk(0);

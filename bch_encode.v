@@ -4,7 +4,8 @@
 
 module bch_encode #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter BITS = 1
+	parameter BITS = 1,
+	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
 	input start,				/* First cycle */
@@ -79,7 +80,7 @@ module bch_encode #(
 	localparam ENC = encoder_poly(0);
 
 	/* Data cycles required */
-	localparam DATA_CYCLES = (`BCH_DATA_BITS(P) + BITS - 1) / BITS;
+	localparam DATA_CYCLES = PIPELINE_STAGES + (`BCH_DATA_BITS(P) + BITS - 1) / BITS;
 
 	/* ECC cycles required */
 	localparam ECC_CYCLES = (`BCH_ECC_BITS(P) + BITS - 1) / BITS;
@@ -94,15 +95,21 @@ module bch_encode #(
 	localparam REM = `BCH_DATA_BITS(P) % BITS;
 	localparam RUNT = BITS - REM;
 
+	if (PIPELINE_STAGES > 1)
+		encode_only_supports_1_pipeline_stage u_eos1ps();
+
 	reg [`BCH_ECC_BITS(P)-1:0] lfsr = 0;
 	wire [`BCH_ECC_BITS(P)-1:0] in_enc;
+	wire [`BCH_ECC_BITS(P)-1:0] in_enc_pipelined;
 	wire [`BCH_ECC_BITS(P)-1:0] lfsr_enc;
 	wire [`BCH_ECC_BITS(P)-1:0] lfsr_shifted;
+	wire [BITS-1:0] data_in_pipelined;
 	wire [BITS-1:0] output_mask;
 	wire [BITS-1:0] shifted_in;
 	wire [M-1:0] count;
 	reg load_lfsr = 0;
 	reg busy = 0;
+	reg start_last = 0;
 
 	if (CODE_CYCLES < 3)
 		assign count = 0;
@@ -121,16 +128,31 @@ module bch_encode #(
 	generate
 		if (REM) begin
 			reg [RUNT-1:0] runt = 0;
-			assign shifted_in = reverse((data_in << RUNT) | (start ? 0 : runt));
+			assign shifted_in = (data_in << RUNT) | (start ? 0 : runt);
 			always @(posedge clk)
-				runt <= #TCQ data_in << REM;
+				if (ce)
+					runt <= #TCQ data_in << REM;
 		end else
-			assign shifted_in = reverse(data_in);
+			assign shifted_in = data_in;
 	endgenerate
 
 	lfsr_term #(`BCH_ECC_BITS(P), ENC, BITS) u_in_terms(
-		.in(shifted_in),
+		.in(reverse(shifted_in)),
 		.out(in_enc)
+	);
+
+	pipeline_ce #(PIPELINE_STAGES > 0) u_enc_pipeline [`BCH_ECC_BITS(P)] (
+		.clk(clk),
+		.ce(ce),
+		.i(in_enc),
+		.o(in_enc_pipelined)
+	);
+
+	pipeline_ce #(PIPELINE_STAGES) u_data_pipeline [BITS] (
+		.clk(clk),
+		.ce(ce),
+		.i(data_in),
+		.o(data_in_pipelined)
 	);
 
 	/*
@@ -146,23 +168,25 @@ module bch_encode #(
 		.out(lfsr_enc)
 	);
 
-	assign first = start && !busy;
-	assign data_bits = start || load_lfsr;
-	assign ecc_bits = busy && !data_bits;
+	assign first = PIPELINE_STAGES ? start_last : (start && !busy);
+	assign data_bits = (start && !PIPELINE_STAGES) || load_lfsr;
+	assign ecc_bits = (busy || last) && !data_bits;
 	assign output_mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
-	assign data_out = data_bits ? data_in : (reverse(lfsr_input) & output_mask);
+	assign data_out = data_bits ? data_in_pipelined : (reverse(lfsr_input) & output_mask);
 	assign ready = !busy;
 
 	always @(posedge clk) begin
 		if (ce) begin
+			start_last <= #TCQ start && !busy;
 			if (start) begin
 				last <= #TCQ CODE_CYCLES < 3; /* First cycle is last cycle */
 				busy <= #TCQ 1;
-			end else if (count == DONE) begin
+			end else if (count == DONE && busy) begin
 				last <= #TCQ busy;
+				busy <= #TCQ !PIPELINE_STAGES;
 			end else if (last) begin
-				busy <= #TCQ 0;
 				last <= #TCQ 0;
+				busy <= #TCQ 0;
 			end
 
 			if (start)
@@ -171,9 +195,9 @@ module bch_encode #(
 				load_lfsr <= #TCQ 1'b0;
 
 			if (start)
-				lfsr <= #TCQ in_enc;
+				lfsr <= #TCQ PIPELINE_STAGES ? 0 : in_enc_pipelined;
 			else if (load_lfsr)
-				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc;
+				lfsr <= #TCQ (lfsr << BITS) ^ lfsr_enc ^ in_enc_pipelined;
 			else if (busy)
 				lfsr <= #TCQ lfsr << BITS;
 		end
