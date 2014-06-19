@@ -108,7 +108,7 @@ module dsynN_method2 #(
 	end else
 		assign in_enc_early = 0;
 
-	pipeline_ce #(PIPELINE_STAGES > 0) u_in_pipeline [SYNDROME_SIZE] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_in_pipeline [SYNDROME_SIZE-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(in_enc_early),
@@ -116,7 +116,7 @@ module dsynN_method2 #(
 	);
 
 	assign in_enc = in_enc_early_pipelined ^ reverse_pipelined;
-	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [SYNDROME_SIZE] (
+	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [SYNDROME_SIZE-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(in_enc),

@@ -57,7 +57,7 @@ module bch_error_dec #(
 		.valid(valid_raw)
 	);
 
-	pipeline #(PIPELINE_STAGES) u_out_pipeline [3] (
+	pipeline #(PIPELINE_STAGES) u_out_pipeline [3-1:0] (
 		.clk(clk),
 		.i({first_raw, last_raw, valid_raw}),
 		.o({first, last, valid})
@@ -80,7 +80,7 @@ module bch_error_dec #(
 		if (PIPELINE_STAGES > 1)
 			sec_only_supports_1_pipeline_stage u_sos1ps();
 
-		pipeline #(PIPELINE_STAGES) u_err_pipeline [BITS+`BCH_ERR_SZ(P)] (
+		pipeline #(PIPELINE_STAGES) u_err_pipeline [BITS+`BCH_ERR_SZ(P)-1:0] (
 			.clk(clk),
 			.i({_err_raw, err_count_raw}),
 			.o({_err, err_count})
@@ -125,7 +125,7 @@ module bch_error_dec #(
 				.out(power)
 			);
 
-			pipeline #(PIPELINE_STAGES > 0) u_power_pipeline [M+M+2] (
+			pipeline #(PIPELINE_STAGES > 0) u_power_pipeline [M+M+2-1:0] (
 				.clk(clk),
 				.i({power, ch3_flipped, |ch1_flipped, |ch3_flipped}),
 				.o({power_pipelined, ch3_flipped_pipelined, ch1_nonzero_pipelined, ch3_nonzero_pipelined})
@@ -136,7 +136,7 @@ module bch_error_dec #(
 				(power_pipelined == ch3_flipped_pipelined ? 1 : 2) :
 				(ch3_nonzero_pipelined ? 3 : 0);
 
-			pipeline #(PIPELINE_STAGES > 1) u_errors_pipeline [2] (clk, errors, errors_pipelined);
+			pipeline #(PIPELINE_STAGES > 1) u_errors_pipeline [2-1:0] (clk, errors, errors_pipelined);
 
 			/*
 			 * If flipping reduced the number of errors,

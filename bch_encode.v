@@ -141,14 +141,14 @@ module bch_encode #(
 		.out(in_enc)
 	);
 
-	pipeline_ce #(PIPELINE_STAGES > 0) u_enc_pipeline [`BCH_ECC_BITS(P)] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_enc_pipeline [`BCH_ECC_BITS(P)-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(in_enc),
 		.o(in_enc_pipelined)
 	);
 
-	pipeline_ce #(PIPELINE_STAGES) u_data_pipeline [BITS] (
+	pipeline_ce #(PIPELINE_STAGES) u_data_pipeline [BITS-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(data_in),

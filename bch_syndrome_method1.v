@@ -65,7 +65,6 @@ module dsynN_method1 #(
 	wire [BITS*SB-1:0] terms;
 	wire [SB-1:0] terms_summed;
 	wire [SB-1:0] terms_summed_pipelined;
-	wire start_pipelined;
 	genvar i;
 
 	/* Not enough pipeline stages for set/reset, must use mux */
@@ -97,7 +96,7 @@ module dsynN_method1 #(
 		.out(terms_summed)
 	);
 
-	pipeline_ce #(PIPELINE_STAGES > 0) u_summed_pipeline [SB] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_summed_pipeline [SB-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(terms_summed),

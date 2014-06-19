@@ -80,7 +80,7 @@ module bch_syndrome #(
 	endgenerate
 
 	/* Pipelined data for method1 */
-	pipeline_ce #(PIPELINE_STAGES > 1) u_data_pipeline [BITS] (
+	pipeline_ce #(PIPELINE_STAGES > 1) u_data_pipeline [BITS-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(data_in),
@@ -88,7 +88,7 @@ module bch_syndrome #(
 	);
 
 	/* Pipelined data for method2 */
-	pipeline_ce #(PIPELINE_STAGES > 0) u_shifted_pipeline [BITS] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_shifted_pipeline [BITS-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(shifted_in),
@@ -220,11 +220,12 @@ module bch_errors_present #(
 	wire [(`BCH_SYNDROMES_SZ(P)/M)-1:0] syndrome_zero_pipelined;
 
 	generate
-		for (i = 0; i < `BCH_SYNDROMES_SZ(P)/M; i = i + 1)
+		for (i = 0; i < `BCH_SYNDROMES_SZ(P)/M; i = i + 1) begin : ZEROS
 			assign syndrome_zero[i] = |syndromes[i*M+:M];
+		end
 	endgenerate
 
-	pipeline #(PIPELINE_STAGES > 0) u_sz_pipeline [`BCH_SYNDROMES_SZ(P)/M] (
+	pipeline #(PIPELINE_STAGES > 0) u_sz_pipeline [`BCH_SYNDROMES_SZ(P)/M-1:0] (
 		.clk(clk),
 		.i(syndrome_zero),
 		.o(syndrome_zero_pipelined)

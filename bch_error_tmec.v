@@ -54,17 +54,17 @@ module bch_error_tmec #(
 		.valid(valid_raw)
 	);
 
-	pipeline #(PIPELINE_STAGES) u_out_pipeline [3] (
+	pipeline #(PIPELINE_STAGES) u_out_pipeline [3-1:0] (
 		.clk(clk),
 		.i({first_raw, last_raw, valid_raw}),
 		.o({first, last, valid})
 	);
 
 	finite_parallel_adder #(M, `BCH_T(P)+1) u_adder [BITS-1:0] (chien, eq);
-	pipeline #(PIPELINE_STAGES > 1) u_eq_pipeline [BITS*M] (clk, eq, eq_pipelined);
+	pipeline #(PIPELINE_STAGES > 1) u_eq_pipeline [BITS*M-1:0] (clk, eq, eq_pipelined);
 
 	for (i = 0; i < BITS; i = i + 1) begin : BIT
 		assign err_raw[i] = !eq_pipelined[i*M+:M] && (!RUNT || i < RUNT || !last);
 	end
-	pipeline #(PIPELINE_STAGES > 0) u_err_pipeline [BITS] (clk, err_raw, err);
+	pipeline #(PIPELINE_STAGES > 0) u_err_pipeline [BITS-1:0] (clk, err_raw, err);
 endmodule
