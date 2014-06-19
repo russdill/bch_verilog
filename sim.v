@@ -139,16 +139,17 @@ bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
 
 /* Test for errors */
 bch_errors_present #(P) u_errors(
+	.clk(clk),
 	.start(syn_done && key_ready),
 	.syndromes(syndromes),
+	.done(errors_present_done),
 	.errors_present(errors_present)
 );
 
-
-wire err_present_wrong = syn_done && key_ready && (errors_present !== err_present_stack[err_present_rd_pos]);
+wire err_present_wrong = errors_present_done && (errors_present !== err_present_stack[err_present_rd_pos]);
 
 always @(posedge clk) begin
-	if (syn_done && key_ready)
+	if (errors_present_done)
 		err_present_rd_pos = (err_present_rd_pos + 1) % STACK_SZ;
 end
 
