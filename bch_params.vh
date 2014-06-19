@@ -40,7 +40,7 @@ begin
 			end
 			next_syn_no = next_syndrome(m, syn_no);
 			for (i = 0; i < next_syn_no - syn_no; i = i + 1)
-				first = mul1(m, first);
+				first = `BCH_MUL1(m, first);
 			syn_no = next_syn_no;
 			if (2 * target_t - 1 < syn_no) begin
 				t = (syn_no - 1) / 2;

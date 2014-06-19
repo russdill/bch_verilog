@@ -123,7 +123,7 @@ module parallel_standard_multiplier #(
 		if (i == 0)
 			assign bits = standard_in1;
 		else
-			assign bits = mul1(M, BLOCKS[i-1].bits);
+			assign bits = `BCH_MUL1(M, BLOCKS[i-1].bits);
 
 		/* Arrange bits for input into stage 2 */
 		for (j = 0; j < M; j = j + 1) begin : arrange

@@ -47,4 +47,8 @@
 	`BCH_P5(12, 3, 2)			\
 } >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
 
+/* Multiply by alpha x*l^1 */
+`define BCH_MUL1(M, X)		(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? `BCH_POLYNOMIAL(M) : 1'b0)))
+
+
 `endif

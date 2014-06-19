@@ -58,7 +58,7 @@ module bch_encode #(
 				end
 				nk = nk + 1;
 			end
-			a = mul1(M, a);
+			a = `BCH_MUL1(M, a);
 		end
 
 		encoder_poly = 0;

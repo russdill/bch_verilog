@@ -90,15 +90,6 @@ begin
 end
 endfunction
 
-/* Multiply by alpha x*l^1 */
-function [`MAX_M-1:0] mul1;
-	input [31:0] m;
-	input [`MAX_M-1:0] x;
-begin
-	mul1 = `BCH_M2N(m) & ((x << 1) ^ (`BCH_POLYNOMIAL(m) & {`MAX_M{x[m-1]}}));
-end
-endfunction
-
 /* a * b for finite field */
 function integer finite_mult;
 	input [31:0] m;
@@ -115,7 +106,7 @@ begin
 	if (a && b) begin
 		for (i = 0; i < m; i = i + 1) begin
 			p = p ^ (a & {`MAX_M{b[i]}});
-			a = mask & ((a << 1) ^ (poly & {`MAX_M{a[m-1]}}));	/* mul1(m, a) */
+			a = `BCH_MUL1(m, a);
 		end
 	end
 	finite_mult = p;
@@ -132,7 +123,7 @@ begin
 	ret = 1;
 	x = x % `BCH_M2N(m);	/* Answer would wrap around */
 	repeat (x)
-		ret = mul1(m, ret);
+		ret = `BCH_MUL1(m, ret);
 	lpow = ret;
 end
 endfunction
