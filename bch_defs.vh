@@ -21,4 +21,30 @@
 `define BCH_PARAMS(M, K, T, B, SC)	((M) | (`BCH_M2N(M) << `MAX_M) | ((K) << (`MAX_M*2)) | ((T) << (`MAX_M*3)) | ((B) << (`MAX_M*4)) | (((SC)*(M)) << (`MAX_M*5)))
 `define BCH_SANE		`BCH_PARAMS(4, 7, 2, 7, 2)
 
+/* Trinomial */
+`define BCH_P3(P)		{{`MAX_M{1'b0}} | (1'b1 << P) | 1'b1}
+
+/* Pentanomial */
+`define BCH_P5(P1, P2, P3)	{{`MAX_M{1'b0}} | (1'b1 << P1) | (1'b1 << P2) | (1'b1 << P3) | 1'b1}
+
+/* Return irreducable polynomial */
+/* VLSI Aspects on Inversion in Finite Fields, Mikael Olofsson */
+`define BCH_POLYNOMIAL(P)	(({ 		\
+	`BCH_P3(1),		/* m=2 */	\
+	`BCH_P3(1),				\
+	`BCH_P3(1),				\
+	`BCH_P3(2),		/* m=5 */	\
+	`BCH_P3(1),				\
+	`BCH_P3(1),				\
+	`BCH_P5(4, 3, 2),			\
+	`BCH_P3(4),				\
+	`BCH_P3(3),				\
+	`BCH_P3(2),		/* m=10 */	\
+	`BCH_P5(6, 4, 1),			\
+	`BCH_P5(4, 3, 1),			\
+	`BCH_P5(5, 3, 1),			\
+	`BCH_P3(1),		/* m=15 */	\
+	`BCH_P5(12, 3, 2)			\
+} >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
+
 `endif

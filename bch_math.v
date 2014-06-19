@@ -35,7 +35,6 @@ module serial_mixed_multiplier #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY = bch_polynomial(M);
 	localparam POLY_I = polyi(M);
 	localparam LPOW_P = lpow(M, POLY_I);
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
@@ -70,7 +69,7 @@ module serial_mixed_multiplier #(
 		if (start || change)
 			lfsr <= #TCQ change ? dual_stored : lfsr_in;
 		else if (count != END)
-			lfsr <= #TCQ {^(lfsr & POLY), lfsr[M-1:1]};
+			lfsr <= #TCQ {^(lfsr & `BCH_POLYNOMIAL(M)), lfsr[M-1:1]};
 	end
 
 	matrix_vector_mult #(M, N_INPUT) u_mult(standard_in, lfsr, standard_out);
@@ -86,7 +85,7 @@ module parallel_mixed_multiplier #(
 );
 	`include "bch.vh"
 
-	localparam POLY = bch_polynomial(M);
+	localparam [M-1:0] POLY = `BCH_POLYNOMIAL(M);
 
 	wire [M-2:0] aux;
 	wire [M*2-2:0] all;
@@ -94,7 +93,7 @@ module parallel_mixed_multiplier #(
 	assign all = {aux, dual_in};
 
 	/* Generate additional terms via an LFSR */
-	matrix_vector_mult #(M, M-1, 1) u_lfsr(all[M*2-3:0], POLY[M-1:0], aux);
+	matrix_vector_mult #(M, M-1, 1) u_lfsr(all[M*2-3:0], POLY, aux);
 
 	/* Perform matrix multiplication of terms */
 	matrix_vector_mult #(M, M, 1) u_mult(all, standard_in, dual_out);
@@ -163,7 +162,6 @@ module serial_standard_multiplier #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY = bch_polynomial(M);
 
 	wire [M*N_INPUT-1:0] z;
 	wire [M-1:0] in;
@@ -179,7 +177,7 @@ module serial_standard_multiplier #(
 		if (start)
 			out <= #TCQ in;
 		else if (run)
-			out <= in ^ {out[M-2:0], 1'b0} ^ (POLY & {M{out[M-1]}});
+			out <= in ^ {out[M-2:0], 1'b0} ^ (`BCH_POLYNOMIAL(M) & {M{out[M-1]}});
 	end
 endmodule
 
@@ -380,13 +378,12 @@ module lfsr_counter #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY = bch_polynomial(M);
 
 	always @(posedge clk)
 		if (reset)
 			count <= #TCQ 1'b1;
 		else if (ce)
-			count <= #TCQ {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & POLY);
+			count <= #TCQ {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & `BCH_POLYNOMIAL(M));
 endmodule
 
 /* Generate an LFSR term for a series of input bits */
