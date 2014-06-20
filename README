@@ -145,6 +145,8 @@ Support pentanomials for serial option.
 
 Improve simulation times.
 
+Shared syndrome/chien stages between data streams?
+
 Forney algorithm for error location?
 
 BTZ algorithm for error location?
