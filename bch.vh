@@ -33,22 +33,8 @@ begin
 end
 endfunction
 
-function integer conversion_term;
-	input [31:0] m;
-	input [31:0] bit_pos;
-	integer pos;
-begin
-	pos = `BCH_POLYI(m);
-	if (`BCH_IS_PENTANOMIAL(m)) begin
-		/* FIXME: Support pentanomials */
-	end else begin
-		conversion_term = 1 << ((pos - bit_pos - 1) % m);
-	end
-end
-endfunction
-
 /* Convert polynomial basis to dual basis */
-function integer standard_to_dual;
+function [`MAX_M-1:0] standard_to_dual;
 	input [31:0] m;
 	input [31:0] standard;
 	integer i;
@@ -57,14 +43,14 @@ begin
 	ret = 0;
 	for (i = 0; i < m; i = i + 1) begin
 		if (standard[i])
-			ret = ret ^ conversion_term(m, i);
+			ret = ret ^ `BCH_CONVERSION_TERM(m, i);
 	end
 	standard_to_dual = ret;
 end
 endfunction
 
 /* a * b for finite field */
-function integer finite_mult;
+function [`MAX_M-1:0] finite_mult;
 	input [31:0] m;
 	input [`MAX_M:0] a;
 	input [`MAX_M:0] b;
@@ -83,7 +69,7 @@ end
 endfunction
 
 /* L^x, convert an integer to standard polynomial basis */
-function integer lpow;
+function [`MAX_M-1:0] lpow;
 	input [31:0] m;
 	input [31:0] x;
 	integer i;
@@ -97,7 +83,7 @@ begin
 end
 endfunction
 
-function integer lfsr_count;
+function [`MAX_M-1:0] lfsr_count;
 	input [31:0] m;
 	input [31:0] n;
 begin

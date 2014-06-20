@@ -52,15 +52,15 @@
 `define BCH_MUL1(M, X)		(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? `BCH_POLYNOMIAL(M) : 1'b0)))
 
 `define BCH_BIT_SEL(N, D)	(((D) >> (N)) & 1)
-`define BCH_EACH_BIT(FN, OP, D)	(FN(15,(D)) OP FN(14,(D)) OP	\
-				FN(13,(D)) OP FN(12,(D)) OP	\
-				FN(11,(D)) OP FN(10,(D)) OP	\
-				FN(9,(D)) OP FN(8,(D)) OP	\
-				FN(7,(D)) OP FN(6,(D)) OP	\
-				FN(5,(D)) OP FN(4,(D)) OP	\
-				FN(3,(D)) OP FN(2,(D)) OP	\
-				FN(1,(D)) OP FN(0,(D)))
-`define BCH_NBITS(D)	`BCH_EACH_BIT(`BCH_BIT_SEL, +, D)
+`define BCH_EACH_BIT(FN, OP, D)	(`FN(15,(D)) OP `FN(14,(D)) OP	\
+				`FN(13,(D)) OP `FN(12,(D)) OP	\
+				`FN(11,(D)) OP `FN(10,(D)) OP	\
+				`FN(9,(D)) OP `FN(8,(D)) OP	\
+				`FN(7,(D)) OP `FN(6,(D)) OP	\
+				`FN(5,(D)) OP `FN(4,(D)) OP	\
+				`FN(3,(D)) OP `FN(2,(D)) OP	\
+				`FN(1,(D)) OP `FN(0,(D)))
+`define BCH_NBITS(D)	`BCH_EACH_BIT(BCH_BIT_SEL, +, D)
 
 /*
  * Non-zero if irreducible polynomial is of the form x^m + x^P1 + x^P2 + x^P3 + 1
@@ -69,6 +69,10 @@
 `define BCH_IS_PENTANOMIAL(M)	(`BCH_NBITS(`BCH_POLYNOMIAL(M)) == 4)
 
 /* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
-`define BCH_POLYI(M)		$clog2((`BCH_POLYNOMIAL(m) >> 1) + 1)
+`define BCH_POLYI(M)		log2(`BCH_POLYNOMIAL(M) >> 1)
+
+/* Not supported for pentanomials */
+`define BCH_CONVERSION_TERM(M, BIT_POS)	`BCH_IS_PENTANOMIAL(m) ? (1'b0) : \
+			(1'b1 << ((`BCH_POLYI(M) - BIT_POS - 1'b1) % M))
 
 `endif
