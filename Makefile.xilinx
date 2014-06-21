@@ -1,0 +1,117 @@
+PART=xc6vlx240t-3-ff784
+UCF=xilinx.ucf
+
+XFLAGS=\
+	-p $(firstword $($*_PART) $(PART))	\
+	-ifmt mixed				\
+	-ofmt NGC				\
+	-opt_mode Speed				\
+	-generics {$(GENERICS) $($*_GENERICS)}	\
+	-loop_iteration_limit 10000		\
+	-opt_level 2
+
+NFLAGS=\
+	-p $(firstword $($*_PART) $(PART))	\
+	 $(patsubst %,-uc %,$($*_UCF) $(UCF))
+
+xilinx_encode_VERILOG=\
+	benchmark/xilinx_encode.v	\
+	bch_math.v			\
+	bch_encode.v
+
+xilinx_syndrome_VERILOG=\
+	benchmark/xilinx_syndrome.v	\
+	bch_syndrome.v			\
+	bch_math.v			\
+	bch_syndrome_method1.v		\
+	bch_syndrome_method2.v
+
+xilinx_parallel_VERILOG=\
+	benchmark/xilinx_parallel.v	\
+	bch_math.v			\
+	bch_sigma_bma_parallel.v	\
+	bch_syndrome.v			\
+	bch_syndrome_method1.v		\
+	bch_syndrome_method2.v
+
+xilinx_serial_VERILOG=\
+	benchmark/xilinx_serial.v	\
+	bch_math.v			\
+	bch_sigma_bma_serial.v		\
+	bch_syndrome.v			\
+	bch_syndrome_method1.v		\
+	bch_syndrome_method2.v
+
+
+xilinx_error_dec_VERILOG=\
+	benchmark/xilinx_error_dec.v	\
+	bch_math.v			\
+	bch_error_dec.v			\
+	bch_syndrome.v			\
+	bch_syndrome_method1.v		\
+	bch_syndrome_method2.v		\
+	bch_chien.v
+
+xilinx_error_tmec_VERILOG=\
+	benchmark/xilinx_error_tmec.v	\
+	bch_math.v			\
+	bch_error_tmec.v		\
+	bch_chien.v
+
+.SECONDEXPANSION:
+
+all:
+
+-include $(wildcard .*.d)
+CLEAN_FILES += .*.d
+
+.%.prj: FORCE
+	@echo '$(patsubst %,verilog work "%",$($*_VERILOG))' | sed 's/" /"\n/g'> $@.tmp
+	@if cmp -s $@ $@.tmp; then rm $@.tmp; else mv $@.tmp $@; fi
+.PRECIOUS: .%.prj
+CLEAN_FILES += .*.prj
+
+.%.xopt: FORCE
+	@echo run $($*_XFLAGS) $(XFLAGS) -top $(firstword $($*_TOP) $*) -ifn .$*.prj -ofn $*.ngc > $@.tmp
+	@if cmp -s $@ $@.tmp; then rm $@.tmp; else mv $@.tmp $@; fi
+.PRECIOUS: .%.xopt
+CLEAN_FILES += .*.xopt
+
+.%.nopt: FORCE
+	@echo $($*_NFLAGS) $(NFLAGS) > $@.tmp
+	@if cmp -s $@ $@.tmp; then rm $@.tmp; else mv $@.tmp $@; fi
+.PRECIOUS: .%.nopt
+CLEAN_FILES += .*.nopt
+
+%.ngc: .%.prj .%.xopt
+	@scripts/makedeps.sh $* $($*_VERILOG) > .$@.d
+	xst -ifn .$*.xopt
+.PRECIOUS: .%.ngc
+CLEAN_FILES += *.ngc
+
+%.ngd: %.ngc .%.nopt $$($$*_UCF) $(UCF)
+	ngdbuild -f .$*.nopt $<
+.PRECIOUS: %.ngd
+CLEAN_FILES += *.ngd
+
+%.ncd: %.ngd
+	map -w -detail -pr b $<
+.PRECIOUS: %.ncd
+CLEAN_FILES += *.ncd
+
+# FIXME: Make < 4.0 has trouble with this
+%_par.ncd: %.ncd
+	par -w $< $@
+.PRECIOUS: %_par.ncd
+
+%.twr: %_par.ncd
+	trce $< $*.pcf -o $@
+CLEAN_FILES += *.twr
+
+CLEAN_FILES += *.xpi *_par_pad.csv *_par_pad.txt *.ptwx *.unroutes *.xrpt *.pcf *_summary.xml *_usage.xml *.bld *.lso *.map
+CLEAN_FILES += *.mrp *.ngm *_par.pad *_par.par *.srp .*.srp
+CLEAN_FILES += _xmsgs/ netlist.lst xlnx_auto_0_xdb/ xst/
+clean:
+	-rm -rf $(CLEAN_FILES)
+
+FORCE:
