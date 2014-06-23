@@ -17,7 +17,7 @@ module dsynN_method1 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter IDX = 0,
 	parameter BITS = 1,
-	parameter REG_RATIO = 1,
+	parameter REG_RATIO = BITS > 8 ? 8 : BITS,
 	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
@@ -42,6 +42,9 @@ module dsynN_method1 #(
 
 	if (PIPELINE_STAGES > 2)
 		dsynN_method1_only_supports_2_pipeline_stage u_dm1os2ps();
+
+	if (REG_RATIO > BITS)
+		syndrome_reg_ratio_must_be_less_than_or_equal_to_bits u_srrmbltoeqb();
 
 	function [REGS*SB-1:0] pow_initial;
 		input dummy;

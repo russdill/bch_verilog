@@ -65,11 +65,12 @@ endmodule
 module bch_chien #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter BITS = 1,
-	parameter REG_RATIO = 1	/*
-				 * For multi-bit output, Only implement every
-				 * Nth register. Use async logic to fill
-				 * in the remaining values.
-				 */
+
+	/*
+	 * For multi-bit output, Only implement every Nth register. Use async
+	 * logic to fill in the remaining values.
+	 */
+	parameter REG_RATIO = BITS > 8 ? 8 : BITS
 ) (
 	input clk,
 	input start,
@@ -88,6 +89,9 @@ module bch_chien #(
 	localparam CYCLES = (`BCH_DATA_BITS(P) + BITS - 1) / BITS;
 	localparam DONE = lfsr_count(M, CYCLES - 2);
 	localparam SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
+
+	if (REG_RATIO > BITS)
+		chien_reg_ratio_must_be_less_than_or_equal_to_bits u_crrmbltoeqb();
 
 	reg first_cycle = 0;
 	wire penult;
