@@ -30,28 +30,7 @@ with the following:
 `BCH_SIGMA_SZ(P)	- Bits required for sigma equation passed between
 			  modules
 `BCH_ERR_SZ(P)		- Bits required for number of errors
-`BCH_PARAM_SZ		- Bits required to hold parameters;
-
-Parameters:
-
-The module bch_param generates a BCH parameter set:
-
-local_param P = bch_params(DATA_BITS, T);
-
-The generated parameters are passed to the BCH modules and can be access
-with the following:
-
-`BCH_M(P)		- Degree of the field
-`BCH_N(P)		- Actual code size (padded)
-`BCH_K(P)		- Actual data size (padded)
-`BCH_T(P)		- Actual bits corrected (may be more than specified)
-`BCH_DATA_BITS(P)	- Data bits
-`BCH_ECC_BITS(P)	- Generate ECC bits
-`BCH_CODE_BITS(P)	- Data bits + ECC bits
-`BCH_SYNDROMES_SZ(P)	- Bits required for syndromes passed between modules
-`BCH_SIGMA_SZ(P)	- Bits required for sigmal equation passed between
-			  modules
-`BCH_ERR_SZ(P)		- Bits required for number of errors
+`BCH_PARAM_SZ		- Bits required to hold parameters
 
 Note that the number of errors correctable for a given polynomial is sparse.
 The search function will choose the next highest number of correctable
@@ -59,14 +38,62 @@ errors rather than trying to move to the next polynomial. For instance, if
 DATA_BITS=64, T=8 is seleceted, (127, 71, 9) is chosen rather than
 (255, 191, 8).
 
+Many modules accept a PIPELINE_STAGES and/or a REG_RATIO parameter. These
+parameters relate to area/speed/latency optimizations. There is not a hard
+and fast rule of which setting will give the best speed or area result.
+
+PIPELINE_STAGES adds additional pipelining stages to operation, increasing
+register count and latency, but possibly increasing speed.
+
+For modules that accept input in parallel and have duplicated register
+sets for dealing with the parallel input, REG_RATIO reduces the number of
+registers used. REG_RATIO=1 will include all registers, REG_RATIO=2 will
+calculate every other register asyncronously from the previous register,
+REG_RATIO=3 will calculate every third register asyncrounously and so on.
+The maximum allowable REG_RATIO is REG_RATIO=BITS (the input width).
+
+Note that when compiling with Xilinx tools, the '-loop_iteration_limit'
+option to XST is required to be set above the `BCH_N constant. Choosing
+a value that is DATA_BITS is usually safe.
+
+The code currently compiles under Icarus Verilog, Xilinx Isim and Xilinx XST.
+
 Modules:
+
+The encoder consists of a single module, but the decoder consists of several
+modules that are meant to be used together. Depending on requirements,
+certain modules can be shared between decoders. Slice counts and max
+frequencies are show below each module based on the Xilinx Virtex-6 LX240T-3,
+built with all default options except for '-opt_level 2' passed to XST.
+Additional optimizations may yield lower area/higher speeds.
 
 bch_encode - Performs encoding of input data via a large LFSR. Takes a BITS
 wide input. For the first ceil(`BCH_DATA_BITS / BITS) cycles (including
 cycle 0) the output mirrors the input. Then, for ceil(`BCH_ECC_BITS / BITS)
 cycles the output contains the ECC bits. In the case that `BCH_DATA_BITS %
 BITS is non-zero, the high bits of the last data word will be ignored.
-A pipeline stage can be added by setting the PIPELINE_STAGES = 1 parameter.
+A pipeline stage can be added by setting the PIPELINE_STAGES=1 parameter.
+
+T=1,DATA_BITS=64:
+BITS= 1,PIPELINE_STAGES=0		12 slices	503 MHz
+BITS= 8,PIPELINE_STAGES=1		18 slices	543 MHz
+BITS=16,PIPELINE_STAGES=0		18 slices	543 MHz
+
+T=1,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=0		22 slices	543 MHz
+
+T=3,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=0		72 slices	390 MHz
+
+T=8,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=1		125 slices	447 MHz
+
+T=12,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=1		183 slices	387 MHz
+
+T=12,DATA_BITS=4096:
+BITS= 8,PIPELINE_STAGES=0		150 slices	375 MHz
+BITS=16,PIPELINE_STAGES=0		295 slices	318 MHz
 
 bch_syndrome - Calculates the syndrome equations. Takes a BITS wide input.
 Operates for ceil(`BCH_CODE_BITS / BITS) cycles to produce the compact
@@ -78,10 +105,32 @@ recommended to make BITS divisible by `BCH_DATA_BITS. In the event that
 ignored. Up to two pipeline stages can be added by setting the
 PIPELINE_STAGES parameter.
 
+T=1,DATA_BITS=64:
+BITS= 1,PIPELINE_STAGES=0,REG_RATIO=1	8 slices	464 MHz
+BITS= 4,PIPELINE_STAGES=1,REG_RATIO=4	13 slices	506 MHz
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=1	30 slices	485 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=4	48 slices	408 MHz
+
+T=1,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=4	52 slices	386 MHz
+
+T=3,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=8	66 slices	451 MHz
+
+T=8,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=1,REG_RATIO=16	43 slices	508 MHz
+
+T=12,DATA_BITS=256:
+BITS= 4,PIPELINE_STAGES=2,REG_RATIO=4	21 slices	488 MHz
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=8	22 slices	512 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=16	42 slices	485 MHz
+
+T=12,DATA_BITS=4096:
+BITS= 8,PIPELINE_STAGES=1,REG_RATIO=8	25 slices	512 MHz
+BITS=16,PIPELINE_STAGES=1,REG_RATIO=16	42 slices	453 MHz
+
 bch_errors_present - Determines based on syndromes if any errors are present
-(Not required for decoding). Currently does not have a clock, but it may
-required for large `BCH_M(P) values as it needs to or together
-`BCH_M(P)*(`BCH_T(P)+1) inputs. This module can be used to allow several
+(Not required for decoding). This module can be used to allow several
 bch_syndrome modules to share bch_sigma_* and bch_error_* modules or to
 determine that the error is data free before allowing bch_sigma_* to complete.
 Up to two pipeline stages can be added by setting the PIPELINE_STAGES
@@ -98,10 +147,29 @@ inverter lacks pentanomial support. This option takes longer but requires
 less space than the parallel option. This option takes
 `BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key equation.
 
+T= 2,DATA_BITS=64			77 slices	350 MHz
+T= 2,DATA_BITS=256			95 slices	312 MHz
+T= 2,DATA_BITS=1024			121 slices	333 MHz
+T= 8,DATA_BITS=256			230 slices	239 MHz
+T= 8,DATA_BITS=1024			278 slices	296 MHz
+T=12,DATA_BITS=256			337 slices	224 MHz
+T=12,DATA_BITS=1024			407 slices	235 MHz
+
 bch_sigma_bma_parallel - Parallel Berlekamp–Massey algorithm without
 inversion. This option supports pentanomials and trinomials in less cycles
 than the serial option, but requires more gates. This option takes
 `BCH_T(P) * 2 - 1 cycles to solve the key equation.
+
+T= 2,DATA_BITS=64			92 slices	330 MHz
+T= 2,DATA_BITS=256			138 slices	327 MHz
+T= 2,DATA_BITS=1024			222 slices	284 MHz
+T= 2,DATA_BITS=4096			335 slices	236 MHz
+T= 8,DATA_BITS=256			444 slices	223 MHz
+T= 8,DATA_BITS=1024			586 slices	251 MHz
+T= 8,DATA_BITS=4096			754 slices	212 MHz
+T=12,DATA_BITS=256			576 slices	230 MHz
+T=12,DATA_BITS=1024			761 slices	229 MHz
+T=12,DATA_BITS=4096			1025 slices	191 MHz
 
 bch_error_* - Error locator. After 2 cycles, it clocks out a BITS wide error
 bits word ceil(`BCH_DATA_BITS / BITS) cycles, each cycle representing a set
@@ -113,9 +181,59 @@ as input rather than a solved key equation. Same output as bch_error_*
 above, but also produces the error_count. Up to two pipeline stages for
 T==2 or one for T==1 can be added by setting the PIPELINE_STAGES parameter.
 
+T=1,DATA_BITS=64:
+BITS= 1,PIPELINE_STAGES=1,REG_RATIO=1	17 slices	491 MHz
+BITS= 8,PIPELINE_STAGES=1,REG_RATIO=1	45 slices	510 MHz
+BITS= 8,PIPELINE_STAGES=1,REG_RATIO=8	23 slices	490 MHz
+BITS=16,PIPELINE_STAGES=0,REG_RATIO=8	32 slices	482 MHz
+
+T=1,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=0,REG_RATIO=16	31 slices	466 MHz
+
+T=1,DATA_BITS=4096:
+BITS=16,PIPELINE_STAGES=0,REG_RATIO=4	88 slices	423 MHz
+BITS=16,PIPELINE_STAGES=1,REG_RATIO=16	64 slices	385 MHz
+
+T=2,DATA_BITS=64:
+BITS= 1,PIPELINE_STAGES=2,REG_RATIO=1	36 slices	442 MHz
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=8	105 slices	504 MHz
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=4	84 slices	488 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=1	183 slices	424 MHz
+
+T=2,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=8	367 slices	291 MHz
+
+T=2,DATA_BITS=4096:
+BITS=16,PIPELINE_STAGES=1,REG_RATIO=4	821 slices	230 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=16	637 slices	215 MHz
+
 bch_error_tmec - Error location function for T > 1. Requires the solved key
 equation as input. Same output as bch_error_* above. Up to two pipeline
 stages can be added by setting the PIPELINE_STAGES parameter.
+
+T=3,DATA_BITS=64:
+BITS= 1,PIPELINE_STAGES=0,REG_RATIO=1	26 slices	485 MHz
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=4	75 slices	457 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=8	111 slices	393 MHz
+
+T=3,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=4	152 slices	416 MHz
+
+T=3,DATA_BITS=4096:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=8	314 slices	352 MHz
+
+T=8,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=8	373 slices	337 MHz
+
+T=8,DATA_BITS=4096:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=16	737 slices	251 MHz
+
+T=12,DATA_BITS=256:
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=16	595 slices	297 MHz
+
+T=12,DATA_BITS=4096:
+BITS= 8,PIPELINE_STAGES=2,REG_RATIO=8	585 slices	262 MHz
+BITS=16,PIPELINE_STAGES=2,REG_RATIO=16	1247 slices	183 MHz
 
 sim - Test bench core and example code for connecting together the different
 modules. Takes an additional parameter to specify the type of key equation
@@ -134,10 +252,6 @@ create a duplicated register set for each bit. This causes them to instead
 only create a register for every REG_RATIOth bit. The additional values
 are calculated asyncronously which may create timing issues, but will
 reduce register usage.
-
-The code currently compiles under Icarus Verilog and Xilinx Isim. Because
-the way the parameterization is handled, simulation is slow, especially
-for larger values of `BCH_M(P)*`BCH_T(P).
 
 TODO:
 
