@@ -1,11 +1,9 @@
 /*
- * m = power of field
- * l = irreducable polynomial for m
- * n = code word size (1 << m) - 1
- * k = input size
- * t = correctable bits
+ * BCH Encode/Decoder Modules
+ *
+ * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Distributed under 2-clause BSD license as contained in COPYING file.
  */
-
 `include "log2.vh"
 `include "bch_defs.vh"
 

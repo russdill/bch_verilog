@@ -1,7 +1,12 @@
+/*
+ * BCH Encode/Decoder Modules
+ *
+ * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Distributed under 2-clause BSD license as contained in COPYING file.
+ */
 `timescale 1ns / 1ps
 
 `include "bch_defs.vh"
-
 
 /* Chien search, determines roots of a polynomial defined over a finite field */
 module bch_chien_reg #(

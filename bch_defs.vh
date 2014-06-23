@@ -1,3 +1,9 @@
+/*
+ * BCH Encode/Decoder Modules
+ *
+ * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Distributed under 2-clause BSD license as contained in COPYING file.
+ */
 `ifndef _BCH_DEFS_VH_
 `define _BCH_DEFS_VH_
 
