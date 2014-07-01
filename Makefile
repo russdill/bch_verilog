@@ -24,7 +24,7 @@ OOPTION = -Ptb_sim.OPTION=\"$(OPTION)\"
 endif
 
 ifdef REG_RATIO
-OREG_RATIO = -Ptb_sim.REG_RATIO=\"$(REG_RATIO)\"
+OREG_RATIO = -Ptb_sim.REG_RATIO=$(REG_RATIO)
 endif
 
 all: $(BINS)
