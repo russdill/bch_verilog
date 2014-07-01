@@ -55,7 +55,10 @@
 } >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
 
 /* Multiply by alpha x*l^1 */
-`define BCH_MUL1(M, X)		(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? `BCH_POLYNOMIAL(M) : 1'b0)))
+`define BCH_MUL_POLY(M, X, POLY)	(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? POLY : 1'b0)))
+
+/* Multiply by alpha x*l^1 */
+`define BCH_MUL1(M, X)		`BCH_MUL_POLY(M, X, `BCH_POLYNOMIAL(M))
 
 `define BCH_BIT_SEL(N, D)	(((D) >> (N)) & 1)
 `define BCH_EACH_BIT(FN, OP, D)	(`FN(15,(D)) OP `FN(14,(D)) OP	\
