@@ -17,6 +17,7 @@ NFLAGS=\
 xilinx_encode_VERILOG=\
 	benchmark/xilinx_encode.v	\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_encode.v
 
@@ -24,6 +25,7 @@ xilinx_syndrome_VERILOG=\
 	benchmark/xilinx_syndrome.v	\
 	bch_syndrome.v			\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_syndrome_method1.v		\
 	bch_syndrome_method2.v
@@ -31,6 +33,7 @@ xilinx_syndrome_VERILOG=\
 xilinx_parallel_VERILOG=\
 	benchmark/xilinx_parallel.v	\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_sigma_bma_parallel.v	\
 	bch_syndrome.v			\
@@ -40,6 +43,7 @@ xilinx_parallel_VERILOG=\
 xilinx_serial_VERILOG=\
 	benchmark/xilinx_serial.v	\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_sigma_bma_serial.v		\
 	bch_syndrome.v			\
@@ -50,6 +54,7 @@ xilinx_serial_VERILOG=\
 xilinx_error_dec_VERILOG=\
 	benchmark/xilinx_error_dec.v	\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_error_dec.v			\
 	bch_syndrome.v			\
@@ -61,6 +66,7 @@ xilinx_error_tmec_VERILOG=\
 	benchmark/xilinx_error_tmec.v	\
 	compare_cla.v			\
 	util.v				\
+	matrix.v			\
 	bch_math.v			\
 	bch_error_tmec.v		\
 	bch_chien.v

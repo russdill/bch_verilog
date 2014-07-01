@@ -42,6 +42,7 @@ bch_syndrome.v \
 compare_cla.v \
 sim.v \
 util.v \
+matrix.v \
 tb_sim.v
 
 tb_sim: $(V)
