@@ -1,7 +1,8 @@
+SIM_DIR=$(HOME)/opt/Xilinx/current/ISE_DS/ISE/verilog/src
 IVERILOG=iverilog
 
 BINS=tb_sim
-VFLAGS=-g2005-sv -Wall
+VFLAGS=-g2005-sv -Wall -y$(SIM_DIR)/unisims
 
 ifdef DATA_BITS
 ODATA_BITS = -Ptb_sim.DATA_BITS=$(DATA_BITS)
