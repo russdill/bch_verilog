@@ -6,55 +6,65 @@ module xilinx_error_tmec #(
 	parameter DATA_BITS = 5,
 	parameter BITS = 1,
 	parameter REG_RATIO = 1,
-	parameter PIPELINE_STAGES = 0
+	parameter PIPELINE_STAGES = 0,
+	parameter ACCUM = 1
 ) (
 	input clk_in,
-	input start,			/* Latch inputs, start calculating */
-	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
-	output ready,
-	output first,			/* First valid output data */
-	output last,
-	output valid,			/* Outputting data */
-	output [BITS-1:0] err
+	input in,
+	output reg out = 0
 );
 	`include "bch_params.vh"
+	localparam TCQ = 1;
 	localparam P = bch_params(DATA_BITS, T);
+	localparam IN = `BCH_SIGMA_SZ(P) + 1;
+	localparam OUT = 4 + BITS;
 
 	wire clk;
-	wire start0;
-	wire [`BCH_SIGMA_SZ(P)-1:0] sigma0;
-	wire ready0;
-	wire first0;
-	wire last0;
-	wire valid0;
-	wire [BITS-1:0] err0;
+	(* KEEP = "TRUE" *)
+	reg [IN-1:0] all_in;
+	(* KEEP = "TRUE" *)
+	reg [OUT-1:0] all_out;
+
+	wire start;			/* Latch inputs, start calculating */
+	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
+	wire ready;
+	wire first;			/* First valid output data */
+	wire last;
+	wire valid;			/* Outputting data */
+	wire [BITS-1:0] err;
+	(* KEEP = "TRUE" *)
+	reg in1 = 0, in2 = 0, out1 = 0;
 
 	BUFG u_bufg (
 		.I(clk_in),
 		.O(clk)
 	);
 
-	pipeline #(2) u_input [`BCH_SIGMA_SZ(P)+1-1:0] (
-		.clk(clk),
-		.i({sigma, start}),
-		.o({sigma0, start0})
-	);
+	assign start = all_in[0];
+	assign sigma = all_in >> 1;
 
-	pipeline #(2) u_output [BITS+4-1:0] (
-		.clk(clk),
-		.i({ready0, first0, last0, valid0, err0}),
-		.o({ready, first, last, valid, err})
-	);
+	always @(posedge clk) begin
+		in1 <= #TCQ in;
+		in2 <= #TCQ in1;
+		out <= #TCQ out1;
+		out1 <= #TCQ all_out[0];
 
-	bch_error_tmec #(P, BITS, REG_RATIO, PIPELINE_STAGES) u_error_tmec(
+		all_in <= #TCQ (all_in << 1) | in2;
+		if (valid)
+			all_out <= #TCQ {ready, first, last, valid, err};
+		else
+			all_out <= #TCQ all_out >> 1;
+	end
+
+	bch_error_tmec #(P, BITS, REG_RATIO, PIPELINE_STAGES, ACCUM) u_error_tmec(
 		.clk(clk),
-		.start(start0),
-		.ready(ready0),
-		.sigma(sigma0),
-		.first(first0),
-		.last(last0),
-		.valid(valid0),
-		.err(err0)
+		.start(start),
+		.ready(ready),
+		.sigma(sigma),
+		.first(first),
+		.last(last),
+		.valid(valid),
+		.err(err)
 	);
 
 
