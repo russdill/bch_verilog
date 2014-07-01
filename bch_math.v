@@ -26,7 +26,6 @@ module serial_mixed_multiplier #(
 
 	localparam TCQ = 1;
 	localparam POLY_I = `BCH_POLYI(M);
-	localparam LPOW_P = lpow(M, POLY_I);
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
 	localparam END = lfsr_count(log2(M), M - 1);
 
@@ -45,9 +44,8 @@ module serial_mixed_multiplier #(
 	assign change = count == TO;
 
 	/* part of basis conversion */
-	parallel_mixed_multiplier #(M) u_dmli(
+	parallel_mixed_multiplier_const_standard #(M, lpow(M, POLYI)) u_dmli(
 		.dual_in(dual_in),
-		.standard_in(LPOW_P[M-1:0]),
 		.dual_out(lfsr_in)
 	);
 
@@ -91,12 +89,60 @@ module parallel_mixed_multiplier #(
 	compact_matrix_vector_multiply #(M) u_mult(all, standard_in, dual_out);
 endmodule
 
+module parallel_mixed_multiplier_const_dual #(
+	parameter M = 4,
+	parameter [M-1:0] DUAL_IN = 1
+) (
+	input [M-1:0] standard_in,
+	output [M-1:0] dual_out
+);
+	`include "bch.vh"
+
+	localparam [M-1:0] POLY = `BCH_POLYNOMIAL(M);
+
+	function [M*2-2:0] gen_matrix;
+		input dummy;
+		integer i;
+	begin
+		gen_matrix[0+:M] = DUAL_IN;
+		for (i = 0; i < M - 1; i = i + 1)
+			gen_matrix[i+M] = ^(gen_matrix[i+:M] & POLY);
+	end
+	endfunction
+
+	/* Perform matrix multiplication of terms */
+	compact_const_matrix_multiply #(M, gen_matrix(0)) u_mult(standard_in, dual_out);
+endmodule
+
+module parallel_mixed_multiplier_const_standard #(
+	parameter M = 4,
+	parameter [M-1:0] STANDARD_IN = 1
+) (
+	input [M-1:0] dual_in,
+	output [M-1:0] dual_out
+);
+	`include "bch.vh"
+
+	localparam [M-1:0] POLY = `BCH_POLYNOMIAL(M);
+
+	wire [M-2:0] aux;
+	wire [M*2-2:0] all;
+
+	assign all = {aux, dual_in};
+
+	/* Generate additional terms via an LFSR */
+	compact_matrix_vector_multiply #(M, M-1) u_lfsr(all[M*2-3:0], POLY, aux);
+
+	/* Perform matrix multiplication of terms */
+	compact_const_vector_multiply #(M, STANDARD_IN) u_mult(all, dual_out);
+endmodule
+
 /* Bit-parallel standard basis multiplier (PPBML) */
 module parallel_standard_multiplier #(
 	parameter M = 4,
 	parameter N_INPUT = 1
 ) (
-	input [M-1:0] standard_in1,		/* Constant should go here */
+	input [M-1:0] standard_in1,
 	input [M*N_INPUT-1:0] standard_in2,
 	output [M*N_INPUT-1:0] standard_out
 );
@@ -110,6 +156,47 @@ module parallel_standard_multiplier #(
 	endfunction
 
 	matrix_vector_multiplyT #(M) u_mult [N_INPUT-1:0] (gen_matrix(standard_in1), standard_in2, standard_out);
+endmodule
+
+/* Bit-parallel standard basis multiplier (PPBML) */
+module parallel_standard_multiplier_const1 #(
+	parameter M = 4,
+	parameter [M-1:0] STANDARD_IN1 = 0
+) (
+	input [M-1:0] standard_in,
+	output [M-1:0] standard_out
+);
+	`include "bch.vh"
+
+	function [M*M-1:0] gen_matrix;
+		input dummy;
+		integer i;
+	begin
+		for (i = 0; i < M; i = i + 1)
+			gen_matrix[i*M+:M] = i ? `BCH_MUL1(M, gen_matrix[(i-1)*M+:M]) : STANDARD_IN1;
+	end
+	endfunction
+
+	const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
+endmodule
+
+module parallel_standard_multiplier_const2 #(
+	parameter M = 4,
+	parameter [M-1:0] STANDARD_IN2 = 0
+) (
+	input [M-1:0] standard_in,
+	output [M-1:0] standard_out
+);
+	function [M*M-1:0] gen_matrix;
+		input [M-1:0] in;
+		integer i;
+	begin
+		for (i = 0; i < M; i = i + 1)
+			gen_matrix[i*M+:M] = i ? `BCH_MUL1(M, gen_matrix[(i-1)*M+:M]) : in;
+	end
+	endfunction
+
+	const_vector_multiplyT #(M, STANDARD_IN2) u_mult(gen_matrix(standard_in), standard_out);
 endmodule
 
 /*
@@ -176,7 +263,7 @@ module parallel_standard_power #(
 	end
 	endfunction
 
-	matrix_vector_multiplyT #(M) u_mult(gen_matrix(0), standard_in, standard_out);
+	const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
 endmodule
 
 /*
