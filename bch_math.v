@@ -391,7 +391,7 @@ module lfsr_counter #(
 		if (reset)
 			count <= #TCQ 1'b1;
 		else if (ce)
-			count <= #TCQ {count[M-2:0], 1'b0} ^ ({M{count[M-1]}} & `BCH_POLYNOMIAL(M));
+			count <= #TCQ `BCH_MUL1(M, count);
 endmodule
 
 /* Generate an LFSR term for a series of input bits */
@@ -403,18 +403,12 @@ module lfsr_term #(
 	input [BITS-1:0] in,
 	output [M-1:0] out
 );
-
-	function [M-1:0] lfsr;
-		input [M-1:0] in;
-		lfsr = {in[M-2:0], 1'b0} ^ (POLY & {M{in[M-1]}});
-	endfunction
-
 	wire [M*BITS-1:0] in_terms;
 	genvar j;
 	for (j = 0; j < BITS; j = j + 1) begin : lfsr_build
 		wire [M-1:0] poly;
-		assign poly = j ? lfsr(lfsr_build[j > 0 ? j-1 : 0].poly) : POLY;
-		assign in_terms[j*M+:M] = poly & {M{in[j]}};
+		assign poly = j ? `BCH_MUL_POLY(M, lfsr_build[j > 0 ? j-1 : 0].poly, POLY) : POLY;
+		assign in_terms[j*M+:M] = in[j] ? poly : 1'b0;
 	end
 
 	finite_parallel_adder #(M, BITS) u_adder(
