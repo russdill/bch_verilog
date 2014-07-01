@@ -40,6 +40,7 @@ bch_syndrome_method1.v \
 bch_syndrome_method2.v \
 bch_syndrome.v \
 sim.v \
+util.v \
 tb_sim.v
 
 tb_sim: $(V)
