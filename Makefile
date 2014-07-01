@@ -39,6 +39,7 @@ bch_sigma_bma_serial.v \
 bch_syndrome_method1.v \
 bch_syndrome_method2.v \
 bch_syndrome.v \
+compare_cla.v \
 sim.v \
 util.v \
 tb_sim.v

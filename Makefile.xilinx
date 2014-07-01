@@ -59,6 +59,7 @@ xilinx_error_dec_VERILOG=\
 
 xilinx_error_tmec_VERILOG=\
 	benchmark/xilinx_error_tmec.v	\
+	compare_cla.v			\
 	util.v				\
 	bch_math.v			\
 	bch_error_tmec.v		\
