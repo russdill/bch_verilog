@@ -135,38 +135,7 @@ module bch_syndrome #(
 	endgenerate
 endmodule
 
-/* Syndrome expansion */
-module bch_syndrome_expand #(
-	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
-) (
-	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
-	output [(2*T-1)*M-1:0] expanded
-);
-	`include "bch_syndrome.vh"
-
-	localparam M = `BCH_M(P);
-	localparam T = `BCH_T(P);
-
-	genvar dat;
-
-	generate
-	for (dat = 1; dat < 2 * T; dat = dat + 1) begin : ASSIGN
-		if (syndrome_method(M, T, dat2syn(M, dat)) == 0) begin : METHOD1
-			syndrome_expand_method1 #(P) u_expand(
-				.in(syndromes[dat2idx(M, dat)*M+:M]),
-				.out(expanded[(dat-1)*M+:M])
-			);
-		end else begin : METHOD2
-			syndrome_expand_method2 #(P, dat) u_expand(
-				.in(syndromes[dat2idx(M, dat)*M+:M]),
-				.out(expanded[(dat-1)*M+:M])
-			);
-		end
-	end
-	endgenerate
-endmodule
-
-/* Syndrome shuffling */
+/* Syndrome expansion/shuffling */
 module bch_syndrome_shuffle #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
@@ -176,37 +145,55 @@ module bch_syndrome_shuffle #(
 	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	output reg [(2*T-1)*M-1:0] syn_shuffled = 0
 );
-
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
-	genvar i;
-	genvar dat;
 
-	wire [(2*`BCH_T(P)-1)*M-1:0] expanded;
-	bch_syndrome_expand #(P) u_expand(
-		.syndromes(syndromes),
-		.expanded(expanded)
-	);
+	genvar i;
+
+	wire [(2*T-1)*M-1:0] bypass_in_shifted;
+	wire [(2*T-1)*M-1:0] syndromes_pre_expand;
+	wire [(2*T-1)*M-1:0] expand_in;
+	wire [(2*T-1)*M-1:0] expand_in1;
+	wire [(2*T-1)*M-1:0] syn_expanded;
+
+	for (i = 0; i < 2 * T - 1; i = i + 1) begin : ASSIGN
+		assign syndromes_pre_expand[i*M+:M] = syndromes[dat2idx(M, i+1)*M+:M] & {M{start}};
+	end
 
 	/* Shuffle syndromes */
-	generate
-	for (i = 0; i < 2*T-1; i = i + 1) begin : s
-		if (i == T + 1 && T < 4) begin
-			always @(posedge clk)
-				if (start)
-					syn_shuffled[i*M+:M] <= #TCQ expanded[(3*T-i-2)*M+:M];
-		end else begin
-			always @(posedge clk)
-				if (start)
-					syn_shuffled[i*M+:M] <= #TCQ expanded[M*((2*T+1-i)%(2*T-1))+:M];
-				else if (ce)
-					syn_shuffled[i*M+:M] <= #TCQ syn_shuffled[M*((i+(2*T-3))%(2*T-1))+:M];
+	rotate_right #((2*T-1)*M, 3*M) u_rol_e(syndromes_pre_expand, expand_in1);
+	reverse_words #(M, 2*T-1) u_rev(expand_in1, expand_in);
+
+	rotate_left #((2*T-1)*M, 2*M) u_rol_b(syn_shuffled, bypass_in_shifted);
+
+	/*
+	 * We need to combine syndrome expansion and shuffling into a single
+	 * operation so we can optimize LUT usage for an XOR carry chain. It
+	 * causes a little confusion as we need to select expansion method
+	 * based on the pre-shuffled indexes as well as pass in the pre-
+	 * shuffled index to the expand method.
+	 */
+	for (i = 0; i < 2 * T - 1; i = i + 1) begin : EXPAND
+		localparam PRE = (2 * T - 1 + 2 - i) % (2 * T - 1); /* Pre-shuffle value */
+		if (syndrome_method(M, T, dat2syn(M, PRE+1)) == 0) begin : METHOD1
+			syndrome_expand_method1 #(P) u_expand(
+				.in(expand_in[i*M+:M]),
+				.out(syn_expanded[i*M+:M])
+			);
+		end else begin : METHOD2
+			syndrome_expand_method2 #(P, PRE+1) u_expand(
+				.in(expand_in[i*M+:M]),
+				.out(syn_expanded[i*M+:M])
+			);
 		end
 	end
-	endgenerate
+
+	always @(posedge clk)
+		if (start || ce)
+			syn_shuffled <= #TCQ syn_expanded ^ ({(2*T-1)*M{!start}} & bypass_in_shifted);
 endmodule
 
 module bch_errors_present #(
