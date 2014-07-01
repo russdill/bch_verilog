@@ -12,7 +12,7 @@
 module bch_error_dec #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
 	parameter BITS = 1,
-	parameter REG_RATIO = 1,
+	parameter REG_RATIO = BITS > 8 ? 8 : BITS,
 	parameter PIPELINE_STAGES = 0
 ) (
 	input clk,
@@ -45,13 +45,6 @@ module bch_error_dec #(
 
 	assign err = last ? (_err & {RUNT{1'b1}}) : _err;
 
-	bch_syndrome_expand #(P) u_expand(
-		.syndromes(syndromes),
-		.expanded(expanded)
-	);
-
-	assign sigma = expanded;
-
 	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
@@ -71,6 +64,8 @@ module bch_error_dec #(
 
 	genvar i;
 	if (T == 1) begin : SEC
+		assign sigma = syndromes;
+
 		/*
 		 * SEC sigma(x) = 1 + S_1 * x
 		 * No error if S_1 = 0
@@ -105,6 +100,8 @@ module bch_error_dec #(
 		 */
 		reg first_cycle = 0;
 		wire first_cycle_pipelined;
+
+		assign sigma = {syndromes[M+:M], {M{1'b0}}, syndromes[0+:M]};
 
 		if (PIPELINE_STAGES > 2)
 			dec_pow3_only_supports_2_pipeline_stages u_dpos2ps();
