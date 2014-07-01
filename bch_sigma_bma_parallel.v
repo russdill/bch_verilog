@@ -86,7 +86,7 @@ module bch_sigma_bma_parallel #(
 			done <= #TCQ 1;
 		else if (ack_done)
 			done <= #TCQ 0;
-			
+
 		if (start) begin
 			d_r <= #TCQ syn1 ? syn1 : 1;
 			d_p <= #TCQ syn1 ? syn1 : 1;
@@ -94,26 +94,28 @@ module bch_sigma_bma_parallel #(
 			sigma <= #TCQ sigma0;
 			beta <= #TCQ beta0;
 			err_count <= #TCQ {{`BCH_ERR_SZ(P)-1{1'b0}}, |syn1};
-		end else if (busy && !syn_shuffle) begin
-			d_r <= #TCQ d_r_next;
-			d_r_beta <= #TCQ product;
-			in2 <= #TCQ beta;
 		end else if (busy) begin
-			/* d_p = bsel ? d_r : d_p */
-			if (bsel) begin
-				d_p <= #TCQ d_r;
-				err_count <= #TCQ 2 * bch_n - err_count + 1;
-			end else
-				d_r <= #TCQ d_p;
+			if (!syn_shuffle) begin
+				d_r <= #TCQ d_r_next;
+				d_r_beta <= #TCQ product;
+				in2 <= #TCQ beta;
+			end else begin
+				/* d_p = bsel ? d_r : d_p */
+				if (bsel) begin
+					d_p <= #TCQ d_r;
+					err_count <= #TCQ 2 * bch_n - err_count + 1;
+				end else
+					d_r <= #TCQ d_p;
 
-			/* sigma^(r)(x) = d_p * sigma^(r-1)(x) - d_r * beta^(r)(x) */
-			sigma <= #TCQ d_r_beta ^ product;
-			in2 <= #TCQ d_r_beta ^ product;
+				/* sigma^(r)(x) = d_p * sigma^(r-1)(x) - d_r * beta^(r)(x) */
+				sigma <= #TCQ d_r_beta ^ product;
+				in2 <= #TCQ d_r_beta ^ product;
 
-			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
-			beta[2*M+:`BCH_SIGMA_SZ(P)-2*M] <= #TCQ bsel ?
-				sigma[0*M+:`BCH_SIGMA_SZ(P)-2*M] :
-				beta[0*M+:`BCH_SIGMA_SZ(P)-2*M];
+				/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
+				beta[2*M+:`BCH_SIGMA_SZ(P)-2*M] <= #TCQ bsel ?
+					sigma[0*M+:`BCH_SIGMA_SZ(P)-2*M] :
+					beta[0*M+:`BCH_SIGMA_SZ(P)-2*M];
+			end
 		end
 	end
 
