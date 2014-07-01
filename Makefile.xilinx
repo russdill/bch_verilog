@@ -14,60 +14,48 @@ NFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
 	 $(patsubst %,-uc %,$($*_UCF) $(UCF))
 
-xilinx_encode_VERILOG=\
-	benchmark/xilinx_encode.v	\
-	util.v				\
-	matrix.v			\
+core_VERILOG=\
 	bch_math.v			\
+	util.v				\
+	matrix.v
+
+syndrome_VERILOG=\
+	bch_syndrome.v			\
+	bch_syndrome_method1.v		\
+	bch_syndrome_method2.v
+
+xilinx_encode_VERILOG=\
+	$(core_VERILOG)			\
+	benchmark/xilinx_encode.v	\
 	bch_encode.v
 
 xilinx_syndrome_VERILOG=\
-	benchmark/xilinx_syndrome.v	\
-	bch_syndrome.v			\
-	util.v				\
-	matrix.v			\
-	bch_math.v			\
-	bch_syndrome_method1.v		\
-	bch_syndrome_method2.v
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
+	benchmark/xilinx_syndrome.v
 
 xilinx_parallel_VERILOG=\
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
 	benchmark/xilinx_parallel.v	\
-	util.v				\
-	matrix.v			\
-	bch_math.v			\
-	bch_sigma_bma_parallel.v	\
-	bch_syndrome.v			\
-	bch_syndrome_method1.v		\
-	bch_syndrome_method2.v
+	bch_sigma_bma_parallel.v
 
 xilinx_serial_VERILOG=\
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
 	benchmark/xilinx_serial.v	\
-	util.v				\
-	matrix.v			\
-	bch_math.v			\
-	bch_sigma_bma_serial.v		\
-	bch_syndrome.v			\
-	bch_syndrome_method1.v		\
-	bch_syndrome_method2.v
-
+	bch_sigma_bma_serial.v
 
 xilinx_error_dec_VERILOG=\
+	$(core_VERILOG)			\
 	benchmark/xilinx_error_dec.v	\
-	util.v				\
-	matrix.v			\
-	bch_math.v			\
 	bch_error_dec.v			\
-	bch_syndrome.v			\
-	bch_syndrome_method1.v		\
-	bch_syndrome_method2.v		\
 	bch_chien.v
 
 xilinx_error_tmec_VERILOG=\
-	benchmark/xilinx_error_tmec.v	\
+	$(core_VERILOG)			\
 	compare_cla.v			\
-	util.v				\
-	matrix.v			\
-	bch_math.v			\
+	benchmark/xilinx_error_tmec.v	\
 	bch_error_tmec.v		\
 	bch_chien.v
 
