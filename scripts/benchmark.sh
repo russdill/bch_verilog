@@ -8,7 +8,6 @@ configs=$(echo $@)
 
 for config in $configs; do
 	_config=$(echo $config | sed 's/,/ /g')
-	rm -f ${prj}_par.ptwx ${prj}_par.xrpt
 	echo make -f Makefile.xilinx ${prj}_par.ncd GENERICS="$_config"
 	make -f Makefile.xilinx ${prj}_par.ncd GENERICS="$_config" || continue
 	slices=$(xmllint --xpath '//document/application[last()]/task[@stringID="PAR_DEVICE_UTLIZATION"]/section[@stringID="PAR_SLICE_REPORTING"]/item[@stringID="PAR_OCCUPIED_SLICES"]/@value' ${prj}_par.xrpt | cut -f 2 -d '"')
