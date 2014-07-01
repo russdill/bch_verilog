@@ -151,7 +151,7 @@ endmodule
  *	M{a[M-2]} & b
  *	...
  *	M[a[0]} & b
- * All products of input paris are summed together.
+ * All products of input pairs are summed together.
  * Takes M cycles
  */
 module serial_standard_multiplier #(
@@ -159,8 +159,8 @@ module serial_standard_multiplier #(
 	parameter N_INPUT = 1
 ) (
 	input clk,
-	input run,
-	input start,
+	input reset,
+	input ce,
 	input [M*N_INPUT-1:0] parallel_in,
 	input [N_INPUT-1:0] serial_in,
 	output reg [M-1:0] out = 0
@@ -171,19 +171,21 @@ module serial_standard_multiplier #(
 
 	wire [M*N_INPUT-1:0] z;
 	wire [M-1:0] in;
+	wire [M-1:0] out_mul1;
+	assign out_mul1 = `BCH_MUL1(M, out);
 
 	genvar i;
 	for (i = 0; i < N_INPUT; i = i + 1) begin : mult
 		assign z[i*M+:M] = {M{serial_in[i]}} & parallel_in[i*M+:M];
 	end
 
-	finite_parallel_adder #(M, N_INPUT) u_adder(z, in);
+	finite_parallel_adder #(M, N_INPUT+1) u_adder({z, out_mul1}, in);
 
 	always @(posedge clk) begin
-		if (start)
+		if (reset)
+			out <= #TCQ 0;
+		else if (ce)
 			out <= #TCQ in;
-		else if (run)
-			out <= in ^ {out[M-2:0], 1'b0} ^ (`BCH_POLYNOMIAL(M) & {M{out[M-1]}});
 	end
 endmodule
 
