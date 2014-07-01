@@ -31,6 +31,25 @@ begin
 end
 endfunction
 
+function [`MAX_M-1:0] dual_basis;
+	input [31:0] m;
+	input [`MAX_M-1:0] in;
+	reg [`MAX_M*2-2:0] matrix;
+	reg [`MAX_M-1:0] ret;
+	reg [`MAX_M-1:0] standard;
+	integer i;
+begin
+	matrix = 1;
+	ret = 0;
+	standard = lpow(m, in);
+	for (i = 0; i < m; i = i + 1) begin
+		matrix[i+m] = ^((matrix >> i) & `BCH_POLYNOMIAL(m));
+		ret[i] = ^(standard & (matrix >> i));
+	end
+	dual_basis = ret;
+end
+endfunction
+
 /* Convert polynomial basis to dual basis */
 function [`MAX_M-1:0] standard_to_dual;
 	input [31:0] m;
