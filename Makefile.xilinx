@@ -129,9 +129,9 @@ CLEAN_FILES += *.ncd
 	par -w -f .$*.popt $< $@
 .PRECIOUS: %_par.ncd
 
-%.twr: %_par.ncd
-	trce $< $*.pcf -o $@
-CLEAN_FILES += *.twr
+%.twr %.twx: %_par.ncd
+	trce -v $< $*.pcf -o $*.twr -xml $*.twx
+CLEAN_FILES += *.twr *.twx
 
 CLEAN_FILES += *.xpi *_par_pad.csv *_par_pad.txt *.ptwx *.unroutes *.xrpt *.pcf *_summary.xml *_usage.xml *.bld *.lso *.map
 CLEAN_FILES += *.mrp *.ngm *_par.pad *_par.par *.srp .*.srp
