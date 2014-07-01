@@ -171,7 +171,7 @@ always @(posedge clk) begin
 end
 
 wire err_count_wrong;
-if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
+if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) begin : TMEC
 
 	wire ch_start;
 	wire ch_ready;
@@ -191,6 +191,17 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL")) begin : TMEC
 		);
 	end else if (OPTION == "PARALLEL") begin : BMA_PARALLEL
 		bch_sigma_bma_parallel #(P) u_bma (
+			.clk(clk),
+			.start(syn_done && key_ready),
+			.ready(key_ready),
+			.syndromes(syndromes),
+			.sigma(sigma),
+			.done(ch_start),
+			.ack_done(ch_ready),
+			.err_count(err_count)
+		);
+	end else if (OPTION == "NOINV") begin : BMA_NOINV
+		bch_sigma_bma_noinv #(P) u_bma (
 			.clk(clk),
 			.start(syn_done && key_ready),
 			.ready(key_ready),

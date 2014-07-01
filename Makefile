@@ -37,6 +37,7 @@ bch_error_tmec.v \
 bch_math.v \
 bch_sigma_bma_parallel.v \
 bch_sigma_bma_serial.v \
+bch_sigma_bma_noinv.v \
 bch_syndrome_method1.v \
 bch_syndrome_method2.v \
 bch_syndrome.v \

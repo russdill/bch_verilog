@@ -171,6 +171,20 @@ T=12,DATA_BITS=256			576 slices	230 MHz
 T=12,DATA_BITS=1024			761 slices	229 MHz
 T=12,DATA_BITS=4096			1025 slices	191 MHz
 
+bch_sigma_bma_noinv - Serial Berlekamp–Massey algorithm without
+inversion. This option supports pentanomials and trinomials. This option
+takes `BCH_T(P) * (`BCH_M(P) * 2 + 1) cycles to solve the key equation.
+
+T= 3,DATA_BITS=256			19 slices	421 MHz
+T= 3,DATA_BITS=1024			107 slices	348 MHz
+T= 3,DATA_BITS=4096			128 slices	320 MHz
+T= 8,DATA_BITS=256			19 slices	307 MHz
+T= 8,DATA_BITS=1024			231 slices	261 MHz
+T= 8,DATA_BITS=4096			305 slices	232 MHz
+T=12,DATA_BITS=256			23 slices	489 MHz
+T=12,DATA_BITS=1024			342 slices	196 MHz
+T=12,DATA_BITS=4096			445 slices	203 MHz
+
 bch_error_* - Error locator. After 2 cycles, it clocks out a BITS wide error
 bits word ceil(`BCH_DATA_BITS / BITS) cycles, each cycle representing a set
 of error locations. If `BCH_DATA_BITS % BITS is non-zero, the high bits
@@ -244,6 +258,7 @@ OPTION - The type of key equation solver:
 OPTION == NONE - For T < 3, skip the key solving process
 OPTION == PARALLEL - For T > 1, use bch_sigma_bma_parallel
 OPTION == SERIAL - For T > 1, use bch_sigma_bma_serial
+OPTION == NOINV - For T > 1, use bch_sigma_bma_noinv
 
 BITS - The word width for bch_encode, bch_syndrome, and bch_error_*.
 

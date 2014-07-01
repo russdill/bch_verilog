@@ -51,6 +51,12 @@ xilinx_parallel_VERILOG=\
 	benchmark/xilinx_parallel.v	\
 	bch_sigma_bma_parallel.v
 
+xilinx_noinv_VERILOG=\
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
+	benchmark/xilinx_noinv.v	\
+	bch_sigma_bma_noinv.v
+
 xilinx_serial_VERILOG=\
 	$(core_VERILOG)			\
 	$(syndrome_VERILOG)		\
