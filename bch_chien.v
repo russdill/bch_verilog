@@ -24,22 +24,27 @@ module bch_chien_reg #(
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
-	localparam LPOW_REG = lpow(M, REG * STRIDE);
-	/* preperform the proper number of multiplications */
-	localparam LPOW_SKIP = lpow(M, REG * SKIP);
 
+	reg [M-1:0] pre = 0;
 	wire [M-1:0] mul_out;
+	wire [M-1:0] mul_out_start;
+
+	if (!SKIP)
+		assign mul_out_start = in;
+	else
+		/* Initialize with coefficients of the error location polynomial */
+		parallel_standard_multiplier_const2 #(M, lpow(M, REG * SKIP)) u_mult_start(
+			.standard_in(in),
+			.standard_out(mul_out_start)
+		);
 
 	/* Multiply by alpha^P */
-	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(start ? LPOW_SKIP[M-1:0] : LPOW_REG[M-1:0]),
-		/* Initialize with coefficients of the error location polynomial */
-		.standard_in2(start ? in : out),
+	parallel_standard_multiplier_const1 #(M, lpow(M, REG * STRIDE)) u_mult(
+		.standard_in(out),
 		.standard_out(mul_out)
 	);
-
 	always @(posedge clk)
-		out <= #TCQ mul_out;
+		out <= #TCQ start ? mul_out_start : mul_out;
 endmodule
 
 module bch_chien_expand #(
@@ -54,11 +59,9 @@ module bch_chien_expand #(
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
-	localparam [M-1:0] LPOW = lpow(M, REG * SKIP);
 
-	parallel_standard_multiplier #(M) u_mult(
-		.standard_in1(LPOW),
-		.standard_in2(in),
+	parallel_standard_multiplier_const1 #(M, lpow(M, REG * SKIP)) u_mult(
+		.standard_in(in),
 		.standard_out(out)
 	);
 endmodule
