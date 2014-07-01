@@ -57,7 +57,7 @@ module dsynN_method1 #(
 		integer i;
 	begin
 		for (i = 0; i < REGS; i = i + 1)
-			pow_initial[i*SB+:SB] = lpow(SB, `BCH_M2N(SB) - (SYN * (i + SKIP + 1)) % `BCH_M2N(SB));
+			pow_initial[i*SB+:SB] = lpow(SB, `BCH_M2N(SB) - ((SYN * (i * REG_RATIO + SKIP + 1)) % `BCH_M2N(SB)));
 	end
 	endfunction
 
