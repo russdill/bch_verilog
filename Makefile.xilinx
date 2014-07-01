@@ -3,16 +3,24 @@ UCF=xilinx.ucf
 
 XFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
-	-ifmt mixed				\
-	-ofmt NGC				\
-	-opt_mode Speed				\
 	-generics {$(GENERICS) $($*_GENERICS)}	\
 	-loop_iteration_limit 10000		\
-	-opt_level 2
+	-opt_level 2				\
+	-reduce_control_sets no			\
+	-ifmt mixed				\
+	-ofmt NGC
 
 NFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
 	 $(patsubst %,-uc %,$($*_UCF) $(UCF))
+
+MFLAGS=\
+	-pr b			\
+	-mt 2			\
+	-global_opt speed	\
+	-logic_opt on		\
+	-lc auto		\
+	-detail
 
 PFLAGS=\
 	-mt 4
