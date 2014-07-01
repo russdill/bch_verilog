@@ -96,6 +96,18 @@ CLEAN_FILES += .*.xopt
 .PRECIOUS: .%.nopt
 CLEAN_FILES += .*.nopt
 
+.%.mopt: FORCE
+	@echo $($*_MFLAGS) $(MFLAGS) > $@.tmp
+	@if cmp -s $@ $@.tmp; then rm $@.tmp; else mv $@.tmp $@; fi
+.PRECIOUS: .%.mopt
+CLEAN_FILES += .*.mopt
+
+.%.popt: FORCE
+	@echo $($*_PFLAGS) $(PFLAGS) > $@.tmp
+	@if cmp -s $@ $@.tmp; then rm $@.tmp; else mv $@.tmp $@; fi
+.PRECIOUS: .%.popt
+CLEAN_FILES += .*.popt
+
 %.ngc: .%.prj .%.xopt
 	@scripts/makedeps.sh $* $($*_VERILOG) > .$@.d
 	xst -ifn .$*.xopt
@@ -107,14 +119,14 @@ CLEAN_FILES += *.ngc
 .PRECIOUS: %.ngd
 CLEAN_FILES += *.ngd
 
-%.ncd: %.ngd
-	map -w -detail -pr b $<
+%.ncd: %.ngd .%.mopt
+	map -w -f .$*.mopt $<
 .PRECIOUS: %.ncd
 CLEAN_FILES += *.ncd
 
 # FIXME: Make < 4.0 has trouble with this
-%_par.ncd: %.ncd
-	par -w $< $@
+%_par.ncd: %.ncd .%.popt
+	par -w -f .$*.popt $< $@
 .PRECIOUS: %_par.ncd
 
 %.twr: %_par.ncd
