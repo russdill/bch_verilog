@@ -44,7 +44,7 @@ module serial_mixed_multiplier #(
 	assign change = count == TO;
 
 	/* part of basis conversion */
-	parallel_mixed_multiplier_const_standard #(M, lpow(M, POLYI)) u_dmli(
+	parallel_mixed_multiplier_const_standard #(M, lpow(M, POLY_I)) u_dmli(
 		.dual_in(dual_in),
 		.dual_out(lfsr_in)
 	);
