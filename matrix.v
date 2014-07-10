@@ -129,16 +129,19 @@ module const_matrix_multiply #(
 	genvar i, j;
 	for (i = 0; i < R; i = i + 1) begin : OUT
 		localparam DEGREE = degree(i);
-		localparam [LOG2C*C-1:0] IDXS = idx(i, DEGREE - 1);
+		if (DEGREE > 0) begin
+			localparam [LOG2C*C-1:0] IDXS = idx(i, DEGREE - 1);
 
-		wire [DEGREE-1:0] terms;
+			wire [DEGREE-1:0] terms;
 
-		for (j = 0; j < C; j = j + 1) begin : TERMS
-			localparam IDX = IDXS[LOG2C*j+:LOG2C];
-			if (MATRIX[i*C+j])
-				assign terms[IDX] = vector[j];
-		end
-		assign out[i] = ^terms;
+			for (j = 0; j < C; j = j + 1) begin : TERMS
+				localparam IDX = IDXS[LOG2C*j+:LOG2C];
+				if (MATRIX[i*C+j])
+					assign terms[IDX] = vector[j];
+			end
+			assign out[i] = ^terms;
+		end else
+			assign out[i] = 0;
 	end
 endmodule
 
@@ -201,14 +204,17 @@ module const_vector_multiply #(
 	localparam DEGREE = degree(0);
 	localparam [LOG2C*C-1:0] IDXS = idx(DEGREE - 1);
 
-	genvar i, j;
-	for (i = 0; i < R; i = i + 1) begin : ROWS
-		wire [DEGREE-1:0] terms;
-		for (j = 0; j < C; j = j + 1) begin : TERMS
-			localparam IDX = IDXS[LOG2C*j+:LOG2C];
-			if (VECTOR[j])
-				assign terms[IDX] = matrix[i*C+j];
+	if (DEGREE) begin
+		genvar i, j;
+		for (i = 0; i < R; i = i + 1) begin : ROWS
+			wire [DEGREE-1:0] terms;
+			for (j = 0; j < C; j = j + 1) begin : TERMS
+				localparam IDX = IDXS[LOG2C*j+:LOG2C];
+				if (VECTOR[j])
+					assign terms[IDX] = matrix[i*C+j];
+			end
+			assign out[i] = ^terms;
 		end
-		assign out[i] = ^terms;
-	end
+	end else
+		assign out = 0;
 endmodule
