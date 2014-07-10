@@ -107,7 +107,9 @@ always @(posedge clk) begin
 		encode_buf <= #TCQ encode_buf >> BITS;
 end
 
-wire [BITS-1:0] encoder_in = encode_start ? data_in : encode_buf;
+wire [BITS-1:0] encoder_in = encode_accepted ? data_in : encode_buf;
+wire data_bits;
+wire ecc_bits;
 
 /* Generate code */
 bch_encode #(P, BITS) u_bch_encode(
@@ -117,11 +119,31 @@ bch_encode #(P, BITS) u_bch_encode(
 	.ce(encode_ce),
 	.data_in(encoder_in),
 	.data_out(encoded_data),
-	.data_bits(),
-	.ecc_bits(),
+	.data_bits(data_bits),
+	.ecc_bits(ecc_bits),
 	.first(encoded_first),
 	.last(encoded_last)
 );
+
+reg ecc_bits_last = 0;
+
+always @(posedge clk)
+	if (encode_ce)
+		ecc_bits_last <= #TCQ ecc_bits;
+
+wire [BITS-1:0] xor_out;
+wire [BITS-1:0] encoded_data_xor;
+
+bch_blank_ecc #(P, BITS) u_encode_blank(
+	.clk(clk),
+	.start(ecc_bits && !ecc_bits_last),
+	.ce(encode_ce),
+	.xor_out(xor_out),
+	.first(),
+	.last()
+);
+
+assign encoded_data_xor = ecc_bits ? (encoded_data ^ xor_out) : encoded_data;
 
 /* Don't assert start until we get the ready signal */
 wire syndrome_start = encoded_first && syndrome_ready;

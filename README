@@ -95,6 +95,11 @@ T=12,DATA_BITS=4096:
 BITS= 8,PIPELINE_STAGES=0		150 slices	375 MHz
 BITS=16,PIPELINE_STAGES=0		295 slices	318 MHz
 
+bch_blank_ecc - Allows the ECC on erased flash to be valid. It does this by
+precomputing the ECC of an all 1's input and then inverting it. This module
+provides this data so it can be XOR'd with the ECC bit output from the encode
+module and XOR'd again before input to the bch_syndrome module.
+
 bch_syndrome - Calculates the syndrome equations. Takes a BITS wide input.
 Operates for ceil(`BCH_CODE_BITS / BITS) cycles to produce the compact
 syndrome equations. Note that bch_syndrome expects the data and ecc input

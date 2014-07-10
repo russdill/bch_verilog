@@ -1,0 +1,100 @@
+/*
+ * BCH Encode/Decoder Modules
+ *
+ * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Distributed under 2-clause BSD license as contained in COPYING file.
+ */
+`timescale 1ns / 1ps
+
+`include "bch_defs.vh"
+
+/* Make the ECC on erased flash be all 1's */
+module bch_blank_ecc #(
+	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
+	parameter BITS = 1,
+	parameter PIPELINE_STAGES = 0
+) (
+	input clk,
+	input start,				/* First cycle */
+	input ce,				/* Accept input word/cycle output word */
+	output [BITS-1:0] xor_out,
+	output first,				/* First output cycle */
+	output last				/* Last output cycle */
+);
+	`include "bch.vh"
+	`include "bch_encode.vh"
+
+	localparam TCQ = 1;
+	localparam M = `BCH_M(P);
+	localparam EB = `BCH_ECC_BITS(P);
+	localparam ECC_WORDS = (EB + BITS - 1) / BITS;
+	localparam [EB-1:0] ENC = encoder_poly(0);
+
+	if (PIPELINE_STAGES > 1)
+		blank_ecc_only_supports_1_pipeline_stage u_beos1ps();
+
+	function [ECC_WORDS*BITS-1:0] erased_ecc;
+		input dummy;
+		reg [EB-1:0] lfsr;
+		integer i;
+	begin
+		lfsr = 0;
+		repeat (`BCH_DATA_BITS(P))
+			lfsr = (lfsr << 1) ^ (lfsr[EB-1] ? 0 : ENC);
+		for (i = 0; i < EB; i = i + 1)
+			erased_ecc[i] = ~lfsr[EB - i - 1];
+		if (ECC_WORDS*BITS != EB)
+			erased_ecc[ECC_WORDS*BITS-1:EB] = {ECC_WORDS*BITS-EB{1'b1}};
+	end
+	endfunction
+
+	localparam [ECC_WORDS*BITS-1:0] ERASED_ECC = erased_ecc(0);
+
+	reg [(ECC_WORDS-1)*BITS-1:0] ecc_xor = ERASED_ECC >> BITS;
+	wire [$clog2(ECC_WORDS+1)-1:0] count;
+	wire [BITS-1:0] xor_bits;
+	wire _last;
+
+	if (ECC_WORDS == 1) begin
+		assign _last = start;
+		assign count = 0;
+	end else if (ECC_WORDS == 2) begin
+		assign count = 0;
+		reg start0;
+		always @(posedge clk) begin
+			if (start)
+				start0 <= #TCQ start;
+			else if (ce)
+				start0 <= #TCQ 0;
+		end
+		assign _last = start0;
+	end else begin
+		assign _last = count == ECC_WORDS-1;
+		counter #(ECC_WORDS) u_counter(
+			.clk(clk),
+			.reset(start),
+			.ce(ce),
+			.count(count)
+		);
+	end
+
+	if (PIPELINE_STAGES > 0) begin
+		/* Add registered outputs to distributed RAM */
+		reg [BITS-1:0] xor_bits = ERASED_ECC[0+:BITS];
+		always @(posedge clk) begin
+			if (start)
+				xor_bits <= #TCQ ERASED_ECC[0+:BITS];
+			else if (ce)
+				xor_bits <= #TCQ ecc_xor[count*BITS+:BITS];
+		end
+		assign xor_out = xor_bits;
+	end else
+		assign xor_out = start ? ERASED_ECC[0+:BITS] : ecc_xor[count*BITS+:BITS];
+
+	pipeline_ce #(PIPELINE_STAGES > 0) u_control_pipeline [1:0] (
+		.clk(clk),
+		.ce(ce || start),
+		.i({start, _last}),
+		.o({first, last})
+	);
+endmodule

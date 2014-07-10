@@ -32,6 +32,7 @@ all: $(BINS)
 V=\
 bch_chien.v \
 bch_encode.v \
+bch_blank_ecc.v \
 bch_error_dec.v \
 bch_error_tmec.v \
 bch_math.v \
