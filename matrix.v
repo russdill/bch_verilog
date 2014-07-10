@@ -97,7 +97,7 @@ module const_matrix_multiply #(
 	input [R-1:0] vector,
 	output [C-1:0] out
 );
-	parameter LOG2C = $clog2(R+1);
+	parameter LOG2C = $clog2(C+1);
 
 	function integer degree;
 		input [LOG2C-1:0] row;
