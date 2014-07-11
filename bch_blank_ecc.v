@@ -36,21 +36,17 @@ module bch_blank_ecc #(
 	function [ECC_WORDS*BITS-1:0] erased_ecc;
 		input dummy;
 		reg [EB-1:0] lfsr;
-		integer i;
 	begin
 		lfsr = 0;
 		repeat (`BCH_DATA_BITS(P))
 			lfsr = (lfsr << 1) ^ (lfsr[EB-1] ? 0 : ENC);
-		for (i = 0; i < EB; i = i + 1)
-			erased_ecc[i] = ~lfsr[EB - i - 1];
-		if (ECC_WORDS*BITS != EB)
-			erased_ecc[ECC_WORDS*BITS-1:EB] = {ECC_WORDS*BITS-EB{1'b1}};
+		erased_ecc = ~(lfsr << (ECC_WORDS*BITS - EB));
 	end
 	endfunction
 
 	localparam [ECC_WORDS*BITS-1:0] ERASED_ECC = erased_ecc(0);
 
-	reg [(ECC_WORDS-1)*BITS-1:0] ecc_xor = ERASED_ECC >> BITS;
+	reg [(ECC_WORDS-1)*BITS-1:0] ecc_xor = ERASED_ECC;
 	wire [$clog2(ECC_WORDS+1)-1:0] count;
 	wire [BITS-1:0] xor_bits;
 	wire _last;
@@ -59,7 +55,6 @@ module bch_blank_ecc #(
 		assign _last = start;
 		assign count = 0;
 	end else if (ECC_WORDS == 2) begin
-		assign count = 0;
 		reg start0;
 		always @(posedge clk) begin
 			if (start)
@@ -68,9 +63,10 @@ module bch_blank_ecc #(
 				start0 <= #TCQ 0;
 		end
 		assign _last = start0;
+		assign count = 0;
 	end else begin
-		assign _last = count == ECC_WORDS-1;
-		counter #(ECC_WORDS) u_counter(
+		assign _last = count == 0;
+		counter #(ECC_WORDS, ECC_WORDS - 2, -1) u_counter(
 			.clk(clk),
 			.reset(start),
 			.ce(ce),
@@ -80,16 +76,16 @@ module bch_blank_ecc #(
 
 	if (PIPELINE_STAGES > 0) begin
 		/* Add registered outputs to distributed RAM */
-		reg [BITS-1:0] xor_bits = ERASED_ECC[0+:BITS];
+		reg [BITS-1:0] xor_bits = ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
 		always @(posedge clk) begin
 			if (start)
-				xor_bits <= #TCQ ERASED_ECC[0+:BITS];
+				xor_bits <= #TCQ ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
 			else if (ce)
 				xor_bits <= #TCQ ecc_xor[count*BITS+:BITS];
 		end
 		assign xor_out = xor_bits;
 	end else
-		assign xor_out = start ? ERASED_ECC[0+:BITS] : ecc_xor[count*BITS+:BITS];
+		assign xor_out = start ? ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS] : ecc_xor[count*BITS+:BITS];
 
 	pipeline_ce #(PIPELINE_STAGES > 0) u_control_pipeline [1:0] (
 		.clk(clk),

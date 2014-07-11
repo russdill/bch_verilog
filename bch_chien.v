@@ -140,12 +140,12 @@ module bch_chien #(
 					.clk(clk),
 					.start(start),
 					.in(sigma[i*M+:M]),
-					.out(chien[(b*(T+1)+i)*M+:M])
+					.out(chien[((BITS-b-1)*(T+1)+i)*M+:M])
 				);
 			end else begin : EXPAND
 				bch_chien_expand #(M, i + 1, b % REG_RATIO) u_chien_expand(
 					.in(chien[((b-(b%REG_RATIO))*(T+1)+i)*M+:M]),
-					.out(chien[(b*(T+1)+i)*M+:M])
+					.out(chien[((BITS-b-1)*(T+1)+i)*M+:M])
 				);
 			end
 		end

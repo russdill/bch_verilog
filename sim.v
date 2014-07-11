@@ -36,6 +36,15 @@ localparam B = `BCH_DATA_BITS(P);
 if (`BCH_DATA_BITS(P) % BITS)
 	sim_only_supports_factors_of_BCH_DATA_BITS_for_BITS u_sosfobdbfb();
 
+function [BITS-1:0] reverse;
+	input [BITS-1:0] in;
+	integer i;
+begin
+	for (i = 0; i < BITS; i = i + 1)
+		reverse[i] = in[BITS - i - 1];
+end
+endfunction
+
 reg [B-1:0] encode_buf = 0;
 reg [E+B-1:0] flip_buf = 0;
 reg [B-1:0] err_buf = 0;
@@ -107,7 +116,9 @@ always @(posedge clk) begin
 		encode_buf <= #TCQ encode_buf >> BITS;
 end
 
-wire [BITS-1:0] encoder_in = encode_accepted ? data_in : encode_buf;
+/* Make it so we get the same syndromes, no matter what the word size */
+wire [BITS-1:0] encoder_in = reverse(encode_accepted ? data_in[BITS-1:0] : encode_buf[BITS-1:0]);
+
 wire data_bits;
 wire ecc_bits;
 
@@ -151,7 +162,7 @@ wire syndrome_start = encoded_first && syndrome_ready;
 wire syndrome_ce = !syn_done || key_ready;
 wire syndrome_accepted = syndrome_start && syndrome_ce;
 
-wire [BITS-1:0] flip_err = (syndrome_start && encode_accepted) ? error : flip_buf;
+wire [BITS-1:0] flip_err = reverse((syndrome_start && encode_accepted) ? error[BITS-1:0] : flip_buf[BITS-1:0]);
 
 assign decoder_in = encoded_data ^ flip_err;
 
@@ -283,9 +294,9 @@ wire new_wrong = err_count_overflow || err_overflow || err_present_wrong || err_
 
 always @(posedge clk) begin
 	if (err_first)
-		err_buf <= #TCQ err << (`BCH_DATA_BITS(P) - BITS);
+		err_buf <= #TCQ reverse(err) << (`BCH_DATA_BITS(P) - BITS);
 	else if (err_valid)
-		err_buf <= #TCQ (err << (`BCH_DATA_BITS(P) - BITS)) | (err_buf >> BITS);
+		err_buf <= #TCQ (reverse(err) << (`BCH_DATA_BITS(P) - BITS)) | (err_buf >> BITS);
 
 	err_done <= #TCQ err_last;
 	if (err_done)

@@ -7,22 +7,22 @@
 `timescale 1ns / 1ps
 
 module counter #(
-	parameter MAX = 15
+	parameter MAX = 15,
+	parameter START = 0,
+	parameter signed INC = 1
 ) (
 	input clk,
 	input reset,
 	input ce,
-	output reg [log2(MAX)-1:0] count = 0
+	output reg [$clog2(MAX+1)-1:0] count = START
 );
-	`include "bch.vh"
-
 	localparam TCQ = 1;
 
 	always @(posedge clk)
 		if (reset)
-			count <= #TCQ 1'b0;
+			count <= #TCQ START;
 		else if (ce)
-			count <= #TCQ count + 1'b1;
+			count <= #TCQ count + INC;
 endmodule
 
 module pipeline_ce_reset #(

@@ -29,15 +29,6 @@ module bch_encode #(
 
 	localparam M = `BCH_M(P);
 
-	function [BITS-1:0] reverse;
-		input [BITS-1:0] in;
-		integer i;
-	begin
-		for (i = 0; i < BITS; i = i + 1)
-			reverse[i] = in[BITS - i - 1];
-	end
-	endfunction
-
 	localparam TCQ = 1;
 	localparam ENC = encoder_poly(0);
 
@@ -99,7 +90,7 @@ module bch_encode #(
 	endgenerate
 
 	lfsr_term #(`BCH_ECC_BITS(P), ENC, BITS) u_in_terms(
-		.in(reverse(shifted_in)),
+		.in(shifted_in),
 		.out(in_enc)
 	);
 
@@ -133,8 +124,8 @@ module bch_encode #(
 	assign first = PIPELINE_STAGES ? start_last : (start && !busy);
 	assign data_bits = (start && !PIPELINE_STAGES) || load_lfsr;
 	assign ecc_bits = (busy || last) && !data_bits;
-	assign output_mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
-	assign data_out = data_bits ? data_in_pipelined : (reverse(lfsr_input) & output_mask);
+	assign output_mask = last ? {{RUNT{1'b1}}, {REM{1'b0}}} : {BITS{1'b1}};
+	assign data_out = data_bits ? data_in_pipelined : (lfsr_input & output_mask);
 	assign ready = !busy;
 
 	always @(posedge clk) begin

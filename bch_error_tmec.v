@@ -36,6 +36,7 @@ module bch_error_tmec #(
 	localparam M = `BCH_M(P);
 	localparam _RUNT = `BCH_DATA_BITS(P) % BITS;
 	localparam RUNT = _RUNT ? _RUNT : BITS;
+	localparam REM = BITS - RUNT;
 
 	/*
 	 * We have to sum all the chien outputs. Split up the outputs and sum
@@ -116,21 +117,21 @@ module bch_error_tmec #(
 		wire last1;
 		pipeline #(PIPELINE_STAGES-1) u_out_pipeline (clk, last, last1);
 
-		pipeline #(1) u_err_pipeline1 [RUNT-1:0](
+		pipeline #(1) u_err_pipeline1 [BITS-1:REM] (
 			.clk(clk),
-			.i(err_raw[RUNT-1:0]),
-			.o(err[RUNT-1:0])
+			.i(err_raw[BITS-1:REM]),
+			.o(err[BITS-1:REM])
 		);
-		if (RUNT != BITS)
-			/* Use reset control line to mask high bits */
-			pipeline_reset #(1) u_err_pipeline2 [BITS-1:RUNT](
+		if (REM != 0)
+			/* Use reset control line to mask low bits */
+			pipeline_reset #(1) u_err_pipeline2 [REM-1:0](
 				.clk(clk),
 				.reset(last1),
-				.i(err_raw[BITS-1:RUNT]),
-				.o(err[BITS-1:RUNT])
+				.i(err_raw[REM-1:0]),
+				.o(err[REM-1:0])
 			);
 	end else begin
-		wire [BITS-1:0] mask = last ? {RUNT{1'b1}} : {BITS{1'b1}};
+		wire [BITS-1:0] mask = last ? {{RUNT{1'b1}}, {REM{1'b0}}} : {BITS{1'b1}};
 		assign err = err_raw & mask;
 	end
 

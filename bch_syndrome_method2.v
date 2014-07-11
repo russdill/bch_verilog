@@ -82,25 +82,11 @@ module dsynN_method2 #(
 		dsynN_method2_only_supports_2_pipeline_stage u_dm2os2ps();
 
 	reg [SYNDROME_SIZE-1:0] lfsr = 0;
-	wire [BITS-1:0] reverse_in;
-	wire [BITS-1:0] reverse_pipelined;
 	wire [SYNDROME_SIZE-1:0] in_enc_early;
 	wire [SYNDROME_SIZE-1:0] in_enc_early_pipelined;
 	wire [SYNDROME_SIZE-1:0] in_enc;
 	wire [SYNDROME_SIZE-1:0] in_enc_pipelined;
 	wire [SYNDROME_SIZE-1:0] lfsr_enc;
-
-	function [BITS-1:0] reverse;
-		input [BITS-1:0] in;
-		integer i;
-	begin
-		for (i = 0; i < BITS; i = i + 1)
-			reverse[i] = in[BITS - i - 1];
-	end
-	endfunction
-
-	assign reverse_in = reverse(data_in);
-	assign reverse_pipelined = reverse(data_pipelined);
 
 	/*
 	 * If the input size fills the LFSR reg, we need to calculate those
@@ -108,7 +94,7 @@ module dsynN_method2 #(
 	 */
 	if (EARLY > 0) begin : INPUT_LFSR
 		lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, EARLY) u_in_terms(
-			.in(reverse_in[BITS-1:SYNDROME_SIZE]),
+			.in(data_in[BITS-1:SYNDROME_SIZE]),
 			.out(in_enc_early)
 		);
 	end else
@@ -121,7 +107,7 @@ module dsynN_method2 #(
 		.o(in_enc_early_pipelined)
 	);
 
-	assign in_enc = in_enc_early_pipelined ^ reverse_pipelined;
+	assign in_enc = in_enc_early_pipelined ^ data_pipelined;
 	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [SYNDROME_SIZE-1:0] (
 		.clk(clk),
 		.ce(ce),

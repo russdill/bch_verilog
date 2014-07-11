@@ -77,13 +77,14 @@ module bch_syndrome #(
 	generate
 		if (REM) begin
 			reg [RUNT-1:0] runt = 0;
-			assign shifted_in = (data_in << RUNT) | (start ? 0 : runt);
+			assign shifted_in = {start ? {RUNT{1'b0}} : runt, data_in[BITS-1:RUNT]};
 			always @(posedge clk)
 				if (ce)
-					runt <= #TCQ data_in >> REM;
+					runt <= #TCQ data_in;
 		end else
 			assign shifted_in = data_in;
 	endgenerate
+
 
 	/* Pipelined data for method1 */
 	pipeline_ce #(PIPELINE_STAGES > 1) u_data_pipeline [BITS-1:0] (

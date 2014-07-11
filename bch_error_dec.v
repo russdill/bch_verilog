@@ -32,6 +32,7 @@ module bch_error_dec #(
 	localparam T = `BCH_T(P);
 	localparam _RUNT = `BCH_DATA_BITS(P) % BITS;
 	localparam RUNT = _RUNT ? _RUNT : BITS;
+	localparam REM = BITS - RUNT;
 
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
@@ -43,7 +44,7 @@ module bch_error_dec #(
 	reg [`BCH_ERR_SZ(P)-1:0] err_count_raw = 0;
 	wire [BITS-1:0] _err_raw;
 
-	assign err = last ? (_err & {RUNT{1'b1}}) : _err;
+	assign err = last ? (_err & {{RUNT{1'b1}}, {REM{1'b0}}}) : _err;
 
 	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
