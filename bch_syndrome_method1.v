@@ -6,6 +6,8 @@
  */
 `timescale 1ns / 1ps
 
+`include "config.vh"
+
 /*
  * Calculate syndrome method 1:
  *
@@ -84,18 +86,32 @@ module dsynN_method1 #(
 			assign pow_all[i*SB+:SB] = curr;
 		else begin
 			localparam [SB-1:0] LPOW = lpow(SB, (SYN * (i % REG_RATIO)) % `BCH_M2N(SB));
-			parallel_standard_multiplier_const1 #(SB, LPOW) u_mult(
-				.standard_in(curr),
-				.standard_out(pow_all[i*SB+:SB])
-			);
+			if (`CONFIG_CONST_OP)
+				parallel_standard_multiplier_const1 #(SB, LPOW) u_mult(
+					.standard_in(curr),
+					.standard_out(pow_all[i*SB+:SB])
+				);
+			else
+				parallel_standard_multiplier #(SB) u_mult(
+					.standard_in1(LPOW),
+					.standard_in2(curr),
+					.standard_out(pow_all[i*SB+:SB])
+				);
 		end
 		assign terms[i*SB+:SB] = data_pipelined[i] ? pow_all[i*SB+:SB] : 0;
 	end
 
-	parallel_standard_multiplier_const1 #(SB, LPOW_S_BITS[SB-1:0]) u_mult [REGS-1:0] (
-		.standard_in(pow_curr),
-		.standard_out(pow_next)
-	);
+	if (`CONFIG_CONST_OP)
+		parallel_standard_multiplier_const1 #(SB, LPOW_S_BITS[SB-1:0]) u_mult [REGS-1:0] (
+			.standard_in(pow_curr),
+			.standard_out(pow_next)
+		);
+	else
+		parallel_standard_multiplier #(SB) u_mult [REGS-1:0] (
+			.standard_in1(LPOW_S_BITS[SB-1:0]),
+			.standard_in2(pow_curr),
+			.standard_out(pow_next)
+		);
 
 	finite_parallel_adder #(SB, BITS) u_adder(
 		.in(terms),

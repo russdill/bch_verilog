@@ -5,6 +5,7 @@
  * Distributed under 2-clause BSD license as contained in COPYING file.
  */
 `timescale 1ns / 1ps
+`include "config.vh"
 
 /*
  * Bit-serial Berlekamp (mixed dual/standard basis) multiplier)
@@ -44,10 +45,17 @@ module serial_mixed_multiplier #(
 	assign change = count == TO;
 
 	/* part of basis conversion */
-	parallel_mixed_multiplier_const_standard #(M, lpow(M, POLY_I)) u_dmli(
-		.dual_in(dual_in),
-		.dual_out(lfsr_in)
-	);
+	if (`CONFIG_CONST_OP)
+		parallel_mixed_multiplier_const_standard #(M, lpow(M, POLY_I)) u_dmli(
+			.dual_in(dual_in),
+			.dual_out(lfsr_in)
+		);
+	else
+		parallel_mixed_multiplier #(M) u_dmli(
+			.dual_in(dual_in),
+			.standard_in(lpow(M, POLY_I)),
+			.dual_out(lfsr_in)
+		);
 
 	/* LFSR for generating aux bits */
 	always @(posedge clk) begin
@@ -263,7 +271,10 @@ module parallel_standard_power #(
 	end
 	endfunction
 
-	const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
+	if (`CONFIG_CONST_OP)
+		const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
+	else
+		matrix_vector_multiplyT #(M) u_mult(gen_matrix(0), standard_in, standard_out);
 endmodule
 
 /*

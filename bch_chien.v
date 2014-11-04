@@ -7,6 +7,7 @@
 `timescale 1ns / 1ps
 
 `include "bch_defs.vh"
+`include "config.vh"
 
 /* Chien search, determines roots of a polynomial defined over a finite field */
 module bch_chien_reg #(
@@ -31,18 +32,33 @@ module bch_chien_reg #(
 
 	if (!SKIP)
 		assign mul_out_start = in;
-	else
+	else begin
 		/* Initialize with coefficients of the error location polynomial */
-		parallel_standard_multiplier_const2 #(M, lpow(M, REG * SKIP)) u_mult_start(
-			.standard_in(in),
-			.standard_out(mul_out_start)
-		);
+		if (`CONFIG_CONST_OP)
+			parallel_standard_multiplier_const2 #(M, lpow(M, REG * SKIP)) u_mult_start(
+				.standard_in(in),
+				.standard_out(mul_out_start)
+			);
+		else
+			parallel_standard_multiplier #(M) u_mult_start(
+				.standard_in1(in),
+				.standard_in2(lpow(M, REG * SKIP)),
+				.standard_out(mul_out_start)
+			);
+	end
 
 	/* Multiply by alpha^P */
-	parallel_standard_multiplier_const1 #(M, lpow(M, REG * STRIDE)) u_mult(
-		.standard_in(out),
-		.standard_out(mul_out)
-	);
+	if (`CONFIG_CONST_OP)
+		parallel_standard_multiplier_const1 #(M, lpow(M, REG * STRIDE)) u_mult(
+			.standard_in(out),
+			.standard_out(mul_out)
+		);
+	else
+		parallel_standard_multiplier #(M) u_mult(
+			.standard_in1(lpow(M, REG * STRIDE)),
+			.standard_in2(out),
+			.standard_out(mul_out)
+		);
 	always @(posedge clk)
 		out <= #TCQ start ? mul_out_start : mul_out;
 endmodule

@@ -2,6 +2,7 @@
 `define _CONFIG_VH_
 
 `define CONFIG_HAS_CARRY4 1
+`define CONFIG_CONST_OP 1
 
 `ifndef LUT_SZ
 `define CONFIG_LUT_SZ 6
@@ -13,6 +14,10 @@
 
 `ifndef CONFIG_HAS_CARRY4
 `define CONFIG_HAS_CARRY4 0
+`endif
+
+`ifndef CONFIG_CONST_OP
+`define CONFIG_CONST_OP 0
 `endif
 
 `endif
