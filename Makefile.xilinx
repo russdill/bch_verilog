@@ -4,6 +4,7 @@ UCF=xilinx.ucf
 XFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
 	-generics {$(GENERICS) $($*_GENERICS)}	\
+	-define {$(DEFINES) $($*_DEFINES)}	\
 	-loop_iteration_limit 100000		\
 	-opt_level 2				\
 	-reduce_control_sets no			\
