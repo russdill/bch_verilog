@@ -8,7 +8,7 @@
 
 `include "bch_defs.vh"
 
-/* parallel inversionless */
+/* serial inversionless */
 module bch_sigma_bma_noinv #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
