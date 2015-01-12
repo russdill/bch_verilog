@@ -50,22 +50,6 @@ begin
 end
 endfunction
 
-/* Convert polynomial basis to dual basis */
-function [`MAX_M-1:0] standard_to_dual;
-	input [31:0] m;
-	input [31:0] standard;
-	integer i;
-	integer ret;
-begin
-	ret = 0;
-	for (i = 0; i < m; i = i + 1) begin
-		if (standard[i])
-			ret = ret ^ `BCH_CONVERSION_TERM(m, i);
-	end
-	standard_to_dual = ret;
-end
-endfunction
-
 /* a * b for finite field */
 function [`MAX_M-1:0] finite_mult;
 	input [31:0] m;

@@ -302,7 +302,7 @@ module finite_divider #(
 
 	localparam TCQ = 1;
 	localparam DONE = lfsr_count(log2(M), M - 2);
-	localparam INITIAL = standard_to_dual(M, lpow(M, 0));
+	localparam INITIAL = dual_basis(M, 0);
 
 	reg [M-1:0] standard_a = 0;
 	wire [M-1:0] standard_b;

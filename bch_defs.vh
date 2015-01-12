@@ -80,8 +80,4 @@
 /* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
 `define BCH_POLYI(M)		log2(`BCH_POLYNOMIAL(M) >> 1)
 
-/* Not supported for pentanomials */
-`define BCH_CONVERSION_TERM(M, BIT_POS)	`BCH_IS_PENTANOMIAL(m) ? (1'b0) : \
-			(1'b1 << ((`BCH_POLYI(M) - BIT_POS - 1'b1) % M))
-
 `endif
