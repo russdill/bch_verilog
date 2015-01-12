@@ -30,6 +30,10 @@ module serial_mixed_multiplier #(
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
 	localparam END = lfsr_count(log2(M), M - 1);
 
+	/* Since POLY_I trick doesn't work on pentanomials */
+	if (`BCH_IS_PENTANOMIAL(M))
+		serial_mixed_multiplier_cannot_handle_pentanomials_yet u_smmc();
+
 	reg [M-1:0] lfsr = 0;
 	reg [M-1:0] dual_stored = 0;
 	wire [M-1:0] lfsr_in;
@@ -311,10 +315,6 @@ module finite_divider #(
 	wire [log2(M)-1:0] count;
 
 	assign dual_out = dual_d;
-
-	/* Since standard_to_dual doesn't support pentanomials */
-	if (`BCH_IS_PENTANOMIAL(M))
-		inverter_cannot_handle_pentanomials_yet u_ichp();
 
 	/* Square the input each cycle */
 	parallel_standard_power #(M, 2) u_dsq(
