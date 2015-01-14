@@ -51,7 +51,7 @@
 	`BCH_P5(4, 3, 1),			\
 	`BCH_P5(5, 3, 1),			\
 	`BCH_P3(1),		/* m=15 */	\
-	`BCH_P5(12, 3, 2)			\
+	`BCH_P5(5, 3, 2)			\
 } >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
 
 /* Multiply by alpha x*l^1 */
