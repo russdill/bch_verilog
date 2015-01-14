@@ -54,6 +54,52 @@
 	`BCH_P5(5, 3, 2)			\
 } >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
 
+/* For trinomials, selection of a dual basis is easy */
+`define BCH_D_P3(P)		{{`MAX_M{1'b0}} | (1'b1 << (P - 1))}
+
+/* For pentanomials, an optimal dual basis is defined for each M */
+`define BCH_D_P5(P)		{{`MAX_M{1'b0}} | P}
+
+/*
+ * Calculated XOR gates required for different dual basis values. Values
+ * are chosen so that they generate a matrix with an upper and lower
+ * matix that are both easily inverted for conerting back to standard basis
+ *
+ *         sd/ds
+ * M = 8
+ *   min    2/2  @ b101
+ * M = 12
+ *   min    7/6  @ b111
+ *   min    8/5  @ b1111
+ * M = 13
+ *   min    4/3  @ b111
+ * M = 14
+ *   min    5/4  @ b111
+ * M = 16
+ *   min    3/3  @ b101
+ */
+
+`define BCH_DUAL(P)		(({ 		\
+	`BCH_D_P3(1),		/* m=2 */	\
+	`BCH_D_P3(1),				\
+	`BCH_D_P3(1),				\
+	`BCH_D_P3(2),		/* m=5 */	\
+	`BCH_D_P3(1),				\
+	`BCH_D_P3(1),				\
+	`BCH_D_P5(3'b101),			\
+	`BCH_D_P3(4),				\
+	`BCH_D_P3(3),		/* m=10 */	\
+	`BCH_D_P3(2),				\
+	`BCH_D_P5(4'b1111),			\
+	`BCH_D_P5(3'b111),			\
+	`BCH_D_P5(3'b111),			\
+	`BCH_D_P3(1),		/* m=15 */	\
+	`BCH_D_P5(3'b101)			\
+} >> ((`MAX_M-P)*`MAX_M)) & {`MAX_M{1'b1}})
+
+/* Degree of dual basis */
+`define BCH_DUALD(M)		(log2(`BCH_DUAL(M)) - 1)
+
 /* Multiply by alpha x*l^1 */
 `define BCH_MUL_POLY(M, X, POLY)	(`BCH_M2N(M) & (((X) << 1'b1) ^ ((((X) >> ((M)-1'b1)) & 1'b1) ? POLY : 1'b0)))
 
@@ -76,8 +122,5 @@
  * zero for x^m + x^P + 1
  */
 `define BCH_IS_PENTANOMIAL(M)	(`BCH_NBITS(`BCH_POLYNOMIAL(M)) == 4)
-
-/* Degree (except highest), eg, m=5, (1)00101, x^5 + x^2 + 1 returns 2 */
-`define BCH_POLYI(M)		log2(`BCH_POLYNOMIAL(M) >> 1)
 
 `endif

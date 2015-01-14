@@ -31,21 +31,111 @@ begin
 end
 endfunction
 
+/*
+ * sd_vector can generate the standard to dual basis conversion matrix by
+ * shifting one bit down for each row. Generated square matrix will contain two
+ * square matrixies, an upper and lower matrix.
+ */
+function [`MAX_M*2-2:0] sd_vector;
+	input [31:0] m;
+	reg [`MAX_M*2-2:0] aux;
+	integer i;
+	integer poly;
+begin
+	poly = `BCH_POLYNOMIAL(m);
+
+	aux = `BCH_DUAL(m);
+	for (i = 0; i < m - 1; i = i + 1)
+		aux[i+m] = ^((aux >> i) & poly);
+	sd_vector = aux;
+end
+endfunction
+
+/*
+ * dsu_vector can generate the upper matrix of the dual to standard basis
+ * conversion matrix by shifting down one bit for each row. It is created
+ * by inverting the upper standard to dual basis matrix, which is simple to
+ * do given the symmetry of the matrix
+ */
+function [`MAX_M-1:0] dsu_vector;
+	input [31:0] m;
+	reg [`MAX_M-1:0] aux;
+	reg [`MAX_M-1:0] sdu_vector;
+	integer i;
+	integer b;
+begin
+	b = `BCH_DUALD(m);
+
+	sdu_vector = sd_vector(m);
+
+	aux = 1 << b;
+	for (i = 0; i < b; i = i + 1) begin
+		aux = aux >> 1;
+		aux = aux | ((^(aux & sdu_vector)) << b);
+	end
+	dsu_vector = aux;
+end
+endfunction
+
+/*
+ * dsl_vector can generate the lower matrix of the dual to standard basis
+ * conversion matrix as by shifting up one bit for ecah row. It is created
+ * by inverting the lower standard to dual basis matrix.
+ */
+function [`MAX_M-1:0] dsl_vector;
+	input [31:0] m;
+	reg [`MAX_M-1:0] sdl_vector;
+	reg [`MAX_M-1:0] aux;
+	integer i;
+	integer b;
+begin
+	b = `BCH_DUALD(m);
+
+	sdl_vector = sd_vector(m) >> (m + b);
+
+	aux = 1;
+	for (i = 0; i < m - (b + 2); i = i + 1) begin
+		aux = aux << 1;
+		aux = aux | ^(aux & sdl_vector);
+	end
+	dsl_vector = aux;
+end
+endfunction
+
+/*
+ * Convert dual basis to standard basis by multiplying by the dual to standard
+ * upper and lower matricies.
+ */
+function [`MAX_M-1:0] dual_to_standard;
+	input [31:0] m;
+	input [`MAX_M-1:0] dual_in;
+	reg [`MAX_M-1:0] dsl;
+	reg [`MAX_M-1:0] dsu;
+	reg [`MAX_M-1:0] mask;
+	integer i;
+	integer b;
+begin
+	b = `BCH_DUALD(m);
+
+	dsu = dsu_vector(m) << b;
+	dsl = dsl_vector(m) << (b + 1);
+
+	mask = (1 << (b + 1)) - 1;
+	for (i = 0; i < b + 1; i = i + 1)
+		dual_to_standard[i] = ^((dsu >> i) & mask & dual_in);
+
+	for (i = b + 1; i < m; i = i + 1)
+		dual_to_standard[i] = ^((dsl >> i) & (dual_in >> (b + 1)));
+end
+endfunction
+
+
 function [`MAX_M-1:0] standard_to_dual;
 	input [31:0] m;
 	input [`MAX_M-1:0] standard_in;
 begin
 	/* Just multiply value by dual basis 1 */
-	standard_to_dual = fixed_mixed_multiplier(m, 1, standard_in);
-end
-endfunction
-
-function [`MAX_M-1:0] dual_basis;
-	input [31:0] m;
-	input [`MAX_M-1:0] in;
-begin
-	/* Just multiply value by dual basis 1 */
-	dual_basis = fixed_mixed_multiplier(m, 1, lpow(m, in));
+	standard_to_dual = fixed_mixed_multiplier(m, `BCH_DUAL(m), standard_in);
 end
 endfunction
 

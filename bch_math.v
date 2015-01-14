@@ -26,7 +26,7 @@ module serial_mixed_multiplier #(
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY_I = `BCH_POLYI(M);
+	localparam POLY_I = `BCH_DUALD(M) + 1;
 	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
 	localparam END = lfsr_count(log2(M), M - 1);
 
@@ -306,7 +306,7 @@ module finite_divider #(
 
 	localparam TCQ = 1;
 	localparam DONE = lfsr_count(log2(M), M - 2);
-	localparam INITIAL = dual_basis(M, 0);
+	localparam INITIAL = `BCH_DUAL(M);
 
 	reg [M-1:0] standard_a = 0;
 	wire [M-1:0] standard_b;
