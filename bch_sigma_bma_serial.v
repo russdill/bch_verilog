@@ -161,7 +161,7 @@ module bch_sigma_bma_serial #(
 	);
 
 	/* mbN SDBM d_rp * beta_i(r) */
-	serial_mixed_multiplier #(M, T + 1) u_serial_mixed_multiplier(
+	serial_mixed_multiplier_dss #(M, T + 1) u_serial_mixed_multiplier(
 		.clk(clk),
 		.start(last_cycle),
 		.dual_in(d_rp_dual),

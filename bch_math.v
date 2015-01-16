@@ -21,57 +21,216 @@ module serial_mixed_multiplier #(
 	input start,
 	input [M-1:0] dual_in,
 	input [M*N_INPUT-1:0] standard_in,
+	output [N_INPUT-1:0] dual_out
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+
+	reg [M-1:0] lfsr;
+
+	always @(posedge clk) begin
+		if (start)
+			lfsr <= #TCQ dual_in;
+		else
+			lfsr <= #TCQ {^(lfsr & `BCH_POLYNOMIAL(M)), lfsr[M-1:1]};
+	end
+
+	matrix_vector_multiply #(M, N_INPUT) u_mult(standard_in, lfsr, dual_out);
+endmodule
+
+/*
+ * Combine the serial mixed multiplier with a dual basis to standard basis
+ * conversion so it can feed the serial polynomial multiplier. The serial
+ * mixed multplier outputs a dual basis result LSB first, the serial polynomial
+ * multiplier accepts a standard basis input MSB first. An example of a dual
+ * to standard basis conversion matrix for a trinomial looks like this:
+ *
+ * 543210
+ * ------
+ * 000001 0
+ * 100000 1
+ * 010000 2
+ * 001000 3
+ * 000100 4
+ * 000010 5
+ *
+ * So we need the second output of the multiplier first, followed by the 3rd,
+ * 4th, 5th, 6th, and then the 1st output. We can preload the multiplier state
+ * register so that it outputs the 2nd bit first, and then load it with the
+ * original input at the appropriate time. Other trinomials are similar, but
+ * start with the 3rd, 4th, or 5th output and thus the preload calculation is
+ * slightly more complicated.
+ *
+ * Pentonomials offer a bit more of a challenge. It's easy to see that the
+ * conversion matrix is divided into a lower matrix and an upper matrix. The
+ * lower matrix gives an identical start to the trinomial state, but at some
+ * point, the original value must be added back in.
+ *
+ * At some point in time, a switch to the upper matrix is made. The value
+ * loaded is the combination of 2 or more values. Similar to the lower matrix,
+ * at certain points in time, values must be subtracted out.
+ *
+ * 109876543210
+ * ------------
+ * 000000001000  0
+ * 000000001100  1
+ * 000000000110  2
+ * 000000000011  3
+ * 100000100000  4
+ * 010000010000  5
+ * 001000000000  6
+ * 000100000000  7
+ * 000010000000  8
+ * 000001000000  9
+ * 000000100000 10
+ * 000000010000 11
+ */
+
+module serial_mixed_multiplier_dss #(
+	parameter M = 4,
+	parameter N_INPUT = 1
+) (
+	input clk,
+	input start,
+	input [M-1:0] dual_in,
+	input [M*N_INPUT-1:0] standard_in,
 	output [N_INPUT-1:0] standard_out
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
-	localparam POLY_I = `BCH_DUALD(M) + 1;
-	localparam TO = lfsr_count(log2(M), M - POLY_I - 1);
-	localparam END = lfsr_count(log2(M), M - 1);
 
-	/* Since POLY_I trick doesn't work on pentanomials */
-	if (`BCH_IS_PENTANOMIAL(M))
-		serial_mixed_multiplier_cannot_handle_pentanomials_yet u_smmc();
+	/* Width/height of upper matrix */
+	localparam D = `BCH_DUALD(M);
+
+	/* Dual to standard conversion matrix lower */
+	localparam [M-1:0] DSL = dsl_vector(M);
+
+	/* Dual to standard conversion matrix upper */
+	localparam [M-1:0] DSU = dsu_vector(M);
+
+	localparam MAX_COUNT = M - 2;
+	localparam CB = log2(MAX_COUNT);
 
 	reg [M-1:0] lfsr = 0;
-	reg [M-1:0] dual_stored = 0;
-	wire [M-1:0] lfsr_in;
-	wire [log2(M)-1:0] count;
-	wire change;
+	wire [M-1:0] lfsr_add;
 
-	lfsr_counter #(log2(M)) u_counter(
+	/* Store original value, and also the upper matrix value for the lfsr */
+	reg [M-1:0] dual_stored = 0;
+
+	wire [CB-1:0] count;
+	reg change = 0;
+
+	wire [M*(D+1)-1:0] dual_dsu_part;
+	wire [M-1:0] dual_dsu;
+	wire [M-1:0] dual_dsl;
+
+	lfsr_counter #(CB) u_counter(
 		.clk(clk),
 		.reset(start),
-		.ce(count != END),
+		.ce(1'b1),
 		.count(count)
 	);
-	assign change = count == TO;
 
-	/* part of basis conversion */
-	if (`CONFIG_CONST_OP)
-		parallel_mixed_multiplier_const_standard #(M, lpow(M, POLY_I)) u_dmli(
+	/* Handle pentanomials */
+	genvar i;
+	generate
+	if (`CONFIG_CONST_OP) begin
+		/* Fast forward initial multiplier state */
+		parallel_mixed_multiplier_const_standard #(M, lpow(M, D + 1)) u_dmli1(
 			.dual_in(dual_in),
-			.dual_out(lfsr_in)
+			.dual_out(dual_dsl)
 		);
-	else
-		parallel_mixed_multiplier #(M) u_dmli(
+		/* Initial LFSR state for DSU */
+		for (i = 1; i < D + 1; i = i + 1) begin : MULT
+			if (DSU[i])
+				parallel_mixed_multiplier_const_standard #(M, lpow(M, i)) u_dmli3(
+					.dual_in(dual_in),
+					.dual_out(dual_dsu_part[i*M+:M])
+				);
+			else
+				assign dual_dsu_part[i*M+:M] = 0;
+		end
+	end else begin
+		parallel_mixed_multiplier #(M) u_dmli1(
 			.dual_in(dual_in),
-			.standard_in(lpow(M, POLY_I)),
-			.dual_out(lfsr_in)
+			.standard_in(lpow(M, D + 1)),
+			.dual_out(dual_dsl)
 		);
+		for (i = 1; i < D + 1; i = i + 1) begin : MULT
+			if (DSU[i])
+				parallel_mixed_multiplier #(M) u_dmli3(
+					.dual_in(dual_in),
+					.standard_in(lpow(M, i)),
+					.dual_out(dual_dsu_part[i*M+:M])
+				);
+			else
+				assign dual_dsu_part[i*M+:M] = 0;
+		end
+	end
+	endgenerate
 
-	/* LFSR for generating aux bits */
+	assign dual_dsu_part[0+:M] = dual_in;
+	finite_parallel_adder #(M, D+1) u_adder(dual_dsu_part, dual_dsu);
+
+	/*
+	 * Determines when bits are shifting into DSL or out of DSU. This
+	 * determines when to add/subtract out mod
+	 */
+	generate
+	if (`BCH_IS_PENTANOMIAL(M)) begin
+		/* Modify LFSR */
+		reg [M-1:0] mod = 0;
+		wire [M-3:0] vector_bits;
+		reg vector_bit = 0;
+
+		assign vector_bits[0] = DSL[M - D - 3] && start;
+		for (i = 0; i < M - D - 3; i = i + 1) begin : ASSIGN_DSL
+			assign vector_bits[i + 1] = DSL[M - D - 4 - i] &&
+					!start && count == lfsr_count(CB, i);
+		end
+
+		for (i = 0; i < D; i = i + 1) begin : ASSIGN_DSU
+			assign vector_bits[i + M - D - 2] = DSU[D - i] &&
+					!start &&
+					count == lfsr_count(CB, i + M - D - 2);
+		end
+
+		assign lfsr_add = {M{vector_bit}} & mod;
+
+		always @(posedge clk) begin
+			if (start)
+				/* Load the DSL/DSU shift in/out value */
+				mod <= #TCQ dual_dsl;
+
+			/* Do a shift out/in of mod next cycle */
+			vector_bit <= |vector_bits;
+		end
+	end else
+		assign lfsr_add = 0;
+	endgenerate
+
 	always @(posedge clk) begin
 		if (start)
-			dual_stored <= #TCQ dual_in;
+			/* Used to load the mod register with a DSU value*/
+			dual_stored <= #TCQ dual_dsu;
+
+		if (M - D == 2)
+			change <= #TCQ start;
+		else
+			change <= #TCQ count == lfsr_count(CB, M - D - 3) &&
+					!start;
 
 		if (start)
-			lfsr <= #TCQ lfsr_in;
+			/* Start with DSL */
+			lfsr <= #TCQ dual_dsl;
 		else if (change)
+			/* Switch to DSU */
 			lfsr <= #TCQ dual_stored;
-		else if (count != END)
-			lfsr <= #TCQ {^(lfsr & `BCH_POLYNOMIAL(M)), lfsr[M-1:1]};
+		else
+			lfsr <= #TCQ {^(lfsr & `BCH_POLYNOMIAL(M)), lfsr[M-1:1]} ^
+				lfsr_add;
 	end
 
 	matrix_vector_multiply #(M, N_INPUT) u_mult(standard_in, lfsr, standard_out);
