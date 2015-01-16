@@ -153,23 +153,26 @@ Solving the key equation is required for T > 2 and optional for T == 2, and
 not supported for T == 1.
 
 bch_sigma_bma_serial - Serial Berlekamp–Massey algorithm with inversion.
-This option is not supported for pentanomials yet (eg, `BCH_M(P)=8) as the
-inverter lacks pentanomial support. This option takes longer but requires
-less space than the parallel option. This option takes
-`BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key equation.
+This option takes longer but requires less space than the parallel option.
+This option takes `BCH_T(P) * (`BCH_M(P) + 2) - 2 cycles to solve the key
+equation. Because of variability in the basis conversion circuits, the
+performance can vary widely for different values of `BCH_M.
 
-T= 2,DATA_BITS=64			77 slices	350 MHz
-T= 2,DATA_BITS=256			95 slices	312 MHz
-T= 2,DATA_BITS=1024			121 slices	333 MHz
-T= 8,DATA_BITS=256			230 slices	239 MHz
-T= 8,DATA_BITS=1024			278 slices	296 MHz
-T=12,DATA_BITS=256			337 slices	224 MHz
-T=12,DATA_BITS=1024			407 slices	235 MHz
+T= 2,DATA_BITS=64			63 slices	376 MHz
+T= 2,DATA_BITS=256			80 slices	345 MHz
+T= 2,DATA_BITS=1024			95 slices	263 MHz
+T= 2,DATA_BITS=4096			120 slices	276 MHz
+T= 8,DATA_BITS=256			192 slices	217 MHz
+T= 8,DATA_BITS=1024			225 slices	262 MHz
+T= 8,DATA_BITS=4096			272 slices	190 MHz
+T=12,DATA_BITS=256			266 slices	208 MHz
+T=12,DATA_BITS=1024			299 slices	205 MHz
+T=12,DATA_BITS=4096			429 slices	194 MHz
 
 bch_sigma_bma_parallel - Parallel Berlekamp–Massey algorithm without
-inversion. This option supports pentanomials and trinomials in less cycles
-than the serial option, but requires more gates. This option takes
-`BCH_T(P) * 2 - 1 cycles to solve the key equation.
+inversion. This option operates in less cycles than the serial option, but
+requires more gates. This option takes `BCH_T(P) * 2 - 1 cycles to solve the
+key equation.
 
 T= 2,DATA_BITS=64			92 slices	330 MHz
 T= 2,DATA_BITS=256			138 slices	327 MHz
@@ -182,9 +185,9 @@ T=12,DATA_BITS=256			576 slices	230 MHz
 T=12,DATA_BITS=1024			761 slices	229 MHz
 T=12,DATA_BITS=4096			1025 slices	191 MHz
 
-bch_sigma_bma_noinv - Serial Berlekamp–Massey algorithm without
-inversion. This option supports pentanomials and trinomials. This option
-takes `BCH_T(P) * (`BCH_M(P) * 2 + 1) cycles to solve the key equation.
+bch_sigma_bma_noinv - Serial Berlekamp–Massey algorithm without inversion.
+This option takes `BCH_T(P) * (`BCH_M(P) * 2 + 1) cycles to solve the key
+equation.
 
 T= 3,DATA_BITS=256			19 slices	421 MHz
 T= 3,DATA_BITS=1024			107 slices	348 MHz
@@ -280,8 +283,6 @@ are calculated asyncronously which may create timing issues, but will
 reduce register usage.
 
 TODO:
-
-Support pentanomials for serial option.
 
 Improve simulation times.
 
