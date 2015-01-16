@@ -453,7 +453,7 @@ module lfsr_counter #(
 	input clk,
 	input reset,
 	input ce,
-	output reg [M-1:0] count = 1
+	output reg [M-1:0] count = lfsr_count(M, 0)
 );
 	`include "bch.vh"
 
@@ -461,7 +461,7 @@ module lfsr_counter #(
 
 	always @(posedge clk)
 		if (reset)
-			count <= #TCQ 1'b1;
+			count <= #TCQ lfsr_count(M, 0);
 		else if (ce)
 			count <= #TCQ `BCH_MUL1(M, count);
 endmodule
