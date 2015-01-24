@@ -514,6 +514,114 @@ module finite_divider #(
 	end
 endmodule
 
+/*
+ * Takes input for M clock cycles (MSB concurrent with start).
+ * Inverted input is available after an additional M clock cycles.
+ * Input is required to be 0 during second set of M clock cycles.
+ * Berlekamp-Massy algorithm performing gauss elimination. Documented in
+ * VLSI Aspects on Inversion in Finite Fields, Mikael Olofsson 2002.
+ */
+module berlekamp_inverter #(
+	parameter M = 4
+) (
+	input clk,
+	input start,
+
+	input standard_in,
+	output [M-1:0] standard_out
+);
+	localparam TCQ = 1;
+
+	reg [M-1:0] A = 0;
+	reg [M-2:0] B = 0;
+	reg [M-2:0] C = 0;
+	reg [$clog2(M+1)-1:0] r = 0;
+	reg [$clog2(M+1)-1:0] s = 0;
+	reg rs_next = 0; /* Set if r < s for next cycle */
+	reg ff = 0;
+	wire delta;
+	wire Tr;
+
+	assign Tr = ff ^ standard_in;
+	/* Note: delta is very wide, 2M + 2 */
+	assign delta = ^(B & C) ^ Tr;
+	assign standard_out = A;
+
+	always @(posedge clk) begin
+		if (start) begin
+			r <= #TCQ !standard_in;
+			s <= #TCQ standard_in;
+			rs_next <= #TCQ standard_in;
+			ff <= #TCQ 0;
+			A <= #TCQ (standard_in << (M - 1));
+			B <= #TCQ 0;
+			C <= #TCQ (standard_in << (M - 2));
+		end else begin
+			if (!delta || rs_next) begin
+				A <= #TCQ A >> 1;
+				r <= #TCQ r + 1'b1;
+				rs_next <= #TCQ r + 1 < s;
+			end else begin
+				A <= #TCQ {1'b1, B};
+				s <= #TCQ r + 1'b1;
+				r <= #TCQ s;
+				rs_next <= s < r + 1;
+			end
+			ff <= #TCQ ^(C & `BCH_POLYNOMIAL(M));
+			B <= #TCQ B ^ ({M-1{delta}} & (A >> 1));
+			C <= #TCQ (Tr << (M - 2)) | (C >> 1);
+		end
+
+	end
+endmodule
+
+/*
+ * Inverter, takes M clock cycles.
+ * Inverse of denominator is calculated by using fermat inverter:
+ * 	a^(-1) = a^(2^n-2) = (a^2)*(a^2^2)*(a^2^3)....*(a^2^(m-1))
+ * Wang, Charles C., et al. "VLSI architectures for computing multiplications
+ * and inverses in GF (2 m)." Computers, IEEE Transactions on 100.8 (1985):
+ * 709-717.
+ */
+module fermat_inverter #(
+	parameter M = 6
+) (
+	input clk,
+	input start,
+	input [M-1:0] standard_in,
+	output [M-1:0] dual_out
+);
+	`include "bch.vh"
+
+	localparam TCQ = 1;
+	localparam INITIAL = `BCH_DUAL(M);
+
+	reg [M-1:0] standard_a = 0;
+	wire [M-1:0] standard_b;
+	reg [M-1:0] dual_c = INITIAL;
+	wire [M-1:0] dual_d;
+
+	assign dual_out = dual_c;
+
+	/* Square the input each cycle */
+	parallel_standard_power #(M, 2) u_dsq(
+		.standard_in(start ? standard_in : standard_a),
+		.standard_out(standard_b)
+	);
+
+	/* Accumulate the term each cycle */
+	parallel_mixed_multiplier #(M) u_parallel_mixed_multiplier(
+		.dual_in(dual_c),
+		.standard_in(standard_a),
+		.dual_out(dual_d)
+	);
+
+	always @(posedge clk) begin
+		dual_c <= #TCQ start ? INITIAL : dual_d;
+		standard_a <= #TCQ standard_b;
+	end
+endmodule
+
 /* out = in^3 (standard basis). Saves space vs in^2 * in */
 module pow3 #(
 	parameter M = 4
