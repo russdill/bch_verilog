@@ -19,10 +19,7 @@ module bch_error_dec #(
 	input start,					/* Latch inputs, start calculating */
 	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	output [`BCH_ERR_SZ(P)-1:0] err_count,		/* Valid during valid cycles */
-	output ready,
 	output first,					/* First valid output data */
-	output last,					/* Last valid output cycle */
-	output valid,					/* Outputting data */
 	output [BITS-1:0] err
 );
 	`include "bch.vh"
@@ -30,37 +27,26 @@ module bch_error_dec #(
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
-	localparam _RUNT = `BCH_DATA_BITS(P) % BITS;
-	localparam RUNT = _RUNT ? _RUNT : BITS;
-	localparam REM = BITS - RUNT;
 
 	wire [(2*T-1)*M-1:0] expanded;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 	wire [`BCH_SIGMA_SZ(P)*BITS-1:0] chien;
-	wire [BITS-1:0] _err;
 	wire first_raw;
-	wire last_raw;
-	wire valid_raw;
 	reg [`BCH_ERR_SZ(P)-1:0] err_count_raw = 0;
 	wire [BITS-1:0] _err_raw;
-
-	assign err = last ? (_err & {{RUNT{1'b1}}, {REM{1'b0}}}) : _err;
 
 	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
-		.ready(ready),
 		.sigma(sigma),
 		.chien(chien),
-		.first(first_raw),
-		.last(last_raw),
-		.valid(valid_raw)
+		.first(first_raw)
 	);
 
-	pipeline #(PIPELINE_STAGES) u_out_pipeline [3-1:0] (
+	pipeline #(PIPELINE_STAGES) u_out_pipeline (
 		.clk(clk),
-		.i({first_raw, last_raw, valid_raw}),
-		.o({first, last, valid})
+		.i(first_raw),
+		.o(first)
 	);
 
 	genvar i;
@@ -85,7 +71,7 @@ module bch_error_dec #(
 		pipeline #(PIPELINE_STAGES) u_err_pipeline [BITS+`BCH_ERR_SZ(P)-1:0] (
 			.clk(clk),
 			.i({_err_raw, err_count_raw}),
-			.o({_err, err_count})
+			.o({err, err_count})
 		);
 
 	end else if (T == 2) begin : POW3
@@ -146,7 +132,7 @@ module bch_error_dec #(
 			 * If flipping reduced the number of errors,
 			 * then we found an error
 			 */
-			assign _err[i] = err_count_raw > errors_pipelined;
+			assign err[i] = err_count_raw > errors_pipelined;
 		end
 		
 		pipeline #(PIPELINE_STAGES) u_cycle_pipeline (

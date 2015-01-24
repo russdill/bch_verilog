@@ -24,19 +24,13 @@ module bch_error_tmec #(
 	input clk,
 	input start,			/* Latch inputs, start calculating */
 	input [`BCH_SIGMA_SZ(P)-1:0] sigma,
-	output ready,
 	output first,			/* First valid output data */
-	output last,
-	output valid,			/* Outputting data */
 	output [BITS-1:0] err
 );
 	`include "bch.vh"
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
-	localparam _RUNT = `BCH_DATA_BITS(P) % BITS;
-	localparam RUNT = _RUNT ? _RUNT : BITS;
-	localparam REM = BITS - RUNT;
 
 	/*
 	 * We have to sum all the chien outputs. Split up the outputs and sum
@@ -50,15 +44,13 @@ module bch_error_tmec #(
 	localparam ACCUM_A = REGS - W_B * ACCUM;
 	localparam ACCUM_B = ACCUM - ACCUM_A;
 
-	wire [BITS*`BCH_SIGMA_SZ(P)-1:0] chien;
+	wire [BITS*`BCH_CHIEN_SZ(P)-1:0] chien;
 	wire [ACCUM*BITS*M-1:0] accum;
 	wire [ACCUM*BITS*M-1:0] accum_pipelined;
 	wire [BITS*M-1:0] sum;
 	wire [BITS*M-1:0] sum_pipelined;
 	wire [BITS-1:0] err_raw;
 	wire first_raw;
-	wire last_raw;
-	wire valid_raw;
 	genvar i, j;
 
 	if (`BCH_T(P) == 1)
@@ -76,30 +68,27 @@ module bch_error_tmec #(
 	bch_chien #(P, BITS, REG_RATIO) u_chien(
 		.clk(clk),
 		.start(start),
-		.ready(ready),
 		.sigma(sigma),
 		.chien(chien),
-		.first(first_raw),
-		.last(last_raw),
-		.valid(valid_raw)
+		.first(first_raw)
 	);
 
-	pipeline #(PIPELINE_STAGES) u_out_pipeline [3-1:0] (
+	pipeline #(PIPELINE_STAGES) u_out_pipeline (
 		.clk(clk),
-		.i({first_raw, last_raw, valid_raw}),
-		.o({first, last, valid})
+		.i(first_raw),
+		.o(first)
 	);
 
 	for (i = 0; i < BITS; i = i + 1) begin : BITS_BLOCK
 		for (j = 0; j < ACCUM_A; j = j + 1) begin : ACCUM_A_BLOCK
 			finite_parallel_adder #(M, W_A) u_adder(
-				.in(chien[i*`BCH_SIGMA_SZ(P)+j*W_A*M+:W_A*M]),
+				.in(chien[i*`BCH_CHIEN_SZ(P)+j*W_A*M+:W_A*M]),
 				.out(accum[(i*ACCUM+j)*M+:M])
 			);
 		end
 		for (j = 0; j < ACCUM_B; j = j + 1) begin : ACCUM_B_BLOCK
 			finite_parallel_adder #(M, W_B) u_adder(
-				.in(chien[i*`BCH_SIGMA_SZ(P)+(ACCUM_A*W_A+j*W_B)*M+:W_B*M]),
+				.in(chien[i*`BCH_CHIEN_SZ(P)+(ACCUM_A*W_A+j*W_B)*M+:W_B*M]),
 				.out(accum[(i*ACCUM+ACCUM_A+j)*M+:M])
 			);
 		end
@@ -113,26 +102,10 @@ module bch_error_tmec #(
 
 	zero_cla #(M, PIPELINE_STAGES > 2 ? 1 : ACCUM) u_zero [BITS-1:0] (sum_pipelined, err_raw);
 
-	if (PIPELINE_STAGES) begin
-		wire last1;
-		pipeline #(PIPELINE_STAGES-1) u_out_pipeline (clk, last, last1);
-
-		pipeline #(1) u_err_pipeline1 [BITS-1:REM] (
-			.clk(clk),
-			.i(err_raw[BITS-1:REM]),
-			.o(err[BITS-1:REM])
-		);
-		if (REM != 0)
-			/* Use reset control line to mask low bits */
-			pipeline_reset #(1) u_err_pipeline2 [REM-1:0](
-				.clk(clk),
-				.reset(last1),
-				.i(err_raw[REM-1:0]),
-				.o(err[REM-1:0])
-			);
-	end else begin
-		wire [BITS-1:0] mask = last ? {{RUNT{1'b1}}, {REM{1'b0}}} : {BITS{1'b1}};
-		assign err = err_raw & mask;
-	end
+	pipeline #(PIPELINE_STAGES > 0) u_err_pipeline1 [BITS-1:0] (
+		.clk(clk),
+		.i(err_raw[BITS-1:0]),
+		.o(err[BITS-1:0])
+	);
 
 endmodule

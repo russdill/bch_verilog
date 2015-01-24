@@ -17,7 +17,7 @@ module xilinx_error_tmec #(
 	localparam TCQ = 1;
 	localparam P = bch_params(DATA_BITS, T);
 	localparam IN = `BCH_SIGMA_SZ(P) + 1;
-	localparam OUT = 4 + BITS;
+	localparam OUT = 1 + BITS;
 
 	wire clk;
 	(* KEEP = "TRUE" *)
@@ -29,8 +29,6 @@ module xilinx_error_tmec #(
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 	wire ready;
 	wire first;			/* First valid output data */
-	wire last;
-	wire valid;			/* Outputting data */
 	wire [BITS-1:0] err;
 	(* KEEP = "TRUE" *)
 	reg in1 = 0, in2 = 0, out1 = 0;
@@ -50,20 +48,14 @@ module xilinx_error_tmec #(
 		out1 <= #TCQ all_out[0];
 
 		all_in <= #TCQ (all_in << 1) | in2;
-		if (valid)
-			all_out <= #TCQ {ready, first, last, valid, err};
-		else
-			all_out <= #TCQ all_out >> 1;
+		all_out <= #TCQ (all_out >> 1) ^ {first, err};
 	end
 
 	bch_error_tmec #(P, BITS, REG_RATIO, PIPELINE_STAGES, ACCUM) u_error_tmec(
 		.clk(clk),
 		.start(start),
-		.ready(ready),
 		.sigma(sigma),
 		.first(first),
-		.last(last),
-		.valid(valid),
 		.err(err)
 	);
 

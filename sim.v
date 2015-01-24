@@ -177,6 +177,7 @@ always @(posedge clk) begin
 end
 
 /* Process syndromes */
+
 bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
 	.clk(clk),
 	.start(syndrome_start),
@@ -188,6 +189,7 @@ bch_syndrome #(P, BITS, REG_RATIO) u_bch_syndrome(
 );
 
 /* Test for errors */
+
 bch_errors_present #(P) u_errors(
 	.clk(clk),
 	.start(syn_done && key_ready),
@@ -207,7 +209,6 @@ wire err_count_wrong;
 if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) begin : TMEC
 
 	wire ch_start;
-	wire ch_ready;
 	wire [`BCH_SIGMA_SZ(P)-1:0] sigma;
 
 	/* Solve key equation */
@@ -219,7 +220,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) 
 			.syndromes(syndromes),
 			.sigma(sigma),
 			.done(ch_start),
-			.ack_done(ch_ready),
+			.ack_done(1'b1),
 			.err_count(err_count)
 		);
 	end else if (OPTION == "PARALLEL") begin : BMA_PARALLEL
@@ -230,7 +231,7 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) 
 			.syndromes(syndromes),
 			.sigma(sigma),
 			.done(ch_start),
-			.ack_done(ch_ready),
+			.ack_done(1'b1),
 			.err_count(err_count)
 		);
 	end else if (OPTION == "NOINV") begin : BMA_NOINV
@@ -241,40 +242,33 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) 
 			.syndromes(syndromes),
 			.sigma(sigma),
 			.done(ch_start),
-			.ack_done(ch_ready),
+			.ack_done(1'b1),
 			.err_count(err_count)
 		);
 	end
-
 	assign err_count_wrong = ch_start && (err_count !== err_count_stack[err_count_rd_pos*`BCH_ERR_SZ(P)+:`BCH_ERR_SZ(P)]);
 	always @(posedge clk) begin
-		if (ch_start && ch_ready)
+		if (ch_start)
 			err_count_rd_pos <= #TCQ (err_count_rd_pos + 1) % STACK_SZ;
 	end
 
 	/* Locate errors */
 	bch_error_tmec #(P, BITS, REG_RATIO) u_error_tmec(
 		.clk(clk),
-		.start(ch_start && ch_ready),
-		.ready(ch_ready),
+		.start(ch_start),
 		.sigma(sigma),
 		.first(err_first),
-		.last(err_last),
-		.valid(err_valid),
 		.err(err)
 	);
 
 end else begin : DEC
-
+	assign key_ready = 1'b1;
 	/* Locate errors */
 	bch_error_dec #(P, BITS, REG_RATIO) u_error_dec(
 		.clk(clk),
 		.start(syn_done && key_ready),
-		.ready(key_ready),
 		.syndromes(syndromes),
 		.first(err_first),
-		.last(err_last),
-		.valid(err_valid),
 		.err(err),
 		.err_count(err_count)
 	);
@@ -286,6 +280,13 @@ end else begin : DEC
 	end
 
 end
+
+bch_chien_counter #(P, BITS) u_chien_counter(
+	.clk(clk),
+	.first(err_first),
+	.last(err_last),
+	.valid(err_valid)
+);
 
 reg err_done = 0;
 
