@@ -36,6 +36,10 @@ syndrome_VERILOG=\
 	bch_syndrome_method1.v		\
 	bch_syndrome_method2.v
 
+xilinx_inverter_VERILOG=\
+	$(core_VERILOG)			\
+	benchmark/xilinx_inverter.v
+
 xilinx_encode_VERILOG=\
 	$(core_VERILOG)			\
 	benchmark/xilinx_encode.v	\
