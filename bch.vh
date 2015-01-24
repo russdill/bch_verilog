@@ -181,3 +181,17 @@ begin
 end
 endfunction
 
+function [`MAX_M-1:0] brute_inverse;
+	input [31:0] m;
+	input [`MAX_M-1:0] in;
+	reg [`MAX_M-1:0] t;
+begin
+	t = lpow(m, 0);
+	repeat (`BCH_M2N(m)) begin
+		if (finite_mult(m, in, t) == lpow(m, 0))
+			brute_inverse = t;
+		t = `BCH_MUL1(m, t);
+	end
+end
+endfunction
+
