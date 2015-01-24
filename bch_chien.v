@@ -26,7 +26,6 @@ module bch_chien_reg #(
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 
-	reg [M-1:0] pre = 0;
 	wire [M-1:0] mul_out;
 	wire [M-1:0] mul_out_start;
 
