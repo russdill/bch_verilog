@@ -1,7 +1,7 @@
 SIM_DIR=$(HOME)/opt/Xilinx/current/ISE_DS/ISE/verilog/src
 IVERILOG=iverilog
 
-BINS=tb_sim
+BINS=tb_sim tb_basis tb_mult
 VFLAGS=-g2005-sv -Wall -y$(SIM_DIR)/unisims
 
 ifdef DATA_BITS
@@ -51,6 +51,15 @@ tb_sim.v
 
 tb_sim: $(V)
 	$(IVERILOG) $(VFLAGS) $^ -o $@ $(ODATA_BITS) $(OBITS) $(OT) $(OSEED) $(OOPTION) $(OREG_RATIO)
+
+tb_basis: tb_basis.v
+	$(IVERILOG) $(VFLAGS) $^ -o $@
+
+tb_mult: tb_mult.v bch_math.v matrix.v
+	$(IVERILOG) $(VFLAGS) $^ -o $@
+
+tb_inverter: tb_inverter.v bch_math.v matrix.v
+	$(IVERILOG) $(VFLAGS) $^ -o $@
 
 clean:
 	-rm -f $(BINS)
