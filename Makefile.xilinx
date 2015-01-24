@@ -77,6 +77,12 @@ xilinx_error_tmec_VERILOG=\
 	bch_error_tmec.v		\
 	bch_chien.v
 
+xilinx_error_one_VERILOG=\
+	$(core_VERILOG)			\
+	benchmark/xilinx_error_one.v	\
+	bch_error_one.v			\
+	bch_chien.v
+
 .SECONDEXPANSION:
 
 all:

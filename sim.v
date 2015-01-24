@@ -252,6 +252,9 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) 
 			err_count_rd_pos <= #TCQ (err_count_rd_pos + 1) % STACK_SZ;
 	end
 
+	wire [BITS-1:0] err1;
+	wire err_first1;
+
 	/* Locate errors */
 	bch_error_tmec #(P, BITS, REG_RATIO) u_error_tmec(
 		.clk(clk),
@@ -259,6 +262,14 @@ if (T > 1 && (OPTION == "SERIAL" || OPTION == "PARALLEL" || OPTION == "NOINV")) 
 		.sigma(sigma),
 		.first(err_first),
 		.err(err)
+	);
+
+	bch_error_one #(P, BITS) u_error_one(
+		.clk(clk),
+		.start(ch_start),
+		.sigma(sigma[0+:2*M]),
+		.first(err_first1),
+		.err(err1)
 	);
 
 end else begin : DEC

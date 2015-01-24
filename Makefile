@@ -35,6 +35,7 @@ bch_encode.v \
 bch_blank_ecc.v \
 bch_error_dec.v \
 bch_error_tmec.v \
+bch_error_one.v \
 bch_math.v \
 bch_sigma_bma_parallel.v \
 bch_sigma_bma_serial.v \
