@@ -46,46 +46,58 @@ module bch_blank_ecc #(
 
 	localparam [ECC_WORDS*BITS-1:0] ERASED_ECC = erased_ecc(0);
 
-	reg [(ECC_WORDS-1)*BITS-1:0] ecc_xor = ERASED_ECC;
-	wire [$clog2(ECC_WORDS+1)-1:0] count;
-	wire [BITS-1:0] xor_bits;
 	wire _last;
 
 	if (ECC_WORDS == 1) begin
 		assign _last = start;
-		assign count = 0;
+		assign xor_out = ERASED_ECC;
 	end else if (ECC_WORDS == 2) begin
-		reg start0;
+		reg start0 = 0;
+
 		always @(posedge clk) begin
 			if (start)
 				start0 <= #TCQ start;
 			else if (ce)
 				start0 <= #TCQ 0;
 		end
+
 		assign _last = start0;
-		assign count = 0;
+
+		if (PIPELINE_STAGES > 0) begin
+			assign xor_out = start0 ? ERASED_ECC[BITS+:BITS] :
+				ERASED_ECC[0+:BITS];
+		end else
+			assign xor_out = start ? ERASED_ECC[BITS+:BITS] :
+				ERASED_ECC[0+:BITS];
 	end else begin
+		reg [(ECC_WORDS-1)*BITS-1:0] ecc_xor = ERASED_ECC;
+		wire [$clog2(ECC_WORDS+1)-1:0] count;
+
 		assign _last = count == 0;
+
 		counter #(ECC_WORDS, ECC_WORDS - 2, -1) u_counter(
 			.clk(clk),
 			.reset(start),
 			.ce(ce),
 			.count(count)
 		);
-	end
 
-	if (PIPELINE_STAGES > 0) begin
-		/* Add registered outputs to distributed RAM */
-		reg [BITS-1:0] xor_bits = ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
-		always @(posedge clk) begin
-			if (start)
-				xor_bits <= #TCQ ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
-			else if (ce)
-				xor_bits <= #TCQ ecc_xor[count*BITS+:BITS];
-		end
-		assign xor_out = xor_bits;
-	end else
-		assign xor_out = start ? ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS] : ecc_xor[count*BITS+:BITS];
+		if (PIPELINE_STAGES > 0) begin
+			/* Add registered outputs to distributed RAM */
+			reg [BITS-1:0] xor_bits = ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
+			always @(posedge clk) begin
+				if (start)
+					xor_bits <= #TCQ ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS];
+				else if (ce)
+					xor_bits <= #TCQ ecc_xor[count*BITS+:BITS];
+			end
+			assign xor_out = xor_bits;
+		end else
+			assign xor_out = start ?
+				ERASED_ECC[(ECC_WORDS-1)*BITS+:BITS] :
+				ecc_xor[count*BITS+:BITS];
+
+	end
 
 	pipeline_ce #(PIPELINE_STAGES > 0) u_control_pipeline [1:0] (
 		.clk(clk),
