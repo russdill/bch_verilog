@@ -1,6 +1,9 @@
 PART=xc6vlx240t-3-ff784
 UCF=xilinx.ucf
 
+M_MP=2
+P_MP=4
+
 XFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
 	-generics {$(GENERICS) $($*_GENERICS)}	\
@@ -17,14 +20,14 @@ NFLAGS=\
 
 MFLAGS=\
 	-pr b			\
-	-mt 2			\
+	-mt $(M_MP)		\
 	-global_opt speed	\
 	-logic_opt on		\
 	-lc auto		\
 	-detail
 
 PFLAGS=\
-	-mt 4
+	-mt $(P_MP)
 
 core_VERILOG=\
 	bch_math.v			\
