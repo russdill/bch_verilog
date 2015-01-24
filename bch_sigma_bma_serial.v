@@ -43,9 +43,14 @@ module bch_sigma_bma_serial #(
 	wire [T:0] cin;
 	wire [T:0] sigma_serial;		/* 0 bits of each sigma */
 	wire [M-1:0] syn1 = syndromes[0+:M];
+	wire [T*M-1:0] _sigma;
+	wire [M-1:0] sigma_1;
 
-	reg [`BCH_SIGMA_SZ(P)-1:0] beta = 0;
-	reg [`BCH_SIGMA_SZ(P)-2*M-1:0] sigma_last = 0;	/* Last sigma values */
+	/* because of inversion, sigma0 is always 1 */
+	assign sigma = {_sigma, {M-1{1'b0}}, 1'b1};
+
+	reg [(T+1)*M-1:0] beta = 0;
+	reg [(T-1)*M-1:0] sigma_last = 0;	/* Last sigma values */
 
 	reg first_cycle = 0;
 	reg second_cycle = 0;
@@ -63,7 +68,7 @@ module bch_sigma_bma_serial #(
 	assign beta0 = {{{M-1{1'b0}}, !syn1}, {{M-1{1'b0}}, |syn1}, {(M*2){1'b0}}};
 
 	/* d_r(0) = 1 + S_1 * x */
-	wire [`BCH_SIGMA_SZ(P)-1:0] d_r0;		/* Initial dr */
+	wire [(T+1)*M-1:0] d_r0;		/* Initial dr */
 	assign d_r0 = {syn1, {(M-1){1'b0}}, 1'b1};
 
 	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
@@ -128,12 +133,12 @@ module bch_sigma_bma_serial #(
 			bsel_last <= #TCQ bsel;
 		end else if (last_cycle) begin
 			d_r_nonzero <= #TCQ |d_r;
-			sigma_last <= #TCQ sigma[0*M+:`BCH_SIGMA_SZ(P)-2*M];
+			sigma_last <= #TCQ sigma[0+:(T-1)*M];
 
 			/* b^(r+1)(x) = x^2 * (bsel ? sigmal^(r-1)(x) : b_(r)(x)) */
-			beta[2*M+:`BCH_SIGMA_SZ(P)-2*M] <= #TCQ bsel_last ?
-				sigma_last[0*M+:`BCH_SIGMA_SZ(P)-2*M] :
-				beta[0*M+:`BCH_SIGMA_SZ(P)-2*M];
+			beta[2*M+:(T-1)*M] <= #TCQ bsel_last ?
+				sigma_last[0*M+:(T-1)*M] :
+				beta[0*M+:(T-1)*M];
 		end
 
 		penult2_cycle <= #TCQ counting && count == M - 4;
@@ -170,7 +175,7 @@ module bch_sigma_bma_serial #(
 	);
 
 	/* Add Beta * drp to sigma (Summation) */
-	/* simga_i^(r-1) + d_rp * beta_i^(r) */
+	/* sigma_i^(r-1) + d_rp * beta_i^(r) */
 	wire [T:0] _cin = first_calc ? {T+1{1'b0}} : cin;
 	finite_serial_adder #(M) u_cN [T:0] (
 		.clk(clk),
@@ -178,11 +183,11 @@ module bch_sigma_bma_serial #(
 		.ce(!last_cycle && !penult1_cycle),
 		.parallel_in(d_r0),
 		.serial_in(_cin),	/* First time through, we just shift out d_r0 */
-		.parallel_out(sigma),
+		.parallel_out({_sigma, sigma_1}),
 		.serial_out(sigma_serial)
 	);
 
-	/* d_r = summation (simga_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t */
+	/* d_r = summation (sigma_i^(r-1) + d_rp * beta_i^(r)) * S_(2 * r - i + 1) from i = 0 to t */
 	serial_standard_multiplier #(M, T+1) msm_serial_standard_multiplier(
 		.clk(clk), 
 		.reset(start || first_cycle),
