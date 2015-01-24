@@ -87,6 +87,15 @@ xilinx_error_one_VERILOG=\
 	bch_error_one.v			\
 	bch_chien.v
 
+xilinx_decoder_VERILOG=\
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
+	compare_cla.v			\
+	benchmark/xilinx_decoder.v	\
+	bch_error_tmec.v		\
+	bch_chien.v			\
+	bch_sigma_bma_serial.v
+
 .SECONDEXPANSION:
 
 all:
