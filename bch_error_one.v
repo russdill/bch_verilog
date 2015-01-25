@@ -1,7 +1,7 @@
 /*
  * BCH Encode/Decoder Modules
  *
- * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Copyright 2015 - Russ Dill <russ.dill@asu.edu>
  * Distributed under 2-clause BSD license as contained in COPYING file.
  */
 `timescale 1ns / 1ps

@@ -1,7 +1,7 @@
 /*
  * BCH Encode/Decoder Modules
  *
- * Copright 2014 - Russ Dill <russ.dill@asu.edu>
+ * Copyright 2014 - Russ Dill <russ.dill@asu.edu>
  * Distributed under 2-clause BSD license as contained in COPYING file.
  */
 `include "bch_syndrome.vh"
