@@ -30,11 +30,12 @@ module bch_syndrome #(
 
 	genvar idx;
 
-	localparam SYN_COUNT = syndrome_count(M, `BCH_T(P));
 	localparam CYCLES = PIPELINE_STAGES + (`BCH_CODE_BITS(P)+BITS-1) / BITS;
 	localparam DONE = lfsr_count(M, CYCLES - 2);
 	localparam REM = `BCH_CODE_BITS(P) % BITS;
 	localparam RUNT = BITS - REM;
+	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
+	localparam SYN_COUNT = TBL[0+:`MAX_M];
 
 	wire [M-1:0] count;
 	wire [BITS-1:0] data_pipelined;
@@ -112,8 +113,9 @@ module bch_syndrome #(
 	/* LFSR registers */
 	generate
 	for (idx = 0; idx < SYN_COUNT; idx = idx + 1) begin : SYNDROMES
-		if (syndrome_method(M, `BCH_T(P), idx2syn(M, idx)) == 0) begin : METHOD1
-			dsynN_method1 #(P, idx, BITS, REG_RATIO, PIPELINE_STAGES) u_syn1a(
+		localparam SYN = idx2syn(idx);
+		if (syndrome_method(`BCH_T(P), SYN) == 0) begin : METHOD1
+			dsynN_method1 #(P, SYN, BITS, REG_RATIO, PIPELINE_STAGES) u_syn1a(
 				.clk(clk),
 				.start(start),
 				.start_pipelined(start_pipelined),
@@ -122,7 +124,7 @@ module bch_syndrome #(
 				.synN(syndromes[idx*M+:M])
 			);
 		end else begin : METHOD2
-			dsynN_method2 #(P, idx, BITS, PIPELINE_STAGES) u_syn2a(
+			dsynN_method2 #(P, SYN, syndrome_degree(M, SYN), BITS, PIPELINE_STAGES) u_syn2a(
 				.clk(clk),
 				.start(start),
 				.start_pipelined(start_pipelined),
@@ -151,6 +153,7 @@ module bch_syndrome_shuffle #(
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
+	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
 
 	genvar i;
 
@@ -161,7 +164,7 @@ module bch_syndrome_shuffle #(
 	wire [(2*T-1)*M-1:0] syn_expanded;
 
 	for (i = 0; i < 2 * T - 1; i = i + 1) begin : ASSIGN
-		assign syndromes_pre_expand[i*M+:M] = syndromes[dat2idx(M, i+1)*M+:M] & {M{start}};
+		assign syndromes_pre_expand[i*M+:M] = syndromes[dat2idx(i+1)*M+:M] & {M{start}};
 	end
 
 	/* Shuffle syndromes */
@@ -179,7 +182,7 @@ module bch_syndrome_shuffle #(
 	 */
 	for (i = 0; i < 2 * T - 1; i = i + 1) begin : EXPAND
 		localparam PRE = (2 * T - 1 + 2 - i) % (2 * T - 1); /* Pre-shuffle value */
-		if (syndrome_method(M, T, dat2syn(M, PRE+1)) == 0) begin : METHOD1
+		if (syndrome_method(T, dat2syn(PRE+1)) == 0) begin : METHOD1
 			syndrome_expand_method1 #(P) u_expand(
 				.in(expand_in[i*M+:M]),
 				.out(syn_expanded[i*M+:M])

@@ -6,201 +6,78 @@
  */
 `include "bch.vh"
 
-function integer syndrome_size;
-	input [31:0] m;
-	input [31:0] s;
-	integer b;
-	integer c;
-	integer done;
-	integer ret;
-begin
-	ret = 0;
-	b = lpow(m, s);
-	c = b;
-	done = 0;
-
-	while (!done) begin
-		ret = ret + 1;
-		c = finite_mult(m, c, c);
-		if (c == b)
-			done = 1;
-	end
-	syndrome_size = ret;
-end
-endfunction
-
-/* 0 = first method, 1 = second method */
-function integer syndrome_method;
-	input [31:0] m;
-	input [31:0] t;
-	input [31:0] s;
-	integer done;
-	integer s_size;
-	integer i;
-	integer first_way;
-begin
-	s_size = syndrome_size(m, s);
-
-	/* We must use the first method if syndrome size is full */
-	first_way = s_size == m;
-	done = !first_way;
-
-	i = s;
-	while (!done) begin
-		if (i <= 2 * t - 1) begin
-			if (i != s) begin
-				/* yay, we can use the second method */
-				first_way = 0;
-				done = 1;
-			end
-		end
-		i = (i * 2) % `BCH_M2N(m);
-		if (i == s)
-			/* We must use the first method */
-			done = 1;
-	end
-
-	syndrome_method = !first_way;
-end
-endfunction
-
-function integer next_syndrome;
-	input [31:0] m;
-	input [31:0] s;
-	integer tmp;
-	integer n;
-	integer done;
-	integer ret;
-begin
-
-	n = `BCH_M2N(m);
-	ret = s + 2;
-	tmp = ret;
-	done = 0;
-
-	while (!done) begin
-		tmp = tmp * 2;
-		if (tmp >= n)
-			tmp = tmp - n;
-		if (tmp < ret) begin
-			ret = ret + 2;
-			tmp = ret;
-		end else if (tmp == ret)
-			done = 1;
-	end
-	next_syndrome = ret;
-end
-endfunction
-
-function integer syndrome_count;
-	input [31:0] m;
-	input [31:0] t;
-	integer s;
-	integer ret;
-begin
-	s = 1;
-	ret = 0;
-	while (s <= 2 * t - 1) begin
-		ret = ret + 1;
-		s = next_syndrome(m, s);
-	end
-	syndrome_count = ret;
-end
-endfunction
-
 /*
  * dat goes from 1..2*t-1, its the output syndromes
  * Each dat is generated from a syn, an lfsr register
  * syn1 (dat1, dat2, dat4), syn3 (dat3), syn5 (dat5)
  * idxes number syns (syn1->0, syn3->1, syn5->2, etc)
  */
-function integer syn2idx;
-	input [31:0] m;
-	input [31:0] syn;
-	integer s;
-	integer ret;
-begin
-	s = 1;
-	ret = 0;
-	while (s != syn) begin
-		ret = ret + 1;
-		s = next_syndrome(m, s);
-	end
-	syn2idx = ret;
-end
-endfunction
-
 function integer idx2syn;
-	input [31:0] m;
 	input [31:0] idx;
 	integer i;
-	integer ret;
+	integer s;
 begin
-	ret = 1;
 	i = 0;
-	while (i != idx) begin
-		i = i + 1;
-		ret = next_syndrome(m, ret);
+	s = 1;
+	while (i < idx) begin
+		if (TBL[s*`MAX_M+:`MAX_M] != s)
+			i = i + 1;
+		s = s + 1;
 	end
-	idx2syn = ret;
+	idx2syn = s;
 end
 endfunction
 
 function integer dat2syn;
-	input [31:0] m;
 	input [31:0] dat;
-	integer s;
-	integer i;
-	integer done;
-	integer ret;
-begin
-	s = 1;
-	ret = 0;
-
-	while (!ret) begin
-		done = 0;
-		i = s;
-		while (!done && !ret) begin
-			if (i == dat)
-				ret = s;
-			i = (i * 2) % `BCH_M2N(m);
-			if (i == s)
-				done = 1;
-		end
-		if (i == dat)
-			ret = s;
-		s = next_syndrome(m, s);
-	end
-	dat2syn = ret;
-end
+	dat2syn = TBL[dat*`MAX_M+:`MAX_M];
 endfunction
 
 function integer dat2idx;
-	input [31:0] m;
 	input [31:0] dat;
-	integer s;
+	integer syn;
 	integer i;
-	integer done1;
-	integer done2;
-	integer ret;
+	integer s;
 begin
-	s = 1;
-	ret = 0;
-	done1 = 0;
-	while (!done1) begin
-		done2 = 0;
-		i = s;
-		while (!done1 && !done2) begin
-			if (i == dat)
-				done1 = 1;
-			i = (i * 2) % `BCH_M2N(m);
-			if (i == s)
-				done2 = 1;
-		end
-		s = next_syndrome(m, s);
-		if (!done1)
-			ret = ret + 1;
-	end
-	dat2idx = ret;
+	syn = dat2syn(dat);
+	i = 0;
+	for (s = 1; s != syn; s = s + 1)
+		if (TBL[s*`MAX_M+:`MAX_M] == s)
+			 i = i + 1;
+	dat2idx = i;
 end
 endfunction
+
+
+/* 0 = first method, 1 = second method */
+/*
+ * If the number of syndromes using the same minimal polynomial is more
+ * than one or the degree of the minimal polynomial is less than m, the
+ * second method of the calculating syndromes is chosen
+ */
+function integer syndrome_method;
+	input [31:0] t;
+	input [31:0] s;
+	integer done;
+	integer s_degree;
+	integer i;
+	integer first_way;
+begin
+	s_degree = syndrome_degree(M, s);
+
+	/* We must use the first method if syndrome size is full */
+	first_way = s_degree == M;
+	done = !first_way;
+
+	for (i = s + 1; !done && i <= 2 * t - 1; i = i + 1) begin
+		if (TBL[i*`MAX_M+:`MAX_M] == s) begin
+			/* yay, we can use the second method */
+			first_way = 0;
+			done = 1;
+		end
+	end
+
+	syndrome_method = !first_way;
+end
+endfunction
+

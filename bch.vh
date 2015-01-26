@@ -195,3 +195,68 @@ begin
 end
 endfunction
 
+function [`MAX_M*(1<<(`MAX_M-1))-1:0] syndrome_build_table;
+	input [31:0] m;
+	input [31:0] t;
+	reg [`MAX_M*(1<<(`MAX_M-1))-1:0] tbl;
+	integer curr;
+	integer s;
+	integer next;
+	integer n;
+	integer count;
+begin
+	tbl = 0;
+	curr = 1;
+	s = curr;
+	n = `BCH_M2N(m);
+	count = 0;
+
+	while (curr <= 2 * t - 1) begin
+		next = 0;
+		if (s <= 2 * t - 1) begin
+			if (tbl[s*`MAX_M+:`MAX_M])
+				next = 1;
+			else begin
+				if (s == curr)
+					count = count + 1;
+				tbl[s*`MAX_M+:`MAX_M] = curr;
+			end
+		end
+		s = s + s;
+		if (s >= n)
+			s = s - n;
+		if (s == curr || next) begin
+			curr = curr + 1;
+			s = curr;
+		end
+	end
+	tbl[0+:`MAX_M] = count;
+	syndrome_build_table = tbl;
+end
+endfunction
+
+function integer syndrome_degree;
+	input [31:0] m;
+	input [31:0] s;
+	integer c;
+	integer done;
+	integer ret;
+	integer n;
+begin
+	ret = 0;
+	c = s;
+	done = 0;
+	n = `BCH_M2N(m);
+
+	while (!done) begin
+		ret = ret + 1;
+		c = c + c;
+		if (c >= n)
+			c = c - n;
+		if (c == s)
+			done = 1;
+	end
+	syndrome_degree = ret;
+end
+endfunction
+

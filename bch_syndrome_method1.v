@@ -23,7 +23,7 @@
  */
 module dsynN_method1 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter IDX = 0,
+	parameter SYN = 0,
 	parameter BITS = 1,
 	parameter REG_RATIO = BITS > 8 ? 8 : BITS,
 	parameter PIPELINE_STAGES = 0
@@ -36,15 +36,12 @@ module dsynN_method1 #(
 	input [BITS-1:0] data_pipelined,	/* One stage delay (if necessary) */
 	output reg [M-1:0] synN = 0
 );
-	`include "bch_syndrome.vh"
+	`include "bch.vh"
 
 	localparam TCQ = 1;
 	localparam M = `BCH_M(P);
 	localparam signed SKIP = `BCH_K(P) - `BCH_DATA_BITS(P);
-	localparam SYN = idx2syn(M, IDX);
-	localparam LPOW_S_BITS = lpow(SB, `BCH_M2N(SB) - (SYN * BITS) % `BCH_M2N(SB));
-	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
-	localparam SB = SYNDROME_SIZE;
+	localparam LPOW_S_BITS = lpow(M, `BCH_N(P) - (SYN * BITS) % `BCH_N(P));
 	localparam REGS = (BITS + REG_RATIO - 1) / REG_RATIO;
 
 	if (PIPELINE_STAGES > 2)
@@ -53,72 +50,72 @@ module dsynN_method1 #(
 	if (REG_RATIO > BITS)
 		syndrome_reg_ratio_must_be_less_than_or_equal_to_bits u_srrmbltoeqb();
 
-	function [REGS*SB-1:0] pow_initial;
+	function [REGS*M-1:0] pow_initial;
 		input dummy;
 		integer i;
 	begin
 		for (i = 0; i < REGS; i = i + 1)
-			pow_initial[i*SB+:SB] = lpow(SB, `BCH_M2N(SB) - (SYN * (SKIP + BITS - i * REG_RATIO)) % `BCH_M2N(SB));
+			pow_initial[i*M+:M] = lpow(M, `BCH_N(P) - (SYN * (SKIP + BITS - i * REG_RATIO)) % `BCH_N(P));
 	end
 	endfunction
 
-	localparam [REGS*SB-1:0] POW_INITIAL = pow_initial(0);
+	localparam [REGS*M-1:0] POW_INITIAL = pow_initial(0);
 
 	/*
 	 * Reduce pow reg size by only having a reg for every other,
 	 * or every 4th, etc register, filling in the others with async logic
 	 */
-	reg [REGS*SB-1:0] pow = POW_INITIAL;
-	wire [REGS*SB-1:0] pow_next;
-	wire [REGS*SB-1:0] pow_curr;
-	wire [BITS*SB-1:0] pow_all;
-	wire [BITS*SB-1:0] terms;
-	wire [SB-1:0] terms_summed;
-	wire [SB-1:0] terms_summed_pipelined;
+	reg [REGS*M-1:0] pow = POW_INITIAL;
+	wire [REGS*M-1:0] pow_next;
+	wire [REGS*M-1:0] pow_curr;
+	wire [BITS*M-1:0] pow_all;
+	wire [BITS*M-1:0] terms;
+	wire [M-1:0] terms_summed;
+	wire [M-1:0] terms_summed_pipelined;
 	genvar i;
 
 	/* Not enough pipeline stages for set/reset, must use mux */
 	assign pow_curr = (PIPELINE_STAGES < 2 && start) ? POW_INITIAL : pow;
 
 	for (i = 0; i < BITS; i = i + 1) begin : GEN_TERMS
-		wire [SB-1:0] curr = pow_curr[(i/REG_RATIO)*SB+:SB];
+		wire [M-1:0] curr = pow_curr[(i/REG_RATIO)*M+:M];
 		if (!(i % REG_RATIO))
-			assign pow_all[i*SB+:SB] = curr;
+			assign pow_all[i*M+:M] = curr;
 		else begin
-			localparam [SB-1:0] LPOW = lpow(SB, (SYN * (i % REG_RATIO)) % `BCH_M2N(SB));
+			localparam [M-1:0] LPOW = lpow(M, (SYN * (i % REG_RATIO)) % `BCH_N(P));
 			if (`CONFIG_CONST_OP)
-				parallel_standard_multiplier_const1 #(SB, LPOW) u_mult(
+				parallel_standard_multiplier_const1 #(M, LPOW) u_mult(
 					.standard_in(curr),
-					.standard_out(pow_all[i*SB+:SB])
+					.standard_out(pow_all[i*M+:M])
 				);
 			else
-				parallel_standard_multiplier #(SB) u_mult(
+				parallel_standard_multiplier #(M) u_mult(
 					.standard_in1(LPOW),
 					.standard_in2(curr),
-					.standard_out(pow_all[i*SB+:SB])
+					.standard_out(pow_all[i*M+:M])
 				);
 		end
-		assign terms[i*SB+:SB] = data_pipelined[i] ? pow_all[i*SB+:SB] : 0;
+		assign terms[i*M+:M] = data_pipelined[i] ? pow_all[i*M+:M] : 0;
 	end
 
 	if (`CONFIG_CONST_OP)
-		parallel_standard_multiplier_const1 #(SB, LPOW_S_BITS[SB-1:0]) u_mult [REGS-1:0] (
+		parallel_standard_multiplier_const1 #(M, LPOW_S_BITS[M-1:0]) u_mult [REGS-1:0] (
 			.standard_in(pow_curr),
 			.standard_out(pow_next)
 		);
 	else
-		parallel_standard_multiplier #(SB) u_mult [REGS-1:0] (
-			.standard_in1(LPOW_S_BITS[SB-1:0]),
+		parallel_standard_multiplier #(M) u_mult [REGS-1:0] (
+			.standard_in1(LPOW_S_BITS[M-1:0]),
 			.standard_in2(pow_curr),
 			.standard_out(pow_next)
 		);
 
-	finite_parallel_adder #(SB, BITS) u_adder(
+	finite_parallel_adder #(M, BITS) u_adder(
 		.in(terms),
 		.out(terms_summed)
 	);
 
-	pipeline_ce #(PIPELINE_STAGES > 0) u_summed_pipeline [SB-1:0] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_summed_pipeline [M-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(terms_summed),

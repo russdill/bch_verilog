@@ -16,11 +16,12 @@
  * First divide r(x) by f_j(x) to obtain the remainder, b_j(x). Then calculate
  * b_j(alpha^j).
  *
- * Pipelining can only help when BITS > SYNDROME_SIZE
+ * Pipelining can only help when BITS > DEGREE
  */
 module dsynN_method2 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE,
-	parameter IDX = 0,
+	parameter SYN = 0,
+	parameter DEGREE = M,
 	parameter BITS = 1,
 	parameter PIPELINE_STAGES = 0
 ) (
@@ -33,7 +34,7 @@ module dsynN_method2 #(
 	input [BITS-1:0] data_pipelined,	/* One stage delay (if necessary) */
 	output [M-1:0] synN
 );
-	`include "bch_syndrome.vh"
+	`include "bch.vh"
 
 	localparam M = `BCH_M(P);
 
@@ -73,34 +74,32 @@ module dsynN_method2 #(
 	endfunction
 
 	localparam TCQ = 1;
-	localparam SYN = idx2syn(M, IDX);
 	localparam SYNDROME_POLY = syndrome_poly(0);
-	localparam SYNDROME_SIZE = syndrome_size(M, SYN);
-	localparam signed EARLY = BITS - SYNDROME_SIZE;
+	localparam signed EARLY = BITS - DEGREE;
 
 	if (PIPELINE_STAGES > 2)
 		dsynN_method2_only_supports_2_pipeline_stage u_dm2os2ps();
 
-	reg [SYNDROME_SIZE-1:0] lfsr = 0;
-	wire [SYNDROME_SIZE-1:0] in_enc_early;
-	wire [SYNDROME_SIZE-1:0] in_enc_early_pipelined;
-	wire [SYNDROME_SIZE-1:0] in_enc;
-	wire [SYNDROME_SIZE-1:0] in_enc_pipelined;
-	wire [SYNDROME_SIZE-1:0] lfsr_enc;
+	reg [DEGREE-1:0] lfsr = 0;
+	wire [DEGREE-1:0] in_enc_early;
+	wire [DEGREE-1:0] in_enc_early_pipelined;
+	wire [DEGREE-1:0] in_enc;
+	wire [DEGREE-1:0] in_enc_pipelined;
+	wire [DEGREE-1:0] lfsr_enc;
 
 	/*
 	 * If the input size fills the LFSR reg, we need to calculate those
 	 * additional lfsr terms.
 	 */
 	if (EARLY > 0) begin : INPUT_LFSR
-		lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, EARLY) u_in_terms(
-			.in(data_in[BITS-1:SYNDROME_SIZE]),
+		lfsr_term #(DEGREE, SYNDROME_POLY, EARLY) u_in_terms(
+			.in(data_in[BITS-1:DEGREE]),
 			.out(in_enc_early)
 		);
 	end else
 		assign in_enc_early = 0;
 
-	pipeline_ce #(PIPELINE_STAGES > 0) u_in_pipeline [SYNDROME_SIZE-1:0] (
+	pipeline_ce #(PIPELINE_STAGES > 0) u_in_pipeline [DEGREE-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(in_enc_early),
@@ -108,7 +107,7 @@ module dsynN_method2 #(
 	);
 
 	assign in_enc = in_enc_early_pipelined ^ data_pipelined;
-	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [SYNDROME_SIZE-1:0] (
+	pipeline_ce #(PIPELINE_STAGES > 1) u_enc_pipeline [DEGREE-1:0] (
 		.clk(clk),
 		.ce(ce),
 		.i(in_enc),
@@ -118,7 +117,7 @@ module dsynN_method2 #(
 	/* Calculate the next lfsr state (without input) */
 	wire [BITS-1:0] lfsr_input;
 	assign lfsr_input = EARLY > 0 ? (lfsr << EARLY) : (lfsr >> -EARLY);
-	lfsr_term #(SYNDROME_SIZE, SYNDROME_POLY, BITS) u_lfsr_term (
+	lfsr_term #(DEGREE, SYNDROME_POLY, BITS) u_lfsr_term (
 		.in(lfsr_input),
 		.out(lfsr_enc)
 	);

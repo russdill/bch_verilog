@@ -4,66 +4,50 @@
  * Copyright 2014 - Russ Dill <russ.dill@asu.edu>
  * Distributed under 2-clause BSD license as contained in COPYING file.
  */
-`include "bch_syndrome.vh"
+`include "bch.vh"
 `include "bch_defs.vh"
 
-function [`BCH_PARAM_SZ-1:0] bch_params;
+function automatic [`BCH_PARAM_SZ-1:0] bch_params;
 	input [31:0] data_bits;
 	input [31:0] target_t;
+	reg [`MAX_M*(1<<(`MAX_M-1))-1:0] tbl;
 	integer m;
 	integer min_mt;
 	integer min_mb;
 	integer done;
-	integer done2;
-	integer done3;
 	integer syn_no;
-	integer next_syn_no;
-	integer first;
-	integer a;
 	integer t;
-	integer nk;
 	integer k;
-	integer i;
+	integer syn_count;
 begin
 	min_mt = log2(target_t * 4);
 	min_mb = log2(data_bits + 1);
 	m = min_mt > min_mb ? min_mt : min_mb;
 
-	done3 = 0;
-	while (!done3 && m <= `MAX_M) begin
-		done2 = 0;
+	done = 0;
+	while (!done && m <= `MAX_M) begin
 		syn_no = 1;
-		first = lpow(m, 1);
-		nk = 0;
-		while (!done2) begin
-			a = first;
-			done = 0;
-			while (!done) begin
-				a = finite_mult(m, a, a);
-				nk = nk + 1;
-				if (a == first)
-					done = 1;
-			end
-			next_syn_no = next_syndrome(m, syn_no);
-			for (i = 0; i < next_syn_no - syn_no; i = i + 1)
-				first = `BCH_MUL1(m, first);
-			syn_no = next_syn_no;
-			if (2 * target_t - 1 < syn_no) begin
-				t = (syn_no - 1) / 2;
-				done2 = 1;
-			end
+		syn_count = 0;
+		k = `BCH_M2N(m);
+		tbl = syndrome_build_table(m, 2 * target_t - 1);
+		while (2 * target_t - 1 >= syn_no) begin
+			syn_count = syn_count + 1;
+			k = k - syndrome_degree(m, syn_no);
+			syn_no = syn_no + 1;
+			while (tbl[syn_no*`MAX_M+:`MAX_M] != syn_no)
+				syn_no = syn_no + 1;
 		end
-		k = `BCH_M2N(m) - nk;
+		t = (syn_no - 1) / 2;
 		if (k >= data_bits)
-			done3 = 1;
+			done = 1;
 		else
 			m = m + 1;
 	end
-	if (m == `MAX_M) begin
+	if (m > `MAX_M) begin
 		m = 0;
 		k = 0;
 		t = 0;
 	end
-	bch_params = `BCH_PARAMS(m, k, t, data_bits, syndrome_count(m, t));
+	bch_params = `BCH_PARAMS(m, k, t, data_bits, syn_count);
 end
 endfunction
