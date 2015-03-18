@@ -21,6 +21,8 @@ module xilinx_decoder #(
 	wire syn_done;
 	wire key_ready;
 	wire key_done;
+	(* KEEP = "TRUE" *)
+	(* S = "TRUE" *)
 	wire [`BCH_SIGMA_SZ(BCH_PARAMS)-1:0] sigma;
 	wire [`BCH_ERR_SZ(BCH_PARAMS)-1:0] err_count;
 	wire err_first;

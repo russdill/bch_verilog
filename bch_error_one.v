@@ -33,10 +33,6 @@ module bch_error_one #(
 	if (`BCH_T(P) == 1)
 		one_does_not_support_sec u_odnss();
 
-	if (PIPELINE_STAGES > 1)
-		one_only_supports_1_pipeline_stages u_oos2ps();
-
-
 	bch_chien_reg #(M, 1, 0, BITS) u_chien_reg(
 		.clk(clk),
 		.start(start),

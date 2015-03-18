@@ -114,3 +114,45 @@ module rotate_left #(
 	wire [M*2-1:0] in2 = {in, in};
 	assign out = in2[M-(S%M)+:M];
 endmodule
+
+module mux_one #(
+	parameter WIDTH = 2,
+	parameter WIDTH_SZ = $clog2(WIDTH+1)
+) (
+	input [WIDTH-1:0] in,
+	input [WIDTH_SZ-1:0] sel,
+	output out
+);
+	assign out = in[sel];
+endmodule
+
+module mux_shuffle #(
+	parameter U = 2,
+	parameter V = 2
+) (
+	input [U*V-1:0] in,
+	output [V*U-1:0] out
+);
+	genvar u, v;
+	generate
+	for (u = 0; u < U; u = u + 1) begin : _U
+		for (v = 0; v < V; v = v + 1) begin : _V
+			assign out[v*U+u] = in[u*V+v];
+		end
+	end
+	endgenerate
+endmodule
+
+module mux #(
+	parameter WIDTH = 2,
+	parameter BITS = 1,
+	parameter WIDTH_SZ = $clog2(WIDTH+1)
+) (
+	input [BITS*WIDTH-1:0] in,
+	input [WIDTH_SZ-1:0] sel,
+	output [BITS-1:0] out
+);
+	wire [WIDTH*BITS-1:0] shuffled;
+	mux_shuffle #(WIDTH, BITS) u_mux_shuffle(in, shuffled);
+	mux_one #(WIDTH) u_mux_one [BITS-1:0] (shuffled, sel, out);
+endmodule

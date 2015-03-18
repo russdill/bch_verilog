@@ -8,7 +8,7 @@ XFLAGS=\
 	-p $(firstword $($*_PART) $(PART))	\
 	-generics {$(GENERICS) $($*_GENERICS)}	\
 	-define {$(DEFINES) $($*_DEFINES)}	\
-	-loop_iteration_limit 100000		\
+	-loop_iteration_limit 10000000		\
 	-opt_level 2				\
 	-reduce_control_sets no			\
 	-ifmt mixed				\
@@ -96,6 +96,17 @@ xilinx_decoder_VERILOG=\
 	compare_cla.v			\
 	benchmark/xilinx_decoder.v	\
 	bch_error_tmec.v		\
+	bch_chien.v			\
+	bch_sigma_bma_serial.v
+
+xilinx_mdecoder_VERILOG=\
+	$(core_VERILOG)			\
+	$(syndrome_VERILOG)		\
+	compare_cla.v			\
+	benchmark/xilinx_mdecoder.v	\
+	bch_decoder.v			\
+	bch_error_tmec.v		\
+	bch_error_one.v			\
 	bch_chien.v			\
 	bch_sigma_bma_serial.v
 

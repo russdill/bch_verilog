@@ -61,5 +61,10 @@ tb_mult: tb_mult.v bch_math.v matrix.v
 tb_inverter: tb_inverter.v bch_math.v matrix.v
 	$(IVERILOG) $(VFLAGS) $^ -o $@
 
+bch_decoder: bch_decoder.v bch_chien.v bch_error_tmec.v bch_error_one.v \
+	 bch_math.v bch_sigma_bma_serial.v bch_syndrome_method1.v \
+	 bch_syndrome_method2.v bch_syndrome.v compare_cla.v util.v matrix.v
+	 $(IVERILOG) $(VFLAGS) $^ -o $@
+
 clean:
 	-rm -f $(BINS)
