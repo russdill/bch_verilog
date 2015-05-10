@@ -28,7 +28,7 @@ ifdef REG_RATIO
 OREG_RATIO = -Ptb_sim.REG_RATIO=$(REG_RATIO)
 endif
 
-all: $(BINS)
+all: tb_sim
 V=\
 bch_chien.v \
 bch_encode.v \
