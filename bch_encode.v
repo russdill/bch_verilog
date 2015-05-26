@@ -160,7 +160,10 @@ module bch_encode #(
 	assign first = PIPELINE_STAGES ? start_last : (start && !busy);
 	assign data_bits = (start && !PIPELINE_STAGES) || load_lfsr;
 	assign ecc_bits = (busy || last) && !data_bits;
-	assign output_mask = last ? {{RUNT{1'b1}}, {REM{1'b0}}} : {BITS{1'b1}};
+	if (REM)
+		assign output_mask = last ? {{RUNT{1'b1}}, {REM{1'b0}}} : {BITS{1'b1}};
+	else
+		assign output_mask = {BITS{1'b1}};
 	assign data_out = data_bits ? data_in_pipelined : (lfsr_input & output_mask);
 	assign ready = !busy;
 
