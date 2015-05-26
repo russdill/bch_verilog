@@ -7,6 +7,7 @@
 `timescale 1ns / 1ps
 
 `include "config.vh"
+`include "bch_defs.vh"
 
 /*
  * Calculate syndrome method 1:
