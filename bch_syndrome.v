@@ -23,10 +23,12 @@ module bch_syndrome #(
 	output [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
 	output reg done = 0
 );
+	localparam M = `BCH_M(P);
+	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
+
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
-	localparam M = `BCH_M(P);
 
 	genvar idx;
 
@@ -34,7 +36,6 @@ module bch_syndrome #(
 	localparam DONE = lfsr_count(M, CYCLES - 2);
 	localparam REM = `BCH_CODE_BITS(P) % BITS;
 	localparam RUNT = BITS - REM;
-	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
 	localparam SYN_COUNT = TBL[0+:`MAX_M];
 
 	wire [M-1:0] count;
@@ -146,14 +147,15 @@ module bch_syndrome_shuffle #(
 	input start,		/* Accept first syndrome bit */
 	input ce,		/* Shuffle cycle */
 	input [`BCH_SYNDROMES_SZ(P)-1:0] syndromes,
-	output reg [(2*T-1)*M-1:0] syn_shuffled = 0
+	output reg [(2*`BCH_T(P)-1)*`BCH_M(P)-1:0] syn_shuffled = 0
 );
+	localparam M = `BCH_M(P);
+	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
+
 	`include "bch_syndrome.vh"
 
 	localparam TCQ = 1;
-	localparam M = `BCH_M(P);
 	localparam T = `BCH_T(P);
-	localparam [`MAX_M*(1<<(`MAX_M-1))-1:0] TBL = syndrome_build_table(M, `BCH_T(P));
 
 	genvar i;
 

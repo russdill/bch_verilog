@@ -35,7 +35,7 @@ module dsynN_method1 #(
 						 * two pipeline stages */
 	input ce,
 	input [BITS-1:0] data_pipelined,	/* One stage delay (if necessary) */
-	output reg [M-1:0] synN = 0
+	output reg [`BCH_M(P)-1:0] synN = 0
 );
 	`include "bch.vh"
 
@@ -138,8 +138,8 @@ endmodule
 module syndrome_expand_method1 #(
 	parameter [`BCH_PARAM_SZ-1:0] P = `BCH_SANE
 ) (
-	input [M-1:0] in,
-	output [M-1:0] out
+	input [`BCH_M(P)-1:0] in,
+	output [`BCH_M(P)-1:0] out
 );
 	localparam M = `BCH_M(P);
 	assign out = in;

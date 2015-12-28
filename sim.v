@@ -67,7 +67,6 @@ wire errors_present;
 wire errors_present_done;
 wire [`BCH_ERR_SZ(P)-1:0] err_count;
 
-assign ready = encode_ready && encode_ce;
 
 localparam STACK_SZ = 16;
 
@@ -97,10 +96,18 @@ begin
 end
 endfunction
 
+/* Don't assert start until we get the ready signal */
+wire syndrome_start = encoded_first && syndrome_ready;
+/* Keep adding data until the next stage is busy */
+wire syndrome_ce = !syn_done || key_ready;
+wire syndrome_accepted = syndrome_start && syndrome_ce;
+
 /* Don't assert start until we get the ready signal*/
 wire encode_ce = (!encoded_first || syndrome_ready) && syndrome_ce;
 /* Keep adding data until the decoder is busy */
 wire encode_accepted = encode_start && encode_ready && encode_ce;
+
+assign ready = encode_ready && encode_ce;
 
 always @(posedge clk) begin
 	if (encode_accepted) begin
@@ -155,12 +162,6 @@ bch_blank_ecc #(P, BITS) u_encode_blank(
 );
 
 assign encoded_data_xor = ecc_bits ? (encoded_data ^ xor_out) : encoded_data;
-
-/* Don't assert start until we get the ready signal */
-wire syndrome_start = encoded_first && syndrome_ready;
-/* Keep adding data until the next stage is busy */
-wire syndrome_ce = !syn_done || key_ready;
-wire syndrome_accepted = syndrome_start && syndrome_ce;
 
 wire [BITS-1:0] flip_err = reverse((syndrome_start && encode_accepted) ? error[BITS-1:0] : flip_buf[BITS-1:0]);
 

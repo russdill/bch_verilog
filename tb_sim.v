@@ -6,7 +6,7 @@
  */
 `timescale 1ns / 1ps
 
-module tb_sim();
+module tb_sim;
 
 `include "bch_params.vh"
 
