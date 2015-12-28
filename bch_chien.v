@@ -18,8 +18,8 @@ module bch_chien_reg #(
 ) (
 	input clk,
 	input start,
-	input [M-1:0] in,
-	output reg [M-1:0] out = 0
+	input [`BCH_M(P)-1:0] in,
+	output reg [`BCH_M(P)-1:0] out = 0
 );
 	`include "bch.vh"
 
@@ -67,8 +67,8 @@ module bch_chien_expand #(
 	parameter REG = 1,
 	parameter SKIP = 1
 ) (
-	input [M-1:0] in,
-	output [M-1:0] out
+	input [`BCH_M(P)-1:0] in,
+	output [`BCH_M(P)-1:0] out
 );
 	`include "bch.vh"
 

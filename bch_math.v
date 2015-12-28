@@ -282,7 +282,7 @@ module parallel_mixed_multiplier_const_dual #(
 	endfunction
 
 	/* Perform matrix multiplication of terms */
-	compact_const_matrix_multiply #(M, gen_matrix(0)) u_mult(standard_in, dual_out);
+	compact_const_matrix_multiply #(.C(M), .MATRIX(gen_matrix(0))) u_mult(standard_in, dual_out);
 endmodule
 
 module parallel_mixed_multiplier_const_standard #(
@@ -348,7 +348,7 @@ module parallel_standard_multiplier_const1 #(
 	end
 	endfunction
 
-	const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
+	const_matrix_multiplyT #(.C(M), .MATRIX(gen_matrix(0))) u_mult(standard_in, standard_out);
 endmodule
 
 module parallel_standard_multiplier_const2 #(
@@ -367,7 +367,7 @@ module parallel_standard_multiplier_const2 #(
 	end
 	endfunction
 
-	const_vector_multiplyT #(M, STANDARD_IN2) u_mult(gen_matrix(standard_in), standard_out);
+	const_vector_multiplyT #(.C(M), .VECTOR(STANDARD_IN2)) u_mult(gen_matrix(standard_in), standard_out);
 endmodule
 
 /*
@@ -435,7 +435,7 @@ module parallel_standard_power #(
 	endfunction
 
 	if (`CONFIG_CONST_OP)
-		const_matrix_multiplyT #(M, gen_matrix(0)) u_mult(standard_in, standard_out);
+		const_matrix_multiplyT #(.C(M), .MATRIX(gen_matrix(0))) u_mult(standard_in, standard_out);
 	else
 		matrix_vector_multiplyT #(M) u_mult(gen_matrix(0), standard_in, standard_out);
 endmodule

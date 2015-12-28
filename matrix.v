@@ -32,14 +32,14 @@ endmodule
 
 module compact_const_matrix_multiply #(
 	parameter C = 4,
-	parameter [C+R-2:0] MATRIX = 0,
-	parameter R = C
+	parameter R = C,
+	parameter [C+R-2:0] MATRIX = 0
 ) (
 	input [C-1:0] vector,
 	output [R-1:0] out
 );
 	`include "matrix.vh"
-	const_matrix_multiply #(R, expand_matrix(MATRIX), C) u_mult(vector, out);
+	const_matrix_multiply #(.C(R), .MATRIX(expand_matrix(MATRIX)), .R(C)) u_mult(vector, out);
 endmodule
 
 module matrix_vector_multiplyT #(
@@ -75,14 +75,14 @@ endmodule
  */
 module const_matrix_multiplyT #(
 	parameter C = 4,
-	parameter [R*C-1:0] MATRIX = 0,
-	parameter R = C
+	parameter R = C,
+	parameter [R*C-1:0] MATRIX = 0
 ) (
 	input [C-1:0] vector,
 	output [R-1:0] out
 );
 	`include "matrix.vh"
-	const_matrix_multiply #(R, rotate_matrix(MATRIX), C) u_mult(vector, out);
+	const_matrix_multiply #(.C(R), .MATRIX(rotate_matrix(MATRIX)), .R(C)) u_mult(vector, out);
 endmodule
 
 /*
@@ -91,8 +91,8 @@ endmodule
  */
 module const_matrix_multiply #(
 	parameter C = 4,
-	parameter [C*R-1:0] MATRIX = 0,
-	parameter R = C
+	parameter R = C,
+	parameter [C*R-1:0] MATRIX = 0
 ) (
 	input [R-1:0] vector,
 	output [C-1:0] out
@@ -151,8 +151,8 @@ endmodule
  */
 module const_vector_multiplyT #(
 	parameter C = 4,
-	parameter [R-1:0] VECTOR = 0,
-	parameter R = C
+	parameter R = C,
+	parameter [R-1:0] VECTOR = 0
 ) (
 	input [C*R-1:0] matrix,
 	output [C-1:0] out

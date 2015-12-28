@@ -17,7 +17,7 @@ module bch_error_one #(
 ) (
 	input clk,
 	input start,			/* Latch inputs, start calculating */
-	input [M*2-1:0] sigma,
+	input [`BCH_M(P)*2-1:0] sigma,
 	output first,			/* First valid output data */
 	output [BITS-1:0] err
 );

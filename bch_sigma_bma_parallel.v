@@ -41,6 +41,7 @@ module bch_sigma_bma_parallel #(
 	reg busy = 0;
 	wire bsel;
 	reg [`BCH_ERR_SZ(P)-1:0] l = 0;
+	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
 	assign bsel = |d_r && bch_n >= err_count;
 
 	/* beta(1)(x) = syn1 ? x^2 : x^3 */
@@ -51,7 +52,6 @@ module bch_sigma_bma_parallel #(
 	wire [M*2-1:0] sigma0;
 	assign sigma0 = {syn1, {M-1{1'b0}}, 1'b1};
 
-	wire [`BCH_ERR_SZ(P)-1:0] bch_n;
 	counter #(T+1) u_bch_n_counter(
 		.clk(clk),
 		.reset(start),

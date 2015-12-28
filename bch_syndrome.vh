@@ -63,10 +63,10 @@ function integer syndrome_method;
 	integer i;
 	integer first_way;
 begin
-	s_degree = syndrome_degree(M, s);
+	s_degree = syndrome_degree(`BCH_M(P), s);
 
 	/* We must use the first method if syndrome size is full */
-	first_way = s_degree == M;
+	first_way = s_degree == `BCH_M(P);
 	done = !first_way;
 
 	for (i = s + 1; !done && i <= 2 * t - 1; i = i + 1) begin
