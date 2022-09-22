@@ -65,6 +65,7 @@ module bch_decoder #(
 	reg errors_present_done_sticky = 0;
 	wire errors_present;
 	wire [`BCH_SYNDROMES_SZ(BCH_PARAMS)-1:0] syndrome_sel;
+	wire [NKEY-1:0] key_ready;
 
 	mux #(NCHANNEL, `BCH_SYNDROMES_SZ(BCH_PARAMS)) u_syndrome_mux (
 		.in(syndromes),
@@ -132,7 +133,6 @@ module bch_decoder #(
 	end
 	endgenerate
 
-	wire [NKEY-1:0] key_ready;
 	wire [NKEY-1:0] key_done;
 	wire [NKEY*`BCH_SIGMA_SZ(BCH_PARAMS)-1:0] sigma;
 	wire [NKEY*`BCH_ERR_SZ(BCH_PARAMS)-1:0] err_count;
